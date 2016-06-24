@@ -17,7 +17,7 @@ public class CorpusBuilder {
       
       while ((line = reader.readLine()) != null) {
         String[] splitLine = line.split("\t");
-        if (splitLine.length != 4) {
+        if (splitLine.length != 5) {
           throw new Error("length " + splitLine.length + " at " + splitLine[0]);
         }
         processLine(Long.parseLong(splitLine[0]), splitLine[1].split(" "));

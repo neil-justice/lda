@@ -15,11 +15,11 @@ public class TextCleaner {
   private final List<String> searchterms = new ArrayList<String>();
   
   public TextCleaner() {
-    ListLoader.load(LDA.searchterms, searchterms);
+    FileLoader.loadList(LDA.searchterms, searchterms);
   }
   
   public void clean(String in, String dir) {
-    ListLoader.process(in, dir + LDA.cleanedFile, this::lineOperation);
+    FileLoader.processFile(in, dir + LDA.cleanedFile, this::lineOperation);
 
     wordfreqs.write(dir);
     tagfreqs.write(dir, "tagfreqs.txt");
@@ -108,7 +108,10 @@ public class TextCleaner {
     List<String> found = new ArrayList<String>();
     found.add(" ");
     for (String term: searchterms) {
-      if (text.contains(term)) found.add(term);
+      if (text.contains(term)) {
+        found.add(term);
+        termfreqs.add(term);
+      }
     }
     
     return String.join(" ", found);

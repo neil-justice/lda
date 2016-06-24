@@ -6,23 +6,23 @@ class Preprocessor {
   
   private final WordFrequencyList wordfreqs = new WordFrequencyList();
   private final Set<String> toRemove = new HashSet<String>();
-  // private final Set<String> doNotRemove = new HashSet<String>();
+  private final Set<String> doNotRemove = new HashSet<String>();
   private final int minFreq = 64;
   private final int maxFreq = 1000000;
   
   public void process(String dir) {
     wordfreqs.load(dir);
     buildRemovalList();
-    System.out.println(toRemove.size() + " / " + wordfreqs.size());
+    System.out.println(toRemove.size() + " / " + wordfreqs.size() + " to be removed");
     wordfreqs.removeAll(toRemove);
     wordfreqs.write(dir);
-    ListLoader.process(dir + LDA.cleanedFile, dir + LDA.processedFile, this::removeWords);
+    FileLoader.processFile(dir + LDA.cleanedFile, dir + LDA.processedFile, this::removeWords);
   }
   
   private void buildRemovalList() {
     
-    ListLoader.load(LDA.stopwords, toRemove);
-    // ListLoader.load(LDA.searchterms, doNotRemove);
+    FileLoader.loadList(LDA.stopwords, toRemove);
+    FileLoader.loadList(LDA.searchterms, doNotRemove);
     
     for (Map.Entry<String, Integer> e: wordfreqs.entrySet()) {
       String word = e.getKey();
@@ -32,7 +32,7 @@ class Preprocessor {
       if (word.length() <= 2) toRemove.add(word);
     }
     
-    // toRemove.removeAll(doNotRemove);
+    toRemove.removeAll(doNotRemove);
   }
   
   private String removeWords(String in){

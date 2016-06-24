@@ -16,15 +16,15 @@ class LDA {
   private void run(String[] args) {
     if (args.length < 1) throw new Error("Arguments required");
     if ("-t".equals(args[0])) test();
+    FileManager fm = new FileManager(args);
 
     switch(args[0]) {
       case "-p":
-        String dir = FileManager.prepareDirectory(args);
-        clean(args[1], dir);
-        process(dir);
+        clean(fm.filepath(), fm.dir());
+        process(fm.dir());
         break;
       case "-l":
-        run(args[1]);
+        run(fm.filepath());
         break;
       default:
     }

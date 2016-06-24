@@ -3,28 +3,36 @@ import java.nio.file.*;
 
 public class FileManager {
   
-  public static String prepareDirectory(String[] args) {
+  private final String filename;
+  private final String filepath;
+  private final String dir;
+  
+  public FileManager(String[] args) {
     Path p = checkFilename(args);
-
-    String filename = p.getFileName().toString();
-    if (filename.indexOf(".") > 0) {
-      filename = filename.substring(0, filename.lastIndexOf("."));
-    }
+    String filenameWithExt = p.getFileName().toString();
+    filepath = args[1];
     
-    String dir = "out/" + filename + "/";
+    if (filenameWithExt.indexOf(".") > 0) {
+      filename = filenameWithExt.substring(0, filenameWithExt.lastIndexOf("."));
+    }
+    else filename = filenameWithExt;
+    
+    dir = "out/" + filename + "/";
     File file = new File(dir);
 
     file.mkdir();
     if (!file.isDirectory()) throw new Error("Directory creation failed");
-    
-    return dir;
   }
   
-  private static Path checkFilename(String[] args) {
+  private Path checkFilename(String[] args) {
     if (args.length < 2) throw new Error("Please provide a file name");
     Path p = Paths.get(args[1]);
     if (!p.toFile().exists()) throw new Error("Missing input file");
     
     return p;
   }
+ 
+ public String dir() { return dir; }
+ public String filename() { return filename; }
+ public String filepath() { return filepath; }
 }
