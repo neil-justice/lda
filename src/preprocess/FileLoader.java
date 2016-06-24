@@ -3,17 +3,19 @@ import java.util.*;
 
 public class FileLoader {
   
-  public static void loadList(String filename, Collection<String> coll) {
+  public static void loadList(String in, Collection<String> coll) {
     try {
-      BufferedReader reader = new BufferedReader(new FileReader(new File(filename)));
+      BufferedReader reader = new BufferedReader(new FileReader(new File(in)));
       String line;
       
       while ((line = reader.readLine()) != null) {
         coll.add(line.toLowerCase());
       }
-    } catch(Exception e) {
-      throw new Error("file not found");
-    }
+    } catch (FileNotFoundException e) {
+      throw new Error("input file not found at " + in);
+    } catch (IOException e) {
+      throw new Error("IO error");
+    } 
   }
   
   public static void processFile(String in, String out, LineOperator op) {

@@ -1,6 +1,4 @@
-import java.io.*;
 import java.util.*;
-import tester.Tester;
 
 class Preprocessor {
   
@@ -9,14 +7,17 @@ class Preprocessor {
   private final Set<String> doNotRemove = new HashSet<String>();
   private final int minFreq = 64;
   private final int maxFreq = 1000000;
+  private int tokenCount = 0;
+  private int totalCount = 0;
   
   public void process(String dir) {
     wordfreqs.load(dir);
     buildRemovalList();
-    System.out.println(toRemove.size() + " / " + wordfreqs.size() + " to be removed");
+    System.out.println(toRemove.size() + " / " + wordfreqs.size() + " words to be removed");
     wordfreqs.removeAll(toRemove);
     wordfreqs.write(dir);
     FileLoader.processFile(dir + LDA.cleanedFile, dir + LDA.processedFile, this::removeWords);
+    System.out.println(tokenCount + " tokens kept out of " + totalCount);
   }
   
   private void buildRemovalList() {
@@ -53,6 +54,8 @@ class Preprocessor {
       if (wordfreqs.contains(s)) out.add(s);
     }
     
+    tokenCount += out.size();
+    totalCount += splitText.length;
     return String.join(" ", out);
   }
 }

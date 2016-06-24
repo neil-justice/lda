@@ -2,7 +2,6 @@
  * and removes web addresses.  It also builds the word frequency list and
  * exports it.  */
 
-import java.io.*;
 import java.util.*;
 import tester.Tester;
 
