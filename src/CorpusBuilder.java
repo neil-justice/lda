@@ -8,6 +8,7 @@ public class CorpusBuilder {
   private final TLongArrayList documents = new TLongArrayList();
   private final TObjectIntHashMap<String> words = new TObjectIntHashMap<>();
   private final Tokens tokens = new Tokens();
+  private int tokenCount = 0;
   
   public CorpusBuilder fromFile(String dir){
     try {
@@ -32,8 +33,21 @@ public class CorpusBuilder {
       throw new Error("IO error");
     }
     
+    writeDB();
     tokens.shuffle();
     return this;
+  }
+  
+  private void writeDB() {
+    SQLConnector c = new SQLConnector();
+    c.open();
+    
+    try {
+      c.buildDocumentDictionary(documents);
+      c.buildWordDictionary(words);
+      } finally {
+      c.close();
+    }    
   }
   
   private void processLine(long id, String[] tokens) {
@@ -54,6 +68,7 @@ public class CorpusBuilder {
     }
     else in = words.get(word);
     tokens.add(in, doc);
+    tokenCount++;
   }
   
   public Tokens tokens() { return tokens; }
