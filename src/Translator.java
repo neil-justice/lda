@@ -4,21 +4,23 @@ import gnu.trove.iterator.*;
 import gnu.trove.list.array.TLongArrayList;
 
 public class Translator {
+  private final SQLConnector c;
   
-  // is the other way round from the input map:
-  private final TIntObjectHashMap<String> words = new TIntObjectHashMap<>();
-  private final TLongArrayList documents;
-
-  public Translator(TObjectIntHashMap<String> inmap, 
-                    TLongArrayList documents) {
-    for ( TObjectIntIterator<String> it = inmap.iterator(); it.hasNext(); ) {
-      it.advance();
-      words.put(it.value(),it.key());
+  public Translator() {
+    c = new SQLConnector();
+    c.open();
+    
+    try {
+      c.buildDocumentDictionary(documents);
+      c.buildWordDictionary(words);
+      } finally {
+      c.close();
     }
-    this.documents = documents;
   }
   
   public String getWord(int i) { return words.get(i); }
   
   public Long getDoc(int i) { return documents.get(i); }
+  
+  public close() { c.close; }
 }

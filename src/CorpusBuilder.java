@@ -47,7 +47,7 @@ public class CorpusBuilder {
       c.buildWordDictionary(words);
       } finally {
       c.close();
-    }    
+    }
   }
   
   private void processLine(long id, String[] tokens) {
@@ -72,8 +72,6 @@ public class CorpusBuilder {
   }
   
   public Tokens tokens() { return tokens; }
-  public TObjectIntHashMap<String> words() { return words; }
-  public TLongArrayList documents() { return documents; }
   public int wordCount() { return words.size(); }
   public int docCount() { return documents.size(); }
   public int tokenCount() { return tokens.size(); }

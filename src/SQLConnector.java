@@ -76,6 +76,40 @@ public class SQLConnector implements AutoCloseable {
       System.out.println(e.getMessage());
     }
   }
+  
+  public TIntObjectHashMap<String> getWords(TIntArrayList wordIDs) {
+    if (c == null) { throw new IllegalStateException(); }
+    final String cmd = "SELECT * FROM Word WHERE Word.id IN ";
+    TIntObjectHashMap<String> words = new TIntObjectHashMap<String>();
+
+    try (PreparedStatement s = c.prepareStatement(cmd)) {
+      try (ResultSet r = s.executeQuery()) {
+        while (r.next()) {
+          words.put(r.getInt("id"), r.getString("word"));
+        }
+        return words;
+      }
+    } catch (SQLException e) {
+      throw new RuntimeException();
+    }
+  }
+  
+  public TIntLongHashMap getDocs(TIntArrayList wordIDs) {
+    if (c == null) { throw new IllegalStateException(); }
+    final String cmd = "SELECT * FROM ";
+    TIntLongHashMap docs = new TIntLongHashMap();
+
+    try (PreparedStatement s = c.prepareStatement(cmd)) {
+      try (ResultSet r = s.executeQuery()) {
+        while (r.next()) {
+          words.put(r.getInt("id"), r.getString("doc"));
+        }
+        return words;
+      }
+    } catch (SQLException e) {
+      throw new RuntimeException();
+    }
+  }  
 
   public void setCacheSize(int pages) {
     try {

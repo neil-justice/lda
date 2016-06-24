@@ -21,7 +21,7 @@ public class Corpus {
     wordCount = builder.wordCount();
     docCount = builder.docCount();
     tokenCount = builder.tokenCount();
-    translator = new Translator(builder.words(), builder.documents());
+    translator = new Translator();
     
     wordsInTopic = new int[wordCount][topicCount];
     topicsInDoc = new int[topicCount][docCount];
