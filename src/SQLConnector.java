@@ -79,7 +79,7 @@ public class SQLConnector implements AutoCloseable {
   
   public TIntObjectHashMap<String> getWords(TIntArrayList wordIDs) {
     if (c == null) { throw new IllegalStateException(); }
-    final String cmd = "SELECT * FROM Word WHERE Word.id IN ";
+    final String cmd = buildStringList("SELECT * FROM Word WHERE Word.id IN ", wordIDs);
     TIntObjectHashMap<String> words = new TIntObjectHashMap<String>();
 
     try (PreparedStatement s = c.prepareStatement(cmd)) {
@@ -94,9 +94,9 @@ public class SQLConnector implements AutoCloseable {
     }
   }
   
-  public TIntLongHashMap getDocs(TIntArrayList wordIDs) {
+  public TIntLongHashMap getDocs(TIntArrayList docIDs) {
     if (c == null) { throw new IllegalStateException(); }
-    final String cmd = "SELECT * FROM ";
+    final String cmd = buildStringList("SELECT * FROM Doc WHERE Doc.id IN ", docIDs);
     TIntLongHashMap docs = new TIntLongHashMap();
 
     try (PreparedStatement s = c.prepareStatement(cmd)) {
@@ -109,7 +109,11 @@ public class SQLConnector implements AutoCloseable {
     } catch (SQLException e) {
       throw new RuntimeException();
     }
-  }  
+  }
+  
+  private String buildStringList(String start, TIntArrayList list) {
+    return "";
+  }
 
   public void setCacheSize(int pages) {
     try {

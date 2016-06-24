@@ -9,18 +9,16 @@ public class Translator {
   public Translator() {
     c = new SQLConnector();
     c.open();
-    
-    try {
-      c.buildDocumentDictionary(documents);
-      c.buildWordDictionary(words);
-      } finally {
-      c.close();
-    }
+
   }
   
-  public String getWord(int i) { return words.get(i); }
+  public TIntObjectHashMap<String> getWords(TIntArrayList wordIDs) {
+    return null;
+  }
   
-  public Long getDoc(int i) { return documents.get(i); }
+  public TIntLongHashMap getDocs(TIntArrayList docIDs) {
+    return null;
+  }
   
   public close() { c.close; }
 }
