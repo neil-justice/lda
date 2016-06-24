@@ -2,7 +2,7 @@ import java.util.*;
 
 public class Corpus {
   
-  private final List<Token> tokens;
+  private final Tokens tokens;
   private final Translator translator; // used to translate from ID to word/doc
   private final Random rand = new Random();
   private final int wordCount;              // no. of unique words
@@ -37,21 +37,22 @@ public class Corpus {
     initialiseMatrices();
     for (int i = 0; i < cycles; i++) {
       cycle();
+      System.out.println("cycle " + i);
     }
     print();
     termScore();
   }
   
   private void cycle() {
-    for (Token token: tokens) {
-      int word = token.word();
-      int oldTopic = token.topic();
-      int doc = token.doc();
+    for (int i = 0; i < tokenCount; i++) {
+      int word = tokens.word(i);
+      int oldTopic = tokens.topic(i);
+      int doc = tokens.doc(i);
       
       tokensInTopic[oldTopic]--;      
       wordsInTopic[word][oldTopic]--;
       topicsInDoc[oldTopic][doc]--;
-      token.setTopic(-1);
+      tokens.setTopic(i, -1);
       
       double[] probabilities = new double[topicCount];
       double sum = 0;
@@ -74,16 +75,16 @@ public class Corpus {
       tokensInTopic[newTopic]++;      
       wordsInTopic[word][newTopic]++;
       topicsInDoc[newTopic][doc]++;
-      token.setTopic(newTopic);
+      tokens.setTopic(i, newTopic);
     }
   }
   
   // Initialises all tokens with a randomly selected topic.
   private void assignInitialTopics() {
     Random rand = new Random();
-    for (Token token: tokens) {
+    for (int i = 0; i < tokenCount; i++) {
       int topic = rand.nextInt(topicCount);
-      token.setTopic(topic);
+      tokens.setTopic(i, topic);
       tokensInTopic[topic]++;
     }
   }
@@ -92,10 +93,10 @@ public class Corpus {
   // and the matrix of topic occurrence count in document
   private void initialiseMatrices() {
     int count = 0;
-    for (Token token: tokens) {
-      int word = token.word();
-      int topic = token.topic();
-      int doc = token.doc();
+    for (int i = 0; i < tokenCount; i++) {
+      int word = tokens.word(i);
+      int topic = tokens.topic(i);
+      int doc = tokens.doc(i);
       wordsInTopic[word][topic]++;
       topicsInDoc[topic][doc]++;
       count++;

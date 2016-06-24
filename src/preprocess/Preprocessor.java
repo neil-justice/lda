@@ -6,7 +6,7 @@ class Preprocessor {
   
   private final WordFrequencyList wordfreqs = new WordFrequencyList();
   private final Set<String> toRemove = new HashSet<String>();
-  private final Set<String> doNotRemove = new HashSet<String>();
+  // private final Set<String> doNotRemove = new HashSet<String>();
   private final int minFreq = 64;
   private final int maxFreq = 1000000;
   
@@ -21,9 +21,8 @@ class Preprocessor {
   
   private void buildRemovalList() {
     
-    loadList(LDA.stopwords, toRemove);
-    loadList(LDA.gowords, doNotRemove);
-    // loadList(LDA.gowords, toRemove);
+    ListLoader.load(LDA.stopwords, toRemove);
+    // ListLoader.load(LDA.searchterms, doNotRemove);
     
     for (Map.Entry<String, Integer> e: wordfreqs.entrySet()) {
       String word = e.getKey();
@@ -31,23 +30,9 @@ class Preprocessor {
       if (freq < minFreq) toRemove.add(word);
       if (freq > maxFreq) toRemove.add(word);
       if (word.length() <= 2) toRemove.add(word);
-      // if (word.startsWith("@") && freq < 2000) toRemove.add(word);
     }
     
-    toRemove.removeAll(doNotRemove);
-  }
-  
-  private void loadList(String filename, Collection<String> coll) {
-    try {
-      BufferedReader reader = new BufferedReader(new FileReader(new File(filename)));
-      String line;
-      
-      while ((line = reader.readLine()) != null) {
-        coll.add(line.toLowerCase());
-      }
-    } catch(Exception e) {
-      throw new Error("file not found");
-    }
+    // toRemove.removeAll(doNotRemove);
   }
   
   private void removeWords(String dir){

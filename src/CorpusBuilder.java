@@ -1,12 +1,13 @@
 import java.util.*;
 import java.io.*;
 import gnu.trove.map.hash.*;
+import gnu.trove.list.array.TLongArrayList;
 
 public class CorpusBuilder {
   
-  private final List<Long> documents = new ArrayList<Long>();
+  private final TLongArrayList documents = new TLongArrayList();
   private final TObjectIntHashMap<String> words = new TObjectIntHashMap<>();
-  private final List<Token> tokens = new ArrayList<Token>();
+  private final Tokens tokens = new Tokens();
   
   public CorpusBuilder fromFile(String dir){
     try {
@@ -21,7 +22,7 @@ public class CorpusBuilder {
         }
         processLine(Long.parseLong(splitLine[0]), splitLine[1].split(" "));
         i++;
-        if (i % 100 == 0) System.out.println(i + " lines read");
+        if (i % 1000 == 0) System.out.println(i + " documents loaded");
       }
     } catch(NumberFormatException e) {
       throw new Error("invalid doc ID");
@@ -31,7 +32,7 @@ public class CorpusBuilder {
       throw new Error("IO error");
     }
     
-    Collections.shuffle(tokens);
+    tokens.shuffle();
     return this;
   }
   
@@ -52,12 +53,12 @@ public class CorpusBuilder {
       words.put(word, in);
     }
     else in = words.get(word);
-    tokens.add(new Token(in, doc));
+    tokens.add(in, doc);
   }
   
-  public List<Token> tokens() { return tokens; }
+  public Tokens tokens() { return tokens; }
   public TObjectIntHashMap<String> words() { return words; }
-  public List<Long> documents() { return documents; }
+  public TLongArrayList documents() { return documents; }
   public int wordCount() { return words.size(); }
   public int docCount() { return documents.size(); }
   public int tokenCount() { return tokens.size(); }

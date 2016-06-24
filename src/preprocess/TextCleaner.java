@@ -11,6 +11,12 @@ public class TextCleaner {
   private final WordFrequencyList wordfreqs = new WordFrequencyList();
   private final WordFrequencyList tagfreqs = new WordFrequencyList();
   private final WordFrequencyList mentionfreqs = new WordFrequencyList();
+  private final WordFrequencyList termfreqs = new WordFrequencyList();
+  private final List<String> searchterms = new ArrayList<String>();
+  
+  public TextCleaner() {
+    ListLoader.load(LDA.searchterms, searchterms);
+  }
   
   public void clean(String in, String dir) {
     try {
@@ -34,6 +40,7 @@ public class TextCleaner {
       wordfreqs.write(dir);
       tagfreqs.write(dir, "tagfreqs.txt");
       mentionfreqs.write(dir, "mentionfreqs.txt");
+      termfreqs.write(dir, "termfreqs.txt");
     } catch (FileNotFoundException e) {
       throw new Error("input file not found at " + in);
     } catch (IOException e) {
@@ -44,44 +51,51 @@ public class TextCleaner {
   private String cleanLine(String id, String text) {
     text = text.toLowerCase();
     text = removeURLs(text);
-    
-    String[] words = text.split("[^@#a-zA-Z0-9_]");
-    String tags = getTokens("#", tagfreqs, words);
-    String mentions = getTokens("@", mentionfreqs, words);
-    
-    text = removeTokens("@", text);
-    text = removeTokens("#", text);
     text = removePunctuation(text);
+    
+    
+    String tags = getTokensStartingWith("#", tagfreqs, text);
+    String mentions = getTokensStartingWith("@", mentionfreqs, text);
+    String terms = getSearchTerms(text)
+    text = removeTokensStartingWith("@", text);
+    text = removeTokensStartingWith("#", text);
+    text = removeSearchTerms(text);
+    
     text = collapseWhitespace(text);
+    
+    String terms = getSearchTerms(text);
     
     buildFrequencyList(text);
     
-    return id + "\t" + text + "\t" + tags + "\t" + mentions;
+    return id + "\t" + text + "\t" + tags + "\t" + mentions + "\t" + terms;
   }
   
-  // Remove urls:
+  // Remove urls:.  should be done before removing punctuation or they are hard
+  // to find.
   private String removeURLs(String text) {
     return text.replaceAll("\\S+://\\S+", "");
   }
   
-  // remove mentions after grabbing them
-  private String removeTokens(String startChar, String text) {
-    return text.replaceAll(startChar + "[a-zA-Z0-9_]+", "");
-  }
   
-  // Remove punctuation.  must happen after url and hashtag removal
+  // Remove punctuation.  must happen after url and hashtag removal.  Some
+  // are replaced with spaces, and some not, since typically characters like
+  // apostrophes and dashes do not mark word endings.
   private String removePunctuation(String text) {
     text = text.replaceAll("[!,.?/:;-]", " ");
-    return text.replaceAll("[^a-zA-Z0-9_@ ]", "");
+    return text.replaceAll("[^a-zA-Z0-9_ ]", "");
   }
   
   // Hashtags must start with a space, then a hash.
   // Any punctuation ends the hashtag.
   // Hashtags are not case-sensitive.
   // Mentions obey the same rules but with '@'
-  private String getTokens(String startChar, WordFrequencyList freqList, String... words) {
+  private String getTokensStartingWith(String startChar, 
+                                       WordFrequencyList freqList, 
+                                       String text) {
+
     List<String> tokens = new ArrayList<String>();
     tokens.add(" ");
+    String[] words = text.split(" ");
     
     for (String word: words) {
       if (word.startsWith(startChar)) {
@@ -93,15 +107,43 @@ public class TextCleaner {
     return String.join(" ", tokens);
   }
   
+  // remove mentions after grabbing them
+  private String removeTokensStartingWith(String startChar, String text) {
+    return text.replaceAll(startChar + "[a-zA-Z0-9_]+", "");
+  }
+  
   private String collapseWhitespace(String text) {
     return text.trim().replaceAll(" +", " ");
   }
   
   private void buildFrequencyList(String text) {
-    String[] splitText = text.split(" ");
-    for (String s: splitText) {
+    String[] words = text.split(" ");
+    for (String word: words) {
       wordfreqs.add(s);
     }
+  }
+  
+  private String getSearchTerms(String text) {
+    List<String> found = new ArrayList<String>();
+
+    for (String term: searchterms) {
+      if (word.contains(term)) found.add(term);
+    }
+    
+    return String.join(" ", found);
+  }
+  
+  private String removeSearchTerms(String text, List<String> termsFound) {
+    String[] words = text.split(" ");
+    List<String> ret = new ArrayList<String>();
+    
+    for (String word: words) {
+      for (String term: termsFound) {
+        if (!word.contains(term)) ret.add(word); //this will not work - will add everything
+      }
+    }
+    
+    return String.join(" ", ret);
   }
   
   public static void main(String[] args) {

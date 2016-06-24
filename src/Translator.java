@@ -1,18 +1,21 @@
 import java.util.*;
 import gnu.trove.map.hash.*;
+import gnu.trove.iterator.*;
+import gnu.trove.list.array.TLongArrayList;
 
 public class Translator {
   
-  private final List<Long> documents;
-  private final List<String> words = new ArrayList<String>();
+  // is the other way round from the input map:
+  private final TIntObjectHashMap<String> words = new TIntObjectHashMap<>();
+  private final TLongArrayList documents;
 
-  public Translator(TObjectIntHashMap<String> wordmap, List<Long> documents) {
-    System.out.println("building translator...");
-    // for (int i = 0; i < wordmap.size(); i++) {
-    //   words.add(wordmap.get(i));
-    // }
+  public Translator(TObjectIntHashMap<String> inmap, 
+                    TLongArrayList documents) {
+    for ( TObjectIntIterator<String> it = inmap.iterator(); it.hasNext(); ) {
+      it.advance();
+      words.put(it.value(),it.key());
+    }
     this.documents = documents;
-    System.out.println("translator complete");
   }
   
   public String getWord(int i) { return words.get(i); }
