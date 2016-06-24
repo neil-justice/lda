@@ -15,7 +15,10 @@ class LDA {
     
   private void run(String[] args) {
     if (args.length < 1) throw new Error("Arguments required");
-    if ("-t".equals(args[0])) test();
+    if ("-t".equals(args[0])) {
+      test();
+      return;
+    }
     FileManager fm = new FileManager(args);
 
     switch(args[0]) {

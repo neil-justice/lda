@@ -66,6 +66,10 @@ public class TextCleaner {
     return text.replaceAll("[^a-zA-Z0-9_#@ ]", "");
   }
   
+  private String removeNumbers(String text) {
+    return text.replaceAll("(?<= |^)[0-9]+(?= |$)", "");
+  }
+  
   // Hashtags must start with a space, then a hash.
   // Any punctuation ends the hashtag.
   // Hashtags are not case-sensitive.
@@ -151,6 +155,11 @@ public class TextCleaner {
     t.is("ab", tc.removePunctuation("a¬`¦b"));
     t.is("#a#c", tc.getTokensStartingWith("#", null, "#a he da#bd df #c sfsd ff f"));
     t.is("@a@c", tc.getTokensStartingWith("@", null, "@a he da#bd df @c sfsd ff f"));
+    t.is("",tc.collapseWhitespace(tc.removeNumbers(" 0 ")));
+    t.is("",tc.collapseWhitespace(tc.removeNumbers("0")));
+    t.is("",tc.collapseWhitespace(tc.removeNumbers(" 000 ")));
+    t.is("hell0",tc.collapseWhitespace(tc.removeNumbers("0 1 000 hell0 0")));
+    t.is("0hell",tc.collapseWhitespace(tc.removeNumbers("0 1 000 0hell 0")));
     
     t.results();
   }

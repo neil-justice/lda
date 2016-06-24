@@ -7,8 +7,8 @@ class Preprocessor {
   private final Set<String> doNotRemove = new HashSet<String>();
   private final int minFreq = 64;
   private final int maxFreq = 1000000;
-  private int tokenCount = 0;
-  private int totalCount = 0;
+  private long tokenCount = 0;
+  private long totalCount = 0;
   
   public void process(String dir) {
     wordfreqs.load(dir);
@@ -43,7 +43,7 @@ class Preprocessor {
       throw new Error("length " + sections.length + " at " + sections[0]);
     }
     String processed = processLine(sections[1]);
-    return sections[0] + "\t" + processed + "\t" + sections[2] + "\t" + sections[3] + "\t" + sections[4];
+    return sections[0] + "\t" + processed;// + "\t" + sections[2] + "\t" + sections[3] + "\t" + sections[4];
   }
   
   private String processLine(String text) {
