@@ -5,8 +5,8 @@ class LDA {
   public static final String freqFile = "wordfreqs.txt";
   public static final String cleanedFile = "clean.txt";
   public static final String processedFile = "processed.txt";
-  public static final String stopwords = "data/stopwords.txt";
-  public static final String searchterms = "data/searchterms.txt";
+  public static final String stopwords = "lists/stopwords.txt";
+  public static final String searchterms = "lists/searchterms.txt";
   
   public static void main(String[] args) {
     LDA lda = new LDA();

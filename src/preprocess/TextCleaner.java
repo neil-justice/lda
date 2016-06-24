@@ -19,50 +19,32 @@ public class TextCleaner {
   }
   
   public void clean(String in, String dir) {
-    try {
-      BufferedReader reader = new BufferedReader(new FileReader(new File(in)));
-      BufferedWriter writer = new BufferedWriter(new FileWriter(new File(dir + LDA.cleanedFile)));
-      String line;
-      int cnt = 0;
-      
-      while ((line = reader.readLine()) != null) {
-        cnt++;
-        String[] splitLine = line.split("\t");
-        if (splitLine.length != 2) {
-          throw new Error("length " + splitLine.length + " at " + splitLine[0]);
-        }
-        String clean = cleanLine(splitLine[0], splitLine[1]);
-        writer.write(clean);
-        writer.newLine();
-        if (cnt % 100 == 0) writer.flush();
-      }
-      writer.flush();
-      wordfreqs.write(dir);
-      tagfreqs.write(dir, "tagfreqs.txt");
-      mentionfreqs.write(dir, "mentionfreqs.txt");
-      termfreqs.write(dir, "termfreqs.txt");
-    } catch (FileNotFoundException e) {
-      throw new Error("input file not found at " + in);
-    } catch (IOException e) {
-      throw new Error("IO error");
-    }      
+    ListLoader.process(in, dir + LDA.cleanedFile, this::lineOperation);
+
+    wordfreqs.write(dir);
+    tagfreqs.write(dir, "tagfreqs.txt");
+    mentionfreqs.write(dir, "mentionfreqs.txt");
+    termfreqs.write(dir, "termfreqs.txt");
+  }
+  
+  private String lineOperation(String in) {
+    String[] words = in.split("\t");
+    if (words.length != 2) {
+      throw new Error("length " + words.length + " at " + words[0]);
+    }
+    return cleanLine(words[0], words[1]);
   }
   
   private String cleanLine(String id, String text) {
     text = text.toLowerCase();
     text = removeURLs(text);
     text = removePunctuation(text);
-    
-    
     String tags = getTokensStartingWith("#", tagfreqs, text);
     String mentions = getTokensStartingWith("@", mentionfreqs, text);
-    String terms = getSearchTerms(text)
     text = removeTokensStartingWith("@", text);
     text = removeTokensStartingWith("#", text);
-    text = removeSearchTerms(text);
-    
+    // text = removeSearchTerms(text);
     text = collapseWhitespace(text);
-    
     String terms = getSearchTerms(text);
     
     buildFrequencyList(text);
@@ -77,12 +59,12 @@ public class TextCleaner {
   }
   
   
-  // Remove punctuation.  must happen after url and hashtag removal.  Some
+  // Remove punctuation.  must happen after url removal.  Some
   // are replaced with spaces, and some not, since typically characters like
   // apostrophes and dashes do not mark word endings.
   private String removePunctuation(String text) {
     text = text.replaceAll("[!,.?/:;-]", " ");
-    return text.replaceAll("[^a-zA-Z0-9_ ]", "");
+    return text.replaceAll("[^a-zA-Z0-9_#@ ]", "");
   }
   
   // Hashtags must start with a space, then a hash.
@@ -94,17 +76,16 @@ public class TextCleaner {
                                        String text) {
 
     List<String> tokens = new ArrayList<String>();
-    tokens.add(" ");
     String[] words = text.split(" ");
     
     for (String word: words) {
       if (word.startsWith(startChar)) {
-        tokens.add(word);
+        tokens.add(word.trim());
         if (freqList != null) freqList.add(word);
       }
     }
     
-    return String.join(" ", tokens);
+    return String.join("", tokens);
   }
   
   // remove mentions after grabbing them
@@ -119,32 +100,32 @@ public class TextCleaner {
   private void buildFrequencyList(String text) {
     String[] words = text.split(" ");
     for (String word: words) {
-      wordfreqs.add(s);
+      wordfreqs.add(word);
     }
   }
   
   private String getSearchTerms(String text) {
     List<String> found = new ArrayList<String>();
-
+    found.add(" ");
     for (String term: searchterms) {
-      if (word.contains(term)) found.add(term);
+      if (text.contains(term)) found.add(term);
     }
     
     return String.join(" ", found);
   }
   
-  private String removeSearchTerms(String text, List<String> termsFound) {
-    String[] words = text.split(" ");
-    List<String> ret = new ArrayList<String>();
-    
-    for (String word: words) {
-      for (String term: termsFound) {
-        if (!word.contains(term)) ret.add(word); //this will not work - will add everything
-      }
-    }
-    
-    return String.join(" ", ret);
-  }
+  // private String removeSearchTerms(String text, List<String> termsFound) {
+  //   String[] words = text.split(" ");
+  //   List<String> ret = new ArrayList<String>();
+  //   
+  //   for (String word: words) {
+  //     for (String term: termsFound) {
+  //       if (!word.contains(term)) ret.add(word); //this will not work - will add everything
+  //     }
+  //   }
+  //   
+  //   return String.join(" ", ret);
+  // }
   
   public static void main(String[] args) {
     Tester t = new Tester();
@@ -161,13 +142,13 @@ public class TextCleaner {
     t.is("a b", tc.removePunctuation("a?b"));
     t.is("a b", tc.removePunctuation("a/b"));
     t.is("a b", tc.removePunctuation("a-b"));
-    t.is("ab", tc.removePunctuation("a#£$%b"));
+    t.is("ab", tc.removePunctuation("a£$%b"));
     t.is("ab", tc.removePunctuation("a%^&*()b"));
     t.is("ab", tc.removePunctuation("a+={}[]b"));
     t.is("ab", tc.removePunctuation("a~'><\\|b"));
     t.is("ab", tc.removePunctuation("a¬`¦b"));
-    t.is("#a#c", tc.getTokens("#", null, "#a", "he", "da#bd", "df", ";'", "#c;;", "sfsd", "ff", "f"));
-    t.is("@a@c", tc.getTokens("@", null, "@a", "he", "da@bd", "df", ";'", "@c;;", "sfsd", "ff", "f"));
+    t.is("#a#c", tc.getTokensStartingWith("#", null, "#a he da#bd df #c sfsd ff f"));
+    t.is("@a@c", tc.getTokensStartingWith("@", null, "@a he da#bd df @c sfsd ff f"));
     
     t.results();
   }

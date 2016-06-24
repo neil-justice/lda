@@ -16,7 +16,7 @@ class Preprocessor {
     System.out.println(toRemove.size() + " / " + wordfreqs.size());
     wordfreqs.removeAll(toRemove);
     wordfreqs.write(dir);
-    removeWords(dir);
+    ListLoader.process(dir + LDA.cleanedFile, dir + LDA.processedFile, this::removeWords);
   }
   
   private void buildRemovalList() {
@@ -35,32 +35,14 @@ class Preprocessor {
     // toRemove.removeAll(doNotRemove);
   }
   
-  private void removeWords(String dir){
-    try {
-      BufferedReader reader = new BufferedReader(new FileReader(new File(dir + LDA.cleanedFile)));
-      BufferedWriter writer = new BufferedWriter(new FileWriter(new File(dir + LDA.processedFile)));
-      String line;
-      int cnt = 0;
-      
-      while ((line = reader.readLine()) != null) {
-        cnt++;
-        String[] splitLine = line.split("\t");
-        String tags = "";
-        if (splitLine.length != 4) {
-          throw new Error("length " + splitLine.length + " at " + splitLine[0]);
-        }
-        String processed = processLine(splitLine[1]);
-        writer.write(splitLine[0] + "\t" + processed + "\t" + splitLine[2] + "\t" + splitLine[3]);
-        writer.newLine();
-        if (cnt % 100 == 0) writer.flush();
-      }
-      writer.flush();
-      
-    } catch (FileNotFoundException e) {
-      throw new Error("clean file not found at " + dir);
-    } catch (IOException e) {
-      throw new Error("IO error");
+  private String removeWords(String in){
+    String[] sections = in.split("\t");
+    String tags = "";
+    if (sections.length != 5) {
+      throw new Error("length " + sections.length + " at " + sections[0]);
     }
+    String processed = processLine(sections[1]);
+    return sections[0] + "\t" + processed + "\t" + sections[2] + "\t" + sections[3] + "\t" + sections[4];
   }
   
   private String processLine(String text) {
