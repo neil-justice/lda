@@ -41,20 +41,28 @@ public class SQLConnector implements AutoCloseable {
   
   public void createDrop() {
     if (c == null) { throw new IllegalStateException(); }
+    final String dropt = "DROP TABLE IF EXISTS Token;";
     final String dropd = "DROP TABLE IF EXISTS Doc;";
     final String dropw = "DROP TABLE IF EXISTS Word;";
     final String word  = "CREATE TABLE Word (" + 
-                         "id INTEGER PRIMARY KEY," +
+                         "id INTEGER PRIMARY KEY, " +
                          "word VARCHAR(20) NOT NULL);";
     final String doc   = "CREATE TABLE Doc (" +
-                         "id INTEGER PRIMARY KEY," +
+                         "id INTEGER PRIMARY KEY, " +
                          "doc INTEGER NOT NULL);";
+    final String token = "CREATE TABLE Token (" +
+                         "id INTEGER PRIMARY KEY, " +
+                         "word INTEGER NOT NULL REFERENCES Word(id), " +
+                         "doc INTEGER NOT NULL REFERENCES Doc(id), " +
+                         "topic INTEGER NOT NULL);";
 
     try (Statement s = c.createStatement()) {
+      s.addBatch(dropt);
       s.addBatch(dropd);
       s.addBatch(dropw);
       s.addBatch(word);
       s.addBatch(doc);
+      s.addBatch(token);
       s.executeBatch();
       c.commit();
     } catch (SQLException e) {
@@ -71,7 +79,7 @@ public class SQLConnector implements AutoCloseable {
         s.setInt(1, i);
         s.setLong(2, documents.get(i));
         s.addBatch();
-        if ( i > 0 && i % 1000 == 0) {
+        if ( i % 1000 == 0 && i > 0) {
           int[] res = s.executeBatch();
           c.commit();
         }
@@ -94,7 +102,7 @@ public class SQLConnector implements AutoCloseable {
         s.setInt(1, it.value());
         s.setString(2, it.key());
         s.addBatch();
-        if ( i > 0 && i % 1000 == 0) {
+        if ( i % 1000 == 0 && i > 0) {
           int[] res = s.executeBatch();
           c.commit();
         }
@@ -104,6 +112,54 @@ public class SQLConnector implements AutoCloseable {
     } catch (SQLException e) {
       System.out.println(e.getMessage());
     }
+  }
+  
+  public void buildTokenList(Tokens tokens) {
+    if (c == null) { throw new IllegalStateException(); }
+    final String cmd = "INSERT INTO Token VALUES( ?, ?, ?, ? );";
+    
+    try (PreparedStatement s = c.prepareStatement(cmd)) {
+      for (int i = 0; i < tokens.size(); i++) {
+        s.setInt(1, i);
+        s.setInt(2, tokens.word(i));
+        s.setInt(3, tokens.doc(i));
+        s.setInt(4, tokens.topic(i));
+        s.addBatch();
+        if ( i % 10000 == 0 && i > 0) {
+          int[] res = s.executeBatch();
+          c.commit();
+        }
+      }
+      int[] res = s.executeBatch();
+      c.commit();
+    } catch (SQLException e) {
+      System.out.println(e.getMessage());
+    }
+  }
+  
+  public void updateTokens(Tokens tokens) {
+    if (c == null) { throw new IllegalStateException(); }
+    final String cmd = "UPDATE Token SET topic = ? WHERE Token.id = ? ;";
+    
+    try (PreparedStatement s = c.prepareStatement(cmd)) {
+      for (int i = 0; i < tokens.size(); i++) {
+        s.setInt(1, tokens.topic(i));
+        s.setInt(2, i);
+        s.addBatch();
+        if ( i % 10000 == 0 && i > 0) {
+          int[] res = s.executeBatch();
+          c.commit();
+        }
+      }
+      int[] res = s.executeBatch();
+      c.commit();
+    } catch (SQLException e) {
+      System.out.println(e.getMessage());
+    }
+  }
+  
+  public Tokens loadTokens() {
+    return null;
   }
   
   public ArrayList<String> getWords() {

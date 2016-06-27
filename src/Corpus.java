@@ -45,7 +45,7 @@ public class Corpus {
     }
     print();
     termScore();
-    
+    c.updateTokens(tokens);
     c.close(); //close DB connection
   }
   

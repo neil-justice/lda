@@ -11,7 +11,7 @@ public class CorpusBuilder {
   private int tokenCount = 0;
   private String dir;
   
-  public CorpusBuilder fromFile(String dir){
+  public CorpusBuilder fromFile(String dir) {
     this.dir = dir;
     
     try {
@@ -36,8 +36,12 @@ public class CorpusBuilder {
       throw new Error("IO error");
     }
     
-    writeDB();
     tokens.shuffle();
+    writeDB();
+    return this;
+  }
+  
+  public CorpusBuilder fromDatabase(String dir) {
     return this;
   }
   
@@ -49,6 +53,8 @@ public class CorpusBuilder {
       c.createDrop();
       c.buildDocumentDictionary(documents);
       c.buildWordDictionary(words);
+      c.buildTokenList(tokens);
+      System.out.println("Database written.");
       } finally {
       c.close();
     }
