@@ -158,9 +158,9 @@ public class SQLConnector implements AutoCloseable {
     }
   }
   
-  public Tokens loadTokens() {
+  public Tokens getTokens() {
     if (c == null) { throw new IllegalStateException(); }
-    final String cmd = "SELECT * FROM Topic";
+    final String cmd = "SELECT * FROM Token";
     Tokens tokens = new Tokens();
 
     try (PreparedStatement s = c.prepareStatement(cmd)) {
@@ -168,7 +168,7 @@ public class SQLConnector implements AutoCloseable {
         while (r.next()) {
           tokens.add(r.getInt("word"), r.getInt("doc"), r.getInt("topic"));
         }
-        return 
+        return tokens;
       }
     } catch (SQLException e) {
       System.out.println(e.getMessage());
@@ -205,6 +205,20 @@ public class SQLConnector implements AutoCloseable {
           docs.add(r.getLong("doc"));
         }
         return docs;
+      }
+    } catch (SQLException e) {
+      System.out.println(e.getMessage());
+      throw new RuntimeException(e);
+    }
+  }
+  
+  public int getCount(String table) {
+    if (c == null) { throw new IllegalStateException(); }
+    final String cmd = "SELECT COUNT(*) AS cnt FROM " + table;
+
+    try ( PreparedStatement s = c.prepareStatement(cmd)) {
+      try(ResultSet r = s.executeQuery()) {
+        return r.getInt("cnt");
       }
     } catch (SQLException e) {
       System.out.println(e.getMessage());

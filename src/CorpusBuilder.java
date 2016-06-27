@@ -7,12 +7,15 @@ public class CorpusBuilder {
   
   private final TLongArrayList documents = new TLongArrayList();
   private final TObjectIntHashMap<String> words = new TObjectIntHashMap<>();
-  private final Tokens tokens = new Tokens();
+  private Tokens tokens;
   private int tokenCount = 0;
+  private int wordCount;
+  private int docCount;
   private String dir;
   
   public CorpusBuilder fromFile(String dir) {
     this.dir = dir;
+    tokens = new Tokens();
     
     try {
       BufferedReader reader = new BufferedReader(new FileReader(new File(dir + LDA.processedFile)));
@@ -36,12 +39,24 @@ public class CorpusBuilder {
       throw new Error("IO error");
     }
     
+    wordCount = words.size();
+    docCount = documents.size();
     tokens.shuffle();
     writeDB();
     return this;
   }
   
   public CorpusBuilder fromDatabase(String dir) {
+    this.dir = dir;
+    SQLConnector c = new SQLConnector(dir);
+    
+    c.open();
+    tokens     = c.getTokens();
+    tokenCount = tokens.size();
+    wordCount  = c.getCount("Word");
+    docCount   = c.getCount("Doc");
+    c.close();
+    
     return this;
   }
   
@@ -82,9 +97,9 @@ public class CorpusBuilder {
   }
   
   public Tokens tokens() { return tokens; }
-  public int wordCount() { return words.size(); }
-  public int docCount() { return documents.size(); }
-  public int tokenCount() { return tokens.size(); }
+  public int wordCount() { return wordCount; }
+  public int docCount() { return docCount; }
+  public int tokenCount() { return tokenCount; }
   public String dir() { return dir; }
   public Corpus build() { return new Corpus(this); }
 }

@@ -91,7 +91,6 @@ public class Corpus {
     for (int i = 0; i < tokenCount; i++) {
       int topic = rand.nextInt(topicCount);
       tokens.setTopic(i, topic);
-      tokensInTopic[topic]++;
     }
   }
   
@@ -105,6 +104,7 @@ public class Corpus {
       int doc = tokens.doc(i);
       wordsInTopic[word][topic]++;
       topicsInDoc[topic][doc]++;
+      tokensInTopic[topic]++;
       count++;
     }
     if (count != tokenCount) throw new IllegalStateException("incorrect token count");
