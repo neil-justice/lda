@@ -20,7 +20,7 @@ public class Tokens {
   public int size() {return topics.size(); }
   
   // shuffles the lists without losing info about their shared indices.
-  // This is a modified version of Collections.shuffle
+  // This is a modified version of Collections.shuffle()
   public void shuffle() {
     if (random == null) random = new Random();
     int count = size();

@@ -15,13 +15,17 @@ public class Corpus {
   private final int[][] topicsInDoc;
   private final double alpha; // hyperparameters
   private final double beta;  // hyperparameters
+  private final SQLConnector c;
   
   public Corpus(CorpusBuilder builder) {
     tokens = builder.tokens();
     wordCount = builder.wordCount();
     docCount = builder.docCount();
     tokenCount = builder.tokenCount();
-    translator = new Translator();
+    
+    c = new SQLConnector(builder.dir());
+    c.open();
+    translator = new Translator(c);
     
     wordsInTopic = new int[wordCount][topicCount];
     topicsInDoc = new int[topicCount][docCount];
@@ -41,6 +45,8 @@ public class Corpus {
     }
     print();
     termScore();
+    
+    c.close(); //close DB connection
   }
   
   private void cycle() {

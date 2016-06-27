@@ -1,20 +1,26 @@
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.PreparedStatement;
+import java.sql.Statement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.*;
 import gnu.trove.map.hash.*;
 import gnu.trove.list.array.TLongArrayList;
+import gnu.trove.list.array.TIntArrayList;
 import gnu.trove.iterator.*;
 
 public class SQLConnector implements AutoCloseable {
-  static final String CONNECTION = "jdbc:sqlite:db/dict.db";
+  private final String connection;
   private Connection c;
+  
+  public SQLConnector(String dir) {
+    connection = "jdbc:sqlite:" + dir + LDA.database;
+  }
 
   public void open() {
     try {
-      c = DriverManager.getConnection(CONNECTION);
+      c = DriverManager.getConnection(connection);
       c.setAutoCommit(false);  // Allow transactions
     } catch (SQLException e) {
       c = null;
@@ -28,6 +34,29 @@ public class SQLConnector implements AutoCloseable {
       if (c == null) { return; }
       c.close();
       c = null;
+    } catch (SQLException e) {
+      System.out.println(e.getMessage());
+    }
+  }
+  
+  public void createDrop() {
+    if (c == null) { throw new IllegalStateException(); }
+    final String dropd = "DROP TABLE IF EXISTS Doc;";
+    final String dropw = "DROP TABLE IF EXISTS Word;";
+    final String word  = "CREATE TABLE Word (" + 
+                         "id INTEGER PRIMARY KEY," +
+                         "word VARCHAR(20) NOT NULL);";
+    final String doc   = "CREATE TABLE Doc (" +
+                         "id INTEGER PRIMARY KEY," +
+                         "doc INTEGER NOT NULL);";
+
+    try (Statement s = c.createStatement()) {
+      s.addBatch(dropd);
+      s.addBatch(dropw);
+      s.addBatch(word);
+      s.addBatch(doc);
+      s.executeBatch();
+      c.commit();
     } catch (SQLException e) {
       System.out.println(e.getMessage());
     }
@@ -77,43 +106,56 @@ public class SQLConnector implements AutoCloseable {
     }
   }
   
-  public TIntObjectHashMap<String> getWords(TIntArrayList wordIDs) {
+  public ArrayList<String> getWords() {
     if (c == null) { throw new IllegalStateException(); }
-    final String cmd = buildStringList("SELECT * FROM Word WHERE Word.id IN ", wordIDs);
-    TIntObjectHashMap<String> words = new TIntObjectHashMap<String>();
+    final String cmd = "SELECT * FROM Word";
+    ArrayList<String> words = new ArrayList<String>();
 
     try (PreparedStatement s = c.prepareStatement(cmd)) {
       try (ResultSet r = s.executeQuery()) {
         while (r.next()) {
-          words.put(r.getInt("id"), r.getString("word"));
+          words.add(r.getString("word"));
         }
         return words;
       }
     } catch (SQLException e) {
-      throw new RuntimeException();
+      System.out.println(e.getMessage());
+      throw new RuntimeException(e);
     }
   }
   
-  public TIntLongHashMap getDocs(TIntArrayList docIDs) {
+  public TLongArrayList getDocs() {
     if (c == null) { throw new IllegalStateException(); }
-    final String cmd = buildStringList("SELECT * FROM Doc WHERE Doc.id IN ", docIDs);
-    TIntLongHashMap docs = new TIntLongHashMap();
+    final String cmd = "SELECT * FROM Doc";
+    TLongArrayList docs = new TLongArrayList();
 
     try (PreparedStatement s = c.prepareStatement(cmd)) {
       try (ResultSet r = s.executeQuery()) {
         while (r.next()) {
-          words.put(r.getInt("id"), r.getString("doc"));
+          docs.add(r.getLong("doc"));
         }
-        return words;
+        return docs;
       }
     } catch (SQLException e) {
-      throw new RuntimeException();
+      System.out.println(e.getMessage());
+      throw new RuntimeException(e);
     }
   }
   
-  private String buildStringList(String start, TIntArrayList list) {
-    return "";
-  }
+  // converts the list into a string of format "(val1, val2, val3 ... valn)"
+  // private String buildStringList(String start, TIntArrayList list) {
+  //   int i = 0;
+  //   StringBuilder sb = new StringBuilder(start);
+  //   sb.append("(");
+  //   for (int val: list) {
+  //     if (i != 0) sb.append(",");
+  //     sb.append(val);
+  //     i++;
+  //   }
+  //   sb.append(");");
+  //   
+  //   return sb.toString();
+  // }
 
   public void setCacheSize(int pages) {
     try {

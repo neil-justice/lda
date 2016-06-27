@@ -7,6 +7,7 @@ class LDA {
   public static final String processedFile = "processed.txt";
   public static final String stopwords = "lists/stopwords.txt";
   public static final String searchterms = "lists/searchterms.txt";
+  public static final String database = "data.db";
   
   public static void main(String[] args) {
     LDA lda = new LDA();

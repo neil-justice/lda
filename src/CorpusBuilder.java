@@ -9,8 +9,11 @@ public class CorpusBuilder {
   private final TObjectIntHashMap<String> words = new TObjectIntHashMap<>();
   private final Tokens tokens = new Tokens();
   private int tokenCount = 0;
+  private String dir;
   
   public CorpusBuilder fromFile(String dir){
+    this.dir = dir;
+    
     try {
       BufferedReader reader = new BufferedReader(new FileReader(new File(dir + LDA.processedFile)));
       String line;
@@ -39,10 +42,11 @@ public class CorpusBuilder {
   }
   
   private void writeDB() {
-    SQLConnector c = new SQLConnector();
+    SQLConnector c = new SQLConnector(dir);
     c.open();
     
     try {
+      c.createDrop();
       c.buildDocumentDictionary(documents);
       c.buildWordDictionary(words);
       } finally {
@@ -75,5 +79,6 @@ public class CorpusBuilder {
   public int wordCount() { return words.size(); }
   public int docCount() { return documents.size(); }
   public int tokenCount() { return tokens.size(); }
-  public Corpus build() { return new Corpus(this); }  
+  public String dir() { return dir; }
+  public Corpus build() { return new Corpus(this); }
 }
