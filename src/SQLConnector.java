@@ -159,7 +159,21 @@ public class SQLConnector implements AutoCloseable {
   }
   
   public Tokens loadTokens() {
-    return null;
+    if (c == null) { throw new IllegalStateException(); }
+    final String cmd = "SELECT * FROM Topic";
+    Tokens tokens = new Tokens();
+
+    try (PreparedStatement s = c.prepareStatement(cmd)) {
+      try (ResultSet r = s.executeQuery()) {
+        while (r.next()) {
+          tokens.add(r.getInt("word"), r.getInt("doc"), r.getInt("topic"));
+        }
+        return 
+      }
+    } catch (SQLException e) {
+      System.out.println(e.getMessage());
+      throw new RuntimeException(e);
+    }
   }
   
   public ArrayList<String> getWords() {

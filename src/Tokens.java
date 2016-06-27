@@ -8,9 +8,13 @@ public class Tokens {
   private Random random;
   
   public void add(int word, int doc) { 
+    add(word, doc, -1);
+  }
+  
+  public void add(int word, int doc, int topic) {
     words.add(word);
     docs.add(doc);
-    topics.add(-1);
+    topics.add(topic);
   }
   
   public void setTopic(int i, int topic) { topics.set(i, topic); }
