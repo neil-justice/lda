@@ -8,7 +8,7 @@ public class Corpus {
   private final int wordCount;              // no. of unique words
   private final int docCount;               // no. of docs
   private final int tokenCount;             // total no. of tokens
-  private final int topicCount = 30;
+  private final int topicCount = 50;
   private final int cycles = 100;
   private final int[] tokensInTopic = new int[topicCount];
   private final int[][] wordsInTopic;
@@ -37,16 +37,30 @@ public class Corpus {
     System.out.println(" V : " + wordCount + 
                        " D : " + docCount + 
                        " N : " + tokenCount);
-    assignInitialTopics();
+    randomiseTopics();
     initialiseMatrices();
-    for (int i = 0; i < cycles; i++) {
-      cycle();
-      System.out.println("cycle " + i);
-    }
+    
+    cycles();
+    
     print();
     termScore();
-    c.updateTokens(tokens);
+    c.updateTokens(tokens); // write updated topics to database
     c.close(); //close DB connection
+  }
+  
+  public void cycles() {
+    double avg = 0;
+    for (int i = 0; i < cycles; i++) {
+      long s = System.nanoTime();
+      cycle();
+      long e = System.nanoTime();
+      double time = (e - s) / 1000000000d;
+      avg += time;
+      System.out.print("Cycle " + i);
+      System.out.println(", seconds taken: " + time );
+    }
+    avg /= cycles;
+    System.out.println("Avg. seconds taken: " + avg );    
   }
   
   private void cycle() {
@@ -86,7 +100,7 @@ public class Corpus {
   }
   
   // Initialises all tokens with a randomly selected topic.
-  private void assignInitialTopics() {
+  private void randomiseTopics() {
     Random rand = new Random();
     for (int i = 0; i < tokenCount; i++) {
       int topic = rand.nextInt(topicCount);

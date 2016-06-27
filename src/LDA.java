@@ -35,8 +35,8 @@ class LDA {
   }
   
   private void run(String dir) {
-    Corpus c = new CorpusBuilder().fromFile(dir).build();
-    // Corpus c = new CorpusBuilder().fromDatabase(dir).build();
+    // Corpus c = new CorpusBuilder().fromFile(dir).build();
+    Corpus c = new CorpusBuilder().fromDatabase(dir).build();
     c.run();
   }
   
