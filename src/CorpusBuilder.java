@@ -18,7 +18,7 @@ public class CorpusBuilder {
     tokens = new Tokens();
     
     try {
-      BufferedReader reader = new BufferedReader(new FileReader(new File(dir + LDA.processedFile)));
+      BufferedReader reader = new BufferedReader(new FileReader(new File(dir + LDA.PROCESSEDFILE)));
       String line;
       int i = 0;
       
@@ -34,7 +34,7 @@ public class CorpusBuilder {
     } catch(NumberFormatException e) {
       throw new Error("invalid doc ID");
     } catch (FileNotFoundException e) {
-      throw new Error("file " + LDA.processedFile + " not found at " + dir);
+      throw new Error("file " + LDA.PROCESSEDFILE + " not found at " + dir);
     } catch (IOException e) {
       throw new Error("IO error");
     }

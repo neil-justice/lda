@@ -14,8 +14,8 @@ public class SQLConnector implements AutoCloseable {
   private final String connection;
   private Connection c;
   
-  public SQLConnector(String dir) {
-    connection = "jdbc:sqlite:" + dir + LDA.database;
+  public SQLConnector(String file) {
+    connection = "jdbc:sqlite:" + file;
   }
 
   public void open() {
