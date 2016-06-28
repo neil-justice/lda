@@ -2,10 +2,22 @@ import gnu.trove.list.array.TIntArrayList;
 import java.util.*;
 
 public class Tokens {
-  private final TIntArrayList words  = new TIntArrayList();
-  private final TIntArrayList docs   = new TIntArrayList();
-  private final TIntArrayList topics = new TIntArrayList();
+  private final TIntArrayList words; 
+  private final TIntArrayList docs;
+  private final TIntArrayList topics;
   private Random random;
+  
+  public Tokens() {
+    words = new TIntArrayList();
+    docs = new TIntArrayList();
+    topics = new TIntArrayList();
+  }
+  
+  public Tokens(int capacity) {
+    words = new TIntArrayList(capacity);
+    docs = new TIntArrayList(capacity);
+    topics = new TIntArrayList(capacity);
+  }
   
   public void add(int word, int doc) { 
     add(word, doc, -1);

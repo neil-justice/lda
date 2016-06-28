@@ -161,8 +161,8 @@ public class SQLConnector implements AutoCloseable {
   public Tokens getTokens() {
     if (c == null) { throw new IllegalStateException(); }
     final String cmd = "SELECT * FROM Token";
-    Tokens tokens = new Tokens();
-
+    Tokens tokens = new Tokens(getCount("Token"));
+    
     try (PreparedStatement s = c.prepareStatement(cmd)) {
       try (ResultSet r = s.executeQuery()) {
         while (r.next()) {
@@ -214,11 +214,11 @@ public class SQLConnector implements AutoCloseable {
   
   public int getCount(String table) {
     if (c == null) { throw new IllegalStateException(); }
-    final String cmd = "SELECT COUNT(*) AS cnt FROM " + table;
+    final String cmd = "SELECT MAX(id) AS cnt FROM " + table;
 
     try ( PreparedStatement s = c.prepareStatement(cmd)) {
       try(ResultSet r = s.executeQuery()) {
-        return r.getInt("cnt");
+        return r.getInt("cnt") + 1;
       }
     } catch (SQLException e) {
       System.out.println(e.getMessage());
