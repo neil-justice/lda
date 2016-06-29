@@ -25,28 +25,26 @@ class LDA {
         clean(fm.filepath(), fm.dir());
         process(fm.dir());
         break;
-      case "-l": // args[1] should be either PROCESSEDFILE or DATABASE
+      case "-ldb": // args[1] should be either PROCESSEDFILE or DATABASE
         fm.loadOutputDirectory();
-        run(fm.dir(), fm.filenameWithExt());
+        rundb(fm.dir());
+        break;
+      case "-ltxt":
+        fm.loadOutputDirectory();
+        runtxt(fm.dir());
         break;
       default:
     }
   }
   
-  private void run(String dir, String filename) {
-    if (DATABASE.equals(filename)) {
-      System.out.println("Database found at " + dir + ".  Loading...");
-      Corpus c = new CorpusBuilder().fromDatabase(filename).build();
-      c.run();
-    }
-    else if (PROCESSEDFILE.equals(filename)) {
-      System.out.println("processed file found.  Loading...");
-      Corpus c = new CorpusBuilder().fromFile(dir).build();      
-      c.run();
-    }
-    else {
-      throw new Error("File must be " + DATABASE + " or " + PROCESSEDFILE);
-    }
+  private void rundb(String dir) {
+    Corpus c = new CorpusBuilder().fromDatabase(dir).build();
+    c.run();
+  }
+  
+  private void runtxt(String dir) {
+    Corpus c = new CorpusBuilder().fromFile(dir).build();      
+    c.run();
   }
   
   private void clean(String in, String dir) {

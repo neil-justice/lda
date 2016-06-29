@@ -24,14 +24,14 @@ public class CorpusBuilder {
       
       while ((line = reader.readLine()) != null) {
         String[] splitLine = line.split("\t");
-        if (splitLine.length != 5) {
+        if (splitLine.length != 2) {
           throw new Error("length " + splitLine.length + " at " + splitLine[0]);
         }
         processLine(Long.parseLong(splitLine[0]), splitLine[1].split(" "));
         i++;
         if (i % 1000 == 0) System.out.println(i + " documents loaded");
       }
-    } catch(NumberFormatException e) {
+    } catch (NumberFormatException e) {
       throw new Error("invalid doc ID");
     } catch (FileNotFoundException e) {
       throw new Error("file " + LDA.PROCESSEDFILE + " not found at " + dir);
@@ -51,6 +51,7 @@ public class CorpusBuilder {
     SQLConnector c = new SQLConnector(dir);
     
     c.open();
+    System.out.println("Database found at " + dir + LDA.DATABASE + "  Loading...");
     tokens     = c.getTokens();
     tokenCount = tokens.size();
     wordCount  = c.getCount("Word");

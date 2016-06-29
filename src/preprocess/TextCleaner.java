@@ -42,6 +42,7 @@ public class TextCleaner {
     String mentions = getTokensStartingWith("@", mentionfreqs, text);
     text = removeTokensStartingWith("@", text);
     text = removeTokensStartingWith("#", text);
+    text = removeNumbers(text);
     // text = removeSearchTerms(text);
     text = collapseWhitespace(text);
     String terms = getSearchTerms(text);
@@ -140,6 +141,7 @@ public class TextCleaner {
     t.is("h world", tc.collapseWhitespace(tc.removeURLs("h http://www.google.com world")));
     t.is("h world", tc.collapseWhitespace(tc.removeURLs("h https://docs.oracle.com/javase/tutorial/java/package/createpkgs.html world")));
     t.is("h world ", tc.removeURLs("h world https://www.google.co.uk/search?q=google&oq=goo&aqs=chrome.0.0j69i60l3j0j69i65.6019j0j4&sourceid=chrome&ie=UTF-8"));
+    t.is("h world ", tc.removeURLs("h world https://t.co/AK3DBCbNy6"));
     t.is("a b", tc.removePunctuation("a,b"));
     t.is("a b", tc.removePunctuation("a:b"));
     t.is("a b", tc.removePunctuation("a;b"));

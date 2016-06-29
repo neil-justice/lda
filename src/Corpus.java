@@ -8,8 +8,8 @@ public class Corpus {
   private final int wordCount;              // no. of unique words
   private final int docCount;               // no. of docs
   private final int tokenCount;             // total no. of tokens
-  private final int topicCount = 50;
-  private final int cycles = 100;
+  private final int topicCount = 20;
+  private final int cycles = 1000;
   private final int[] tokensInTopic = new int[topicCount];
   private final int[][] wordsInTopic;
   private final int[][] topicsInDoc;
@@ -29,6 +29,10 @@ public class Corpus {
     
     wordsInTopic = new int[wordCount][topicCount];
     topicsInDoc = new int[topicCount][docCount];
+    // high alpha: each document is likely to contain a mixture of most topics.
+    // low alpha:  more likely that a document may contain just a few topics. 
+    // high beta: each topic is likely to contain a mixture of most of words
+    // low beta: each topic may contain a mixture of just a few of the words.
     alpha = 50 / (double) topicCount;
     beta = 200 / (double) wordCount;
   }
