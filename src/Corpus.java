@@ -43,16 +43,16 @@ public class Corpus {
                        " N : " + tokenCount);
     randomiseTopics();
     initialiseMatrices();
-    
     cycles();
-    
-    print();
-    termScore();
     c.updateTokens(tokens); // write updated topics to database
-    c.close(); //close DB connection
   }
   
-  public void cycles() {
+  //close DB connection
+  public void closeDB() {
+    c.close(); 
+  }
+  
+  private void cycles() {
     double avg = 0;
     for (int i = 0; i < cycles; i++) {
       long s = System.nanoTime();
@@ -192,7 +192,7 @@ public class Corpus {
     return geometricMean;
   }
   
-  private void print() {
+  public void print() {
     System.out.println("");
     for (int word = 0; word < wordCount; word++) {
       System.out.printf("%15s", translator.getWord(word));
@@ -201,5 +201,6 @@ public class Corpus {
       }
       System.out.println("");
     }
+    termScore();
   }
 }

@@ -8,43 +8,42 @@ class LDA {
   public static final String DATABASE = "data.db";
   public static final String STOPWORDS = "lists/stopwords.txt";
   public static final String SEARCHTERMS = "lists/searchterms.txt";
+  private Interface UI;
   
   public static void main(String[] args) {
     LDA lda = new LDA();
+    if (args.length > 0 && "-t".equals(args[0])) lda.test();
     lda.run(args);
   }
-    
+   
+  // use cases: test, clean, load dir
   private void run(String[] args) {
-    if (args.length < 1) throw new Error("Arguments required");
-    if ("-t".equals(args[0])) test();
-    FileManager fm = new FileManager(args);
-
-    switch(args[0]) {
-      case "-p": //  args[1] should be a text file
-        fm.createOutputDirectory();
-        clean(fm.filepath(), fm.dir());
-        process(fm.dir());
-        break;
-      case "-ldb": // args[1] should be either PROCESSEDFILE or DATABASE
-        fm.loadOutputDirectory();
-        rundb(fm.dir());
-        break;
-      case "-ltxt":
-        fm.loadOutputDirectory();
-        runtxt(fm.dir());
-        break;
-      default:
+    if (args.length > 0) {
+      switch(args[0]) {
+        case "-c": 
+        case "--clean":
+          if (args.length < 2) throw new Error("No file specified.");
+          FileManager fm = new FileManager(args[1]);
+          clean(fm.inputFile(), fm.outputDirectory());
+          break;
+        case "-o":
+        case "--open":
+          if (args.length < 2) throw new Error("No dir specified.");
+          DirectoryLoader dl = new DirectoryLoader();
+          dl.setDirectory(args[1]);
+          UI = new Interface(dl.dir());
+          UI.loop();
+          break;
+        default:
+          noArgs();        
+      }
     }
+    else noArgs();
   }
   
-  private void rundb(String dir) {
-    Corpus c = new CorpusBuilder().fromDatabase(dir).build();
-    c.run();
-  }
-  
-  private void runtxt(String dir) {
-    Corpus c = new CorpusBuilder().fromFile(dir).build();      
-    c.run();
+  private void noArgs() {
+    UI = new Interface();
+    UI.loop();
   }
   
   private void clean(String in, String dir) {
@@ -52,13 +51,9 @@ class LDA {
     tc.clean(in, dir);
   }
   
-  private void process(String dir) {
-    Preprocessor p = new Preprocessor();
-    p.process(dir);
-  }
-  
   private void test() {
     TextCleaner.main(null);
-    System.exit(1);
+    DirectoryLoader.main(null);
+    System.exit(0);
   }
 }
