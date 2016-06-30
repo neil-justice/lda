@@ -17,14 +17,12 @@ public class DirectoryLoader {
     for (int i = 0; i < directoryNames.length; i++) {
       if (directoryNames[i].equals(choice)) {
         dir = directories[i];
-        System.out.println("Output directory set.");
       }
     }
   }
   
   public void setDirectory(int i) {
     dir = directories[i];
-    System.out.println("Output directory set.");
   }
   
   public String[] directories() { return directoryNames; }

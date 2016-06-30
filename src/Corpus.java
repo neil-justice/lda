@@ -8,14 +8,16 @@ public class Corpus {
   private final int wordCount;              // no. of unique words
   private final int docCount;               // no. of docs
   private final int tokenCount;             // total no. of tokens
-  private final int topicCount = 20;
-  private final int cycles = 1000;
-  private final int[] tokensInTopic = new int[topicCount];
-  private final int[][] wordsInTopic;
-  private final int[][] topicsInDoc;
-  private final double alpha; // hyperparameters
-  private final double beta;  // hyperparameters
+  private int topicCount;
+  private int cycles;
+  private int[] tokensInTopic;
+  private int[][] wordsInTopic;
+  private int[][] topicsInDoc;
+  private double alpha; // hyperparameters
+  private double beta;  // hyperparameters
   private final SQLConnector c;
+  private int prevCycles; // no. of cycles run in previous session
+  private int prevTopics; // no. of topics from last session
   
   public Corpus(CorpusBuilder builder) {
     tokens = builder.tokens();
@@ -26,7 +28,20 @@ public class Corpus {
     c = new SQLConnector(builder.dir());
     c.open();
     translator = new Translator(c);
+    prevCycles = c.getCycles();
+    prevTopics = c.getTopics();
     
+    System.out.println(" V : " + wordCount + 
+                       " D : " + docCount + 
+                       " N : " + tokenCount);
+    System.out.println("" + prevCycles + " run so far, with Z = " + prevTopics);
+  }
+  
+  public void run(int cycles, int topics) {
+    this.cycles = cycles;
+    topicCount = topics;
+    
+    tokensInTopic = new int[topicCount];
     wordsInTopic = new int[wordCount][topicCount];
     topicsInDoc = new int[topicCount][docCount];
     // high alpha: each document is likely to contain a mixture of most topics.
@@ -35,16 +50,22 @@ public class Corpus {
     // low beta: each topic may contain a mixture of just a few of the words.
     alpha = 50 / (double) topicCount;
     beta = 200 / (double) wordCount;
+    
+    run();
   }
   
-  public void run() {
-    System.out.println(" V : " + wordCount + 
-                       " D : " + docCount + 
-                       " N : " + tokenCount);
-    randomiseTopics();
+  private void run() {
+    if (prevTopics != topicCount || prevCycles == 0) {
+      randomiseTopics();
+      prevCycles = 0;
+      c.setCycles(0);
+    }
+    
     initialiseMatrices();
     cycles();
-    c.updateTokens(tokens); // write updated topics to database
+    c.updateTokens(tokens); // write updated topics to db
+    c.setTopics(topicCount);
+    c.setCycles(prevCycles + cycles);
   }
   
   //close DB connection

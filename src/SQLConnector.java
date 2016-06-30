@@ -22,6 +22,7 @@ public class SQLConnector implements AutoCloseable {
     try {
       c = DriverManager.getConnection(connection);
       c.setAutoCommit(false);  // Allow transactions
+      setCacheSize(10000);
     } catch (SQLException e) {
       c = null;
       System.out.println(e.getMessage());
@@ -41,28 +42,39 @@ public class SQLConnector implements AutoCloseable {
   
   public void createDrop() {
     if (c == null) { throw new IllegalStateException(); }
+    final String dropi = "DROP TABLE IF EXISTS Info;";
     final String dropt = "DROP TABLE IF EXISTS Token;";
     final String dropd = "DROP TABLE IF EXISTS Doc;";
     final String dropw = "DROP TABLE IF EXISTS Word;";
+    final String page  = "PRAGMA page_size=4096;";
     final String word  = "CREATE TABLE Word (" + 
-                         "id INTEGER PRIMARY KEY, " +
-                         "word VARCHAR(20) NOT NULL);";
+                           "id INTEGER PRIMARY KEY, " +
+                           "word VARCHAR(20) NOT NULL);";
     final String doc   = "CREATE TABLE Doc (" +
-                         "id INTEGER PRIMARY KEY, " +
-                         "doc INTEGER NOT NULL);";
+                           "id INTEGER PRIMARY KEY, " +
+                           "doc INTEGER NOT NULL);";
     final String token = "CREATE TABLE Token (" +
-                         "id INTEGER PRIMARY KEY, " +
-                         "word INTEGER NOT NULL REFERENCES Word(id), " +
-                         "doc INTEGER NOT NULL REFERENCES Doc(id), " +
-                         "topic INTEGER NOT NULL);";
+                           "id INTEGER PRIMARY KEY, " +
+                           "word INTEGER NOT NULL REFERENCES Word(id), " +
+                           "doc INTEGER NOT NULL REFERENCES Doc(id), " +
+                           "topic INTEGER NOT NULL);";
+    final String info  = "CREATE TABLE Info (" +
+                           "id INTEGER PRIMARY KEY, " +
+                           "topics INTEGER NOT NULL, " +
+                           "cycles INTEGER NOT NULL);";
+    final String iinit = "INSERT INTO Info VALUES( 0, 0, 0)";
 
     try (Statement s = c.createStatement()) {
+      s.addBatch(dropi);
       s.addBatch(dropt);
       s.addBatch(dropd);
       s.addBatch(dropw);
+      s.addBatch(page);
       s.addBatch(word);
       s.addBatch(doc);
       s.addBatch(token);
+      s.addBatch(info);
+      s.addBatch(iinit);
       s.executeBatch();
       c.commit();
     } catch (SQLException e) {
@@ -226,6 +238,38 @@ public class SQLConnector implements AutoCloseable {
     }
   }
   
+  public void setCycles(int val) { setInfo("cycles", val); }
+  public void setTopics(int val) { setInfo("topics", val); }
+  
+  private void setInfo(String col, int val) {
+    if (c == null) { throw new IllegalStateException(); }
+    final String cmd = "UPDATE Info SET " + col + " = ? WHERE Info.id = 0 ;";
+    try (PreparedStatement s = c.prepareStatement(cmd)) {
+      s.setInt(1, val);
+      s.executeUpdate();
+      c.commit();
+    } catch (SQLException e) {
+      System.out.println(e.getMessage());
+    }
+  }
+  
+  public int getCycles() { return getInfo("cycles"); }
+  public int getTopics() { return getInfo("topics"); }
+  
+  private int getInfo(String col) {
+    if (c == null) { throw new IllegalStateException(); }
+    final String cmd = "SELECT " + col + " from Info";
+
+    try ( PreparedStatement s = c.prepareStatement(cmd)) {
+      try(ResultSet r = s.executeQuery()) {
+        return r.getInt(col);
+      }
+    } catch (SQLException e) {
+      System.out.println(e.getMessage());
+      throw new RuntimeException(e);
+    }
+  }
+  
   // converts the list into a string of format "(val1, val2, val3 ... valn)"
   // private String buildStringList(String start, TIntArrayList list) {
   //   int i = 0;
@@ -244,6 +288,7 @@ public class SQLConnector implements AutoCloseable {
   public void setCacheSize(int pages) {
     try {
       c.prepareStatement("PRAGMA cache_size=" + pages + ";").executeUpdate();
+      c.commit();
     }
     catch (SQLException e) {
       System.out.println(e.getMessage());

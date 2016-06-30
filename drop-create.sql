@@ -1,3 +1,5 @@
+DROP TABLE IF EXISTS Info;
+DROP TABLE IF EXISTS Token;
 DROP TABLE IF EXISTS Doc;
 DROP TABLE IF EXISTS Word;
 
@@ -15,4 +17,18 @@ CREATE TABLE Token (
   id INTEGER PRIMARY KEY,
   word INTEGER NOT NULL REFERENCES Word(id),
   doc INTEGER NOT NULL REFERENCES Doc(id),
-  topic INTEGER NOT NULL);
+  topic INTEGER NOT NULL
+);
+
+CREATE TABLE Info (
+  id INTEGER PRIMARY KEY,
+  topics INTEGER NOT NULL,
+  cycles INTEGER NOT NULL
+);
+
+CREATE VIEW Topic AS
+SELECT Word.word AS word, COUNT(word.word) AS cnt, Token.topic AS topic
+FROM Token INNER JOIN Word ON Word.id = Token.word 
+WHERE topic = 1
+GROUP BY Word.word 
+ORDER BY cnt;
