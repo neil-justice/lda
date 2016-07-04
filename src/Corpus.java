@@ -8,14 +8,18 @@ public class Corpus {
   private final int wordCount;              // no. of unique words
   private final int docCount;               // no. of docs
   private final int tokenCount;             // total no. of tokens
-  private int topicCount;
-  private int cycles;
-  private int[] tokensInTopic;
-  private int[][] wordsInTopic;
-  private int[][] topicsInDoc;
-  private double alpha; // hyperparameters
-  private double beta;  // hyperparameters
+  private final int topicCount;
+  private final int[] tokensInTopic; 
+  private final int[][] wordsInTopic;
+  private final int[][] topicsInDoc;
+  // high alpha: each document is likely to contain a mixture of most topics.
+  // low alpha:  more likely that a document may contain just a few topics. 
+  // high beta: each topic is likely to contain a mixture of most of words
+  // low beta: each topic may contain a mixture of just a few of the words.
+  private final double alpha; // hyperparameters
+  private final double beta; // hyperparameters
   private final SQLConnector c;
+  private int cycles;
   private int prevCycles; // no. of cycles run in previous session
   private int prevTopics; // no. of topics from last session
   
@@ -24,6 +28,12 @@ public class Corpus {
     wordCount = builder.wordCount();
     docCount = builder.docCount();
     tokenCount = builder.tokenCount();
+    topicCount = builder.topicCount();
+    tokensInTopic  = new int[topicCount];
+    wordsInTopic = new int[wordCount][topicCount];
+    topicsInDoc  = new int[topicCount][docCount];
+    alpha = 50 / (double) topicCount;
+    beta  = 200 / (double) wordCount;
     
     c = new SQLConnector(builder.dir());
     c.open();
@@ -35,60 +45,63 @@ public class Corpus {
                        " D : " + docCount + 
                        " N : " + tokenCount);
     System.out.println("" + prevCycles + " run so far, with Z = " + prevTopics);
-  }
-  
-  public void run(int cycles, int topics) {
-    this.cycles = cycles;
-    topicCount = topics;
     
-    tokensInTopic = new int[topicCount];
-    wordsInTopic = new int[wordCount][topicCount];
-    topicsInDoc = new int[topicCount][docCount];
-    // high alpha: each document is likely to contain a mixture of most topics.
-    // low alpha:  more likely that a document may contain just a few topics. 
-    // high beta: each topic is likely to contain a mixture of most of words
-    // low beta: each topic may contain a mixture of just a few of the words.
-    alpha = 50 / (double) topicCount;
-    beta = 200 / (double) wordCount;
-    
-    run();
-  }
-  
-  private void run() {
     if (prevTopics != topicCount || prevCycles == 0) {
+      System.out.println("Uninitialised data or different Z-count detected.");
+      System.out.println("(Re)-initialising...");
       randomiseTopics();
       prevCycles = 0;
       c.setCycles(0);
     }
     
     initialiseMatrices();
+  }
+  
+  public void run(int cycles) {
+    this.cycles = cycles;
     cycles();
-    c.updateTokens(tokens); // write updated topics to db
+    write();
+  }
+  
+  // write updated topics to db
+  public void write() {
+    if (!c.isOpen()) c.open();
+    
+    c.updateTokens(tokens); 
     c.setTopics(topicCount);
     c.setCycles(prevCycles + cycles);
   }
   
   //close DB connection
   public void closeDB() {
-    c.close(); 
+    c.close();
   }
+  
+  public void print() {
+    printWords();
+    printDocs();
+    termScore();
+  }  
   
   private void cycles() {
     double avg = 0;
     for (int i = 0; i < cycles; i++) {
       long s = System.nanoTime();
-      cycle();
+      int moves = cycle();
       long e = System.nanoTime();
       double time = (e - s) / 1000000000d;
       avg += time;
       System.out.print("Cycle " + i);
-      System.out.println(", seconds taken: " + time );
+      System.out.printf(", seconds taken: %.01f", time );
+      System.out.println(", moves made: " + moves );
     }
     avg /= cycles;
-    System.out.println("Avg. seconds taken: " + avg );    
+    System.out.printf("Avg. seconds taken: %.01f%n", avg );    
   }
   
-  private void cycle() {
+  private int cycle() {
+    int moves = 0;
+    
     for (int i = 0; i < tokenCount; i++) {
       int word = tokens.word(i);
       int oldTopic = tokens.topic(i);
@@ -99,29 +112,42 @@ public class Corpus {
       topicsInDoc[oldTopic][doc]--;
       tokens.setTopic(i, -1);
       
-      double[] probabilities = new double[topicCount];
-      double sum = 0;
-      for (int topic = 0; topic < topicCount; topic++) {
-        probabilities[topic] = (wordsInTopic[word][topic] + beta)
-                             * (topicsInDoc[topic][doc] + alpha)
-                             / (tokensInTopic[topic] + docCount);
-        sum += probabilities[topic];
-      }
-      int newTopic = -1;
-      double sample = rand.nextDouble() * sum;
-			while (sample > 0.0) {
-				newTopic++;
-				sample -= probabilities[newTopic];
-			}
-			if (newTopic == -1) {
-				throw new IllegalStateException ("New topic not sampled.  sample: " + sample + " sum: " + sum);
-			}
+      int newTopic = sample(word, oldTopic, doc);
+      if (newTopic != oldTopic) moves++;
       
       tokensInTopic[newTopic]++;      
       wordsInTopic[word][newTopic]++;
       topicsInDoc[newTopic][doc]++;
       tokens.setTopic(i, newTopic);
     }
+    
+    return moves;
+  }
+  
+  private int sample(int word, int oldTopic, int doc) {
+    double[] probabilities = new double[topicCount];
+    double sum = 0;
+
+    for (int topic = 0; topic < topicCount; topic++) {
+      probabilities[topic] = (wordsInTopic[word][topic] + beta)
+                           * (topicsInDoc[topic][doc] + alpha)
+                           / (tokensInTopic[topic] + docCount);
+      sum += probabilities[topic];
+    }
+    
+    int newTopic = -1;
+    double sample = rand.nextDouble() * sum; // between 0 and sum of all probs
+    
+    while (sample > 0.0) {
+      newTopic++;
+      sample -= probabilities[newTopic];
+    }
+    
+    if (newTopic == -1) {
+      throw new IllegalStateException ("New topic not sampled.  sample: " + sample + " sum: " + sum);
+    }
+    
+    return newTopic;
   }
   
   // Initialises all tokens with a randomly selected topic.
@@ -212,8 +238,8 @@ public class Corpus {
     
     return geometricMean;
   }
-  
-  public void print() {
+
+  public void printWords() {
     System.out.println("");
     for (int word = 0; word < wordCount; word++) {
       System.out.printf("%15s", translator.getWord(word));
@@ -222,6 +248,21 @@ public class Corpus {
       }
       System.out.println("");
     }
-    termScore();
+  }
+  
+  public void printDocs() {
+    System.out.println("");
+    for (int doc = 0; doc < docCount; doc++) {
+      System.out.printf("%-10s", translator.getDoc(doc));
+      double docTotal = 0;
+      for (int topic = 0; topic < topicCount; topic++) {
+        docTotal += topicsInDoc[topic][doc];
+      }
+      System.out.printf("tot: %5d", (int) docTotal);
+      for (int topic = 0; topic < topicCount; topic++) {
+        System.out.printf(" %.01f%%", (topicsInDoc[topic][doc] / docTotal) * 100d);
+      }
+      System.out.println("");
+    }
   }
 }

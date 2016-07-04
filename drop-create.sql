@@ -26,9 +26,11 @@ CREATE TABLE Info (
   cycles INTEGER NOT NULL
 );
 
-CREATE VIEW Topic AS
-SELECT Word.word AS word, COUNT(word.word) AS cnt, Token.topic AS topic
+explain query plan
+SELECT Word.word AS word, COUNT(word.word) AS cnt
 FROM Token INNER JOIN Word ON Word.id = Token.word 
 WHERE topic = 1
 GROUP BY Word.word 
-ORDER BY cnt;
+ORDER BY cnt ASC;
+
+SELECT COUNT(Token.topic) from Token WHERE Token.doc = 1 GROUP BY Token.topic;

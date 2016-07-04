@@ -47,36 +47,37 @@ class Interface {
       System.out.println("Enter a command: ");
       String line = input.nextLine();
       String[] cmd = line.split(" ");
-      
-      switch(cmd[0]) {
-        case "p":
-        case "process":
-          process();
-          break;
-        case "reload":
-          reload();
-          break;
-        case "load":
-          load();
-          break;
-        case "r":
-        case "run":
-          run(cmd);
-          break;
-        case "print":
-          print();
-          break;
-        case "help":
-          help();
-          break;
-        case "q":
-        case "quit":
-          quit = true;
-          if (corpus != null) corpus.closeDB();
-          break;
-        default:
-          System.out.println("Command not recognised.");
-      }
+      if (cmd.length > 0) {
+        switch(cmd[0]) {
+          case "p":
+          case "process":
+            process();
+            break;
+          case "reload":
+            reload(cmd);
+            break;
+          case "load":
+            load(cmd);
+            break;
+          case "r":
+          case "run":
+            run(cmd);
+            break;
+          case "print":
+            print();
+            break;
+          case "help":
+            help();
+            break;
+          case "q":
+          case "quit":
+            quit = true;
+            if (corpus != null) corpus.closeDB();
+            break;
+          default:
+            System.out.println("Command not recognised.");
+        }
+      } 
     }
   }
   
@@ -90,13 +91,13 @@ class Interface {
   private void help() {
     showInfo();
     System.out.println("Commands:");
-    System.out.println("  process  -- processes the clean file, removing stop words and so on");
-    System.out.println("  reload   -- re-initialises db from processed file");
-    System.out.println("  load     -- loads corpus from db");
-    System.out.println("  run      -- args [cycles] [topics]");
-    System.out.println("  print    -- prints [topic][word matrix and termscore]");
-    System.out.println("  help     -- shows this list");
-    System.out.println("  quit     -- exits the program");
+    System.out.println("  process         -- processes the clean file, removing stop words and so on");
+    System.out.println("  reload [topics] -- (re)-initialises db from processed file.");
+    System.out.println("  load [topics]   -- loads corpus from db.");
+    System.out.println("  run [cycles]    -- runs the specified no. of cycles.");
+    System.out.println("  print           -- prints [topic][word matrix] and termscore");
+    System.out.println("  help            -- shows this list");
+    System.out.println("  quit            -- exits the program");
   }
   
   private void process() {
@@ -105,38 +106,62 @@ class Interface {
     System.out.println("Text processed.");
   }
   
-  private void reload() {
-    corpus = new CorpusBuilder().fromFile(dir).build();
-    System.out.println("Corpus reloaded.");
+  private void reload(String[] cmd) {
+    if (corpus != null) corpus.closeDB();
+    
+    if (cmd.length == 2) {
+      int topics = parse(cmd[1]);   
+      if (topics > 0) {
+        corpus = new CorpusBuilder(topics).fromFile(dir).build();
+        System.out.println("Corpus reloaded.");
+      }
+    }
+    else System.out.println("Choose a topic count.");
   }
   
-  private void load() {
-    corpus = new CorpusBuilder().fromDatabase(dir).build();
-    System.out.println("Corpus loaded.");
+  private void load(String[] cmd) {
+    if (!ft.isInDB()) {
+      System.out.println("load to DB first.");
+      return;
+    }
+    
+    if (cmd.length == 2) {
+      int topics = parse(cmd[1]);   
+      if (topics > 0) {
+        corpus = new CorpusBuilder(topics).fromDatabase(dir).build();
+        System.out.println("Corpus loaded.");
+      }
+    }
+    else System.out.println("Choose a topic count.");
   }
   
   private void run(String[] cmd) {
-    int cycles, topics;
     if (corpus == null) {
       System.out.println("Load a corpus first.");
       return;
     }
     
-    if (cmd.length == 3) {
-      try {
-        cycles = Integer.parseInt(cmd[1]);
-        topics = Integer.parseInt(cmd[2]);
-      } catch (NumberFormatException e) {
-        System.out.println("Invalid input. Format is run [cycles] [topics]");
-        return;
-      }
-      corpus.run(cycles, topics);
+    if (cmd.length == 2) {
+      int cycles = parse(cmd[1]);
+      if (cycles > 0) corpus.run(cycles);
     }
-    else corpus.run(100, 30);
+    else corpus.run(100);
   }
   
   private void print() {
     if (corpus == null) System.out.println("Load a corpus first.");
     else corpus.print();
+  }
+  
+  private int parse(String text) {
+    int val;
+    try {
+      val = Integer.parseInt(text);
+      if (val < 0) throw new Exception();
+      return val;
+    } catch (Exception e) {
+      System.out.println("Invalid input.  This command needs a +ve number");
+      return -1;
+    }
   }
 }

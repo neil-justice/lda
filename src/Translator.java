@@ -27,4 +27,9 @@ public class Translator {
     if (words == null) words = c.getWords();
     return words.get(i);
   }
+  
+  public long getDoc(int i) {
+    if (docs == null) docs = c.getDocs();
+    return docs.get(i);
+  }  
 }

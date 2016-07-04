@@ -11,7 +11,12 @@ public class CorpusBuilder {
   private int tokenCount = 0;
   private int wordCount;
   private int docCount;
+  private int topicCount;
   private String dir;
+  
+  public CorpusBuilder(int topicCount) {
+    this.topicCount = topicCount;
+  }
   
   public CorpusBuilder fromFile(String dir) {
     this.dir = dir;
@@ -101,6 +106,7 @@ public class CorpusBuilder {
   public int wordCount() { return wordCount; }
   public int docCount() { return docCount; }
   public int tokenCount() { return tokenCount; }
+  public int topicCount() { return topicCount; }
   public String dir() { return dir; }
   public Corpus build() { return new Corpus(this); }
 }
