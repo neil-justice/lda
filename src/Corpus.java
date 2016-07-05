@@ -47,8 +47,8 @@ public class Corpus {
     System.out.println("" + prevCycles + " run so far, with Z = " + prevTopics);
     
     if (prevTopics != topicCount || prevCycles == 0) {
-      System.out.println("Uninitialised data or different Z-count detected.");
-      System.out.println("(Re)-initialising...");
+      System.out.print("Uninitialised data or different Z-count detected.");
+      System.out.println(" (Re)-initialising...");
       randomiseTopics();
       prevCycles = 0;
       c.setCycles(0);
@@ -92,11 +92,11 @@ public class Corpus {
       double time = (e - s) / 1000000000d;
       avg += time;
       System.out.print("Cycle " + i);
-      System.out.printf(", seconds taken: %.01f", time );
+      System.out.printf(", seconds taken: %.03f", time );
       System.out.println(", moves made: " + moves );
     }
     avg /= cycles;
-    System.out.printf("Avg. seconds taken: %.01f%n", avg );    
+    System.out.printf("Avg. seconds taken: %.03f%n", avg );    
   }
   
   private int cycle() {

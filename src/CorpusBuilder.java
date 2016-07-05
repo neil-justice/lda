@@ -57,6 +57,7 @@ public class CorpusBuilder {
     
     c.open();
     System.out.println("Database found at " + dir + LDA.DATABASE + "  Loading...");
+    c.showPragmas();
     tokens     = c.getTokens();
     tokenCount = tokens.size();
     wordCount  = c.getCount("Word");
@@ -71,7 +72,10 @@ public class CorpusBuilder {
     c.open();
     
     try {
+      System.out.println("Creating database...");
       c.createDrop();
+      c.showPragmas();
+      System.out.println("Database created.  Beginning write.");
       c.buildDocumentDictionary(documents);
       c.buildWordDictionary(words);
       c.buildTokenList(tokens);

@@ -3,11 +3,17 @@ import java.nio.file.*;
 
 public class DirectoryLoader {
   private final String root = "out/";
-  private final File[] directories = new File(root).listFiles(File::isDirectory);
-  private final String[] directoryNames = new String[directories.length];
+  private final File[] directories;
+  private final String[] directoryNames;
   private File dir;
   
   public DirectoryLoader() {
+    File rootdir = new File(root);
+    if (!rootdir.exists()) rootdir.mkdir();
+    
+    directories = new File(root).listFiles(File::isDirectory);
+    directoryNames = new String[directories.length];
+    
     for (int i = 0; i < directories.length; i++) {
       directoryNames[i] = directories[i].toString().substring(root.length());
     }

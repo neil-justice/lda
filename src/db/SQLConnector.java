@@ -12,6 +12,7 @@ import gnu.trove.iterator.*;
 
 public class SQLConnector implements AutoCloseable {
   private final String connection;
+  private TableManager tm;
   private Connection c;
   private boolean open; // will only catch intentional closure.
   
@@ -23,8 +24,10 @@ public class SQLConnector implements AutoCloseable {
     try {
       c = DriverManager.getConnection(connection);
       c.setAutoCommit(false);  // Allow transactions
-      setCacheSize(524288);
       open = true;
+      tm = new TableManager(c);
+      setTempStore(2);
+      setSynchronous(1);
     } catch (SQLException e) {
       c = null;
       System.out.println(e.getMessage());
@@ -46,45 +49,15 @@ public class SQLConnector implements AutoCloseable {
   }
   
   public void createDrop() {
-    if (c == null) { throw new IllegalStateException(); }
-    final String dropi = "DROP TABLE IF EXISTS Info;";
-    final String dropt = "DROP TABLE IF EXISTS Token;";
-    final String dropd = "DROP TABLE IF EXISTS Doc;";
-    final String dropw = "DROP TABLE IF EXISTS Word;";
-    final String page  = "PRAGMA page_size=4096;";
-    final String word  = "CREATE TABLE Word (" + 
-                           "id INTEGER PRIMARY KEY, " +
-                           "word VARCHAR(20) NOT NULL);";
-    final String doc   = "CREATE TABLE Doc (" +
-                           "id INTEGER PRIMARY KEY, " +
-                           "doc INTEGER NOT NULL);";
-    final String token = "CREATE TABLE Token (" +
-                           "id INTEGER PRIMARY KEY, " +
-                           "word INTEGER NOT NULL REFERENCES Word(id), " +
-                           "doc INTEGER NOT NULL REFERENCES Doc(id), " +
-                           "topic INTEGER NOT NULL);";
-    final String info  = "CREATE TABLE Info (" +
-                           "id INTEGER PRIMARY KEY, " +
-                           "topics INTEGER NOT NULL, " +
-                           "cycles INTEGER NOT NULL);";
-    final String iinit = "INSERT INTO Info VALUES( 0, 0, 0)";
-
-    try (Statement s = c.createStatement()) {
-      s.addBatch(dropi);
-      s.addBatch(dropt);
-      s.addBatch(dropd);
-      s.addBatch(dropw);
-      s.addBatch(page);
-      s.addBatch(word);
-      s.addBatch(doc);
-      s.addBatch(token);
-      s.addBatch(info);
-      s.addBatch(iinit);
-      s.executeBatch();
-      c.commit();
-    } catch (SQLException e) {
-      System.out.println(e.getMessage());
-    }
+    tm.dropTables();
+    initialiseParameters();
+    tm.createTables();
+  }
+  
+  // only PRAGMAs which persist should be initialised here.
+  private void initialiseParameters() {
+    setDefaultCacheSize(1000000);
+    setPageSize(4096);
   }
 
   public void buildDocumentDictionary(TLongArrayList documents) {
@@ -98,11 +71,11 @@ public class SQLConnector implements AutoCloseable {
         s.setLong(2, documents.get(i));
         s.addBatch();
         if ( i % batchSize == 0 && i > 0) {
-          int[] res = s.executeBatch();
+          s.executeBatch();
           c.commit();
         }
       }
-      int[] res = s.executeBatch();
+      s.executeBatch();
       c.commit();
     } catch (SQLException e) {
       System.out.println(e.getMessage());
@@ -122,11 +95,11 @@ public class SQLConnector implements AutoCloseable {
         s.setString(2, it.key());
         s.addBatch();
         if ( i % batchSize == 0 && i > 0) {
-          int[] res = s.executeBatch();
+          s.executeBatch();
           c.commit();
         }
       }
-      int[] res = s.executeBatch();
+      s.executeBatch();
       c.commit();
     } catch (SQLException e) {
       System.out.println(e.getMessage());
@@ -146,11 +119,11 @@ public class SQLConnector implements AutoCloseable {
         s.setInt(4, tokens.topic(i));
         s.addBatch();
         if ( i % batchSize == 0 && i > 0) {
-          int[] res = s.executeBatch();
+          s.executeBatch();
           c.commit();
         }
       }
-      int[] res = s.executeBatch();
+      s.executeBatch();
       c.commit();
       long e = System.nanoTime();
       System.out.printf("DB written: seconds taken: %.01f%n", (e - b) / 1000000000d );
@@ -160,28 +133,9 @@ public class SQLConnector implements AutoCloseable {
   }
   
   public void updateTokens(Tokens tokens) {
-    if (c == null) { throw new IllegalStateException(); }
-    final String cmd = "UPDATE Token SET topic = ? WHERE Token.id = ? ;";
-    final int batchSize = 100000;
-    
-    try (PreparedStatement s = c.prepareStatement(cmd)) {
-      long b = System.nanoTime();
-      for (int i = 0; i < tokens.size(); i++) {
-        s.setInt(1, tokens.topic(i));
-        s.setInt(2, i);
-        s.addBatch();
-        if ( i % batchSize == 0 && i > 0) {
-          int[] res = s.executeBatch();
-          c.commit();
-        }
-      }
-      int[] res = s.executeBatch();
-      c.commit();
-      long e = System.nanoTime();
-      System.out.printf("DB updated: seconds taken: %.01f%n", (e - b) / 1000000000d );
-    } catch (SQLException e) {
-      System.out.println(e.getMessage());
-    }
+    tm.dropTokenTable();
+    tm.createTokenTable();
+    buildTokenList(tokens);
   }
   
   public Tokens getTokens() {
@@ -289,28 +243,107 @@ public class SQLConnector implements AutoCloseable {
     }
   }
   
-  // converts the list into a string of format "(val1, val2, val3 ... valn)"
-  // private String buildStringList(String start, TIntArrayList list) {
-  //   int i = 0;
-  //   StringBuilder sb = new StringBuilder(start);
-  //   sb.append("(");
-  //   for (int val: list) {
-  //     if (i != 0) sb.append(",");
-  //     sb.append(val);
-  //     i++;
-  //   }
-  //   sb.append(");");
-  //   
-  //   return sb.toString();
-  // }
-
   public void setCacheSize(int pages) {
+    if (pages < 0) throw new Error("-ve values not allowed here");
+    setPragmaValue("cache_size", pages);
+  }
+  
+  public void setDefaultCacheSize(int pages) {
+    if (pages < 0) throw new Error("-ve values not allowed here");
+    setPragmaValue("default_cache_size", pages);
+  }
+  
+  public void setPageSize(int size) {
+    if (size < 0) throw new Error("-ve values not allowed here");
+    setPragmaValue("page_size", size);
+    vacuum();
+  }  
+  
+  //DEFAULT (0), FILE (1), and MEMORY (2)
+  public void setTempStore(int mode) {
+    if (mode > 2 || mode < 0) throw new Error("unsupported mode");
+    setPragmaValue("temp_store", mode);
+  }
+  
+  public void setSynchronous(int level) {
+    if (level > 3 || level < 0) throw new Error("unsupported mode");
     try {
-      c.prepareStatement("PRAGMA cache_size=" + pages + ";").executeUpdate();
+      c.setAutoCommit(true);
+      setPragmaValue("synchronous", level);
+      c.setAutoCommit(false);
+    }
+    catch (SQLException e) {
+      System.out.println(e.getMessage());
+    }    
+  }
+  
+  public int getCacheSize() {
+    return getPragmaValue("cache_size");
+  }
+  
+  public int getPageSize() {
+    return getPragmaValue("page_size");
+  }
+  
+  public int getTempStore() {
+    return getPragmaValue("temp_store");
+  }
+  
+  public int getDefaultCacheSize() {
+    return getPragmaValue("default_cache_size", "cache_size");
+  }
+  
+  public int getSynchronous() {
+    return getPragmaValue("synchronous");
+  }
+  
+  public void showPragmas() {
+    System.out.println("cache size  : " + getCacheSize());
+    System.out.println("page size   : " + getPageSize());
+    System.out.println("temp store  : " + getTempStore());
+    System.out.println("synchronous : " + getSynchronous());
+  }
+
+  private void setPragmaValue(String name, int val) {
+    if (c == null) { throw new IllegalStateException(); }
+    
+    try {
+      c.prepareStatement("PRAGMA "+ name + "=" + val + ";").executeUpdate();
       c.commit();
     }
     catch (SQLException e) {
       System.out.println(e.getMessage());
     }
   }
+  
+  private int getPragmaValue(String name) {
+    return getPragmaValue(name, name);
+  }
+  
+  // some pragma column names are different from the var name, e.g.
+  // default_cache_size returns a col of title cache_size
+  private int getPragmaValue(String name, String col) {
+    if (c == null) { throw new IllegalStateException(); }
+    final String cmd = "PRAGMA " + name + ";";
+
+    try ( PreparedStatement s = c.prepareStatement(cmd)) {
+      try(ResultSet r = s.executeQuery()) {
+        return r.getInt(col);
+      }
+    } catch (SQLException e) {
+      System.out.println(e.getMessage());
+      throw new RuntimeException(e);
+    }
+  }
+  
+  public void vacuum() {
+    try {
+      c.setAutoCommit(true);
+      c.prepareStatement("VACUUM;").executeUpdate();
+      c.setAutoCommit(false);
+    }
+    catch (SQLException e) {
+      System.out.println(e.getMessage());
+    }
+  }  
 }
