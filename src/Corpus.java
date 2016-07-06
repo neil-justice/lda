@@ -2,6 +2,7 @@ import java.util.*;
 
 public class Corpus {
   
+  private final int P = 96; // no. of GPU processors.
   private final Tokens tokens;
   private final Translator translator; // used to translate from ID to word/doc
   private final Random rand = new Random();
@@ -101,6 +102,39 @@ public class Corpus {
   
   private int cycle() {
     int moves = 0;
+    int docPartSize  = docCount / P; //TODO check for rounding errors
+    int wordPartSize = wordCount / P;
+    
+    for (int epoch = 0; epoch < P; epoch++) {
+      for (int processor = 0; processor < P; processor++) {
+        int docPartStart  = processor * docPartSize;
+        int wordPartStart = ((epoch + processor) % P) * wordPartSize;
+        for (int i = docPartStart; i < docPartStart + docPartSize; i++) {
+          // TODO i is wrong value: need to find the first token where 
+          // doc == docPartStart
+          int word = tokens.word(i);
+          int oldTopic = tokens.topic(i);
+          int doc = tokens.doc(i);
+          
+          if (word >= wordPartStart && word < (wordPartStart + wordPartSize)) {
+            tokensInTopic[oldTopic]--;      
+            wordsInTopic[word][oldTopic]--;
+            topicsInDoc[oldTopic][doc]--;
+            tokens.setTopic(i, -1);
+            
+            int newTopic = sample(word, oldTopic, doc);
+            if (newTopic != oldTopic) moves++;
+            
+            tokensInTopic[newTopic]++;      
+            wordsInTopic[word][newTopic]++;
+            topicsInDoc[newTopic][doc]++;
+            tokens.setTopic(i, newTopic);            
+          }
+        }
+      }
+      synchronise();
+    }
+    
     
     for (int i = 0; i < tokenCount; i++) {
       int word = tokens.word(i);

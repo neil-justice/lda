@@ -46,7 +46,7 @@ public class CorpusBuilder {
     
     wordCount = words.size();
     docCount = documents.size();
-    tokens.shuffle();
+    // tokens.shuffle();
     writeDB();
     return this;
   }
