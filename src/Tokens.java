@@ -29,10 +29,10 @@ public class Tokens {
     topics.add(topic);
   }
   
-  public void setTopic(int i, int topic) { topics.set(i, topic); }
-  public int word(int i) { return words.get(i); }
-  public int doc(int i) { return docs.get(i); }
-  public int topic(int i) {return topics.get(i); }
+  public void setTopic(int i, int topic) { topics.setQuick(i, topic); }
+  public int word(int i) { return words.getQuick(i); }
+  public int doc(int i) { return docs.getQuick(i); }
+  public int topic(int i) {return topics.getQuick(i); }
   public int size() {return topics.size(); }
   
   // shuffles the lists without losing info about their shared indices.
@@ -49,8 +49,8 @@ public class Tokens {
   }
 
   private static void swap(TIntArrayList list, int i, int j) {
-    int temp = list.get(i);
-    list.set(i, list.get(j));
+    int temp = list.getQuick(i);
+    list.set(i, list.getQuick(j));
     list.set(j, temp);
   }
 }
