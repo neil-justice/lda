@@ -1,8 +1,8 @@
 import java.util.*;
+import com.amd.aparapi.Range;
 
 public class Corpus {
   
-  private final int P = 96; // no. of GPU processors.
   private final Tokens tokens;
   private final Translator translator; // used to translate from ID to word/doc
   private final Random rand = new Random();
@@ -24,6 +24,15 @@ public class Corpus {
   private int prevCycles; // no. of cycles run in previous session
   private int prevTopics; // no. of topics from last session
   
+  // GPU multithreading stuff:
+  private final int P = 96; // no. of GPU processors.
+  private int docPartSize;
+  private int wordPartSize;
+  private int[] docPartStart  = new int[P + 1];
+  private int[] wordPartStart = new int[P + 1];
+  private int[] tokenPartStart= new int[P + 1];
+  private SamplerKernel kernel;
+                                      
   public Corpus(CorpusBuilder builder) {
     tokens = builder.tokens();
     wordCount = builder.wordCount();
@@ -56,12 +65,28 @@ public class Corpus {
     }
     
     initialiseMatrices();
+    initGPU();
+  }
+  
+  public void initGPU() {
+    docPartSize  = docCount / P; 
+    wordPartSize = wordCount / P;
+    
+    for (int i = 0; i < P; i++) {
+      docPartStart[i]   = i * docPartSize;
+      wordPartStart[i]  = i * wordPartSize;
+      tokenPartStart[i] = tokens.getDocStartPoint(docPartStart[i]);
+    }
+    docPartStart[P]   = docCount;
+    wordPartStart[P]  = wordCount;
+    tokenPartStart[P] = tokenCount;
   }
   
   public void run(int cycles) {
     this.cycles = cycles;
     cycles();
     write();
+    kernel.dispose();
   }
   
   // write updated topics to db
@@ -102,87 +127,20 @@ public class Corpus {
   
   private int cycle() {
     int moves = 0;
-    int docPartSize  = docCount / P; //TODO check for rounding errors
-    int wordPartSize = wordCount / P;
+    double[] probabilities = new double[topicCount];
     
     for (int epoch = 0; epoch < P; epoch++) {
-      for (int processor = 0; processor < P; processor++) {
-        int docPartStart  = processor * docPartSize;
-        int wordPartStart = ((epoch + processor) % P) * wordPartSize;
-        for (int i = docPartStart; i < docPartStart + docPartSize; i++) {
-          // TODO i is wrong value: need to find the first token where 
-          // doc == docPartStart
-          int word = tokens.word(i);
-          int oldTopic = tokens.topic(i);
-          int doc = tokens.doc(i);
-          
-          if (word >= wordPartStart && word < (wordPartStart + wordPartSize)) {
-            tokensInTopic[oldTopic]--;      
-            wordsInTopic[word][oldTopic]--;
-            topicsInDoc[oldTopic][doc]--;
-            tokens.setTopic(i, -1);
-            
-            int newTopic = sample(word, oldTopic, doc);
-            if (newTopic != oldTopic) moves++;
-            
-            tokensInTopic[newTopic]++;      
-            wordsInTopic[word][newTopic]++;
-            topicsInDoc[newTopic][doc]++;
-            tokens.setTopic(i, newTopic);            
-          }
-        }
-      }
-      synchronise();
-    }
-    
-    
-    for (int i = 0; i < tokenCount; i++) {
-      int word = tokens.word(i);
-      int oldTopic = tokens.topic(i);
-      int doc = tokens.doc(i);
-      
-      tokensInTopic[oldTopic]--;      
-      wordsInTopic[word][oldTopic]--;
-      topicsInDoc[oldTopic][doc]--;
-      tokens.setTopic(i, -1);
-      
-      int newTopic = sample(word, oldTopic, doc);
-      if (newTopic != oldTopic) moves++;
-      
-      tokensInTopic[newTopic]++;      
-      wordsInTopic[word][newTopic]++;
-      topicsInDoc[newTopic][doc]++;
-      tokens.setTopic(i, newTopic);
+      kernel = new SamplerKernel(tokensInTopic, tokens.words(), tokens.docs(), 
+                                 tokens.topics(), epoch, probabilities, 
+                                 tokenPartStart, wordPartStart, wordsInTopic,
+                                 topicsInDoc, beta, alpha, docCount, P);
+                                 
+      kernel.execute(Range.create(P));
+      // synchronise();
     }
     
     return moves;
-  }
-  
-  private int sample(int word, int oldTopic, int doc) {
-    double[] probabilities = new double[topicCount];
-    double sum = 0;
-
-    for (int topic = 0; topic < topicCount; topic++) {
-      probabilities[topic] = (wordsInTopic[word][topic] + beta)
-                           * (topicsInDoc[topic][doc] + alpha)
-                           / (tokensInTopic[topic] + docCount);
-      sum += probabilities[topic];
-    }
-    
-    int newTopic = -1;
-    double sample = rand.nextDouble() * sum; // between 0 and sum of all probs
-    
-    while (sample > 0.0) {
-      newTopic++;
-      sample -= probabilities[newTopic];
-    }
-    
-    if (newTopic == -1) {
-      throw new IllegalStateException ("New topic not sampled.  sample: " + sample + " sum: " + sum);
-    }
-    
-    return newTopic;
-  }
+  }  
   
   // Initialises all tokens with a randomly selected topic.
   private void randomiseTopics() {

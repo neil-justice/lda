@@ -54,6 +54,7 @@ class LDA {
   private void test() {
     TextCleaner.main(null);
     DirectoryLoader.main(null);
+    Tokens.main(null);
     System.exit(0);
   }
 }

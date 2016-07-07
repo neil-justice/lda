@@ -1,25 +1,32 @@
 import gnu.trove.list.array.TIntArrayList;
 import java.util.*;
+import tester.Tester;
 
 public class Tokens {
   private final TIntArrayList words; 
   private final TIntArrayList docs;
   private final TIntArrayList topics;
+  private final TIntArrayList docStartPoints;
+  private int lastDoc = 0;
   private Random random;
   
   public Tokens() {
     words = new TIntArrayList();
     docs = new TIntArrayList();
     topics = new TIntArrayList();
+    docStartPoints = new TIntArrayList();
+    docStartPoints.add(0);
   }
   
   public Tokens(int capacity) {
     words = new TIntArrayList(capacity);
     docs = new TIntArrayList(capacity);
     topics = new TIntArrayList(capacity);
+    docStartPoints = new TIntArrayList();
+    docStartPoints.add(0);
   }
   
-  public void add(int word, int doc) { 
+  public void add(int word, int doc) {
     add(word, doc, -1);
   }
   
@@ -27,6 +34,13 @@ public class Tokens {
     words.add(word);
     docs.add(doc);
     topics.add(topic);
+    if (doc != lastDoc) docStartPoints.add(docs.size());
+    lastDoc = doc;
+  }
+  
+  // assumes that the list has not been shuffled.
+  public int getDocStartPoint(int doc) {
+    return docStartPoints.get(doc);
   }
   
   public void setTopic(int i, int topic) { topics.set(i, topic); }
@@ -34,6 +48,15 @@ public class Tokens {
   public int doc(int i) { return docs.get(i); }
   public int topic(int i) {return topics.get(i); }
   public int size() {return topics.size(); }
+  
+  private int[] toArray(TIntArrayList a) {
+    int[] ret = new int[size()];
+    return a.toArray(ret);
+  }
+  
+  public int[] words() { return toArray(words); }
+  public int[] docs() { return toArray(docs); }
+  public int[] topics() { return toArray(topics); }
   
   // shuffles the lists without losing info about their shared indices.
   // This is a modified version of Collections.shuffle()
@@ -52,5 +75,31 @@ public class Tokens {
     int temp = list.get(i);
     list.set(i, list.get(j));
     list.set(j, temp);
+  }
+  
+  public static void main(String[] args) {
+    Tester t = new Tester();
+    Tokens tokens = new Tokens();
+    tokens.add(0, 0);
+    tokens.add(1, 0);
+    tokens.add(2, 0);
+    tokens.add(1, 0);
+    tokens.add(3, 0);
+    tokens.add(1, 1);
+    tokens.add(4, 1);
+    tokens.add(5, 1);
+    tokens.add(1, 2);
+    tokens.add(2, 2);
+    tokens.add(2, 2);
+    tokens.add(2, 2);
+    tokens.add(2, 3);
+    tokens.add(2, 3);
+    
+    t.is(tokens.getDocStartPoint(0), 0);
+    t.is(tokens.getDocStartPoint(1), 6);
+    t.is(tokens.getDocStartPoint(2), 9);
+    t.is(tokens.getDocStartPoint(3), 13);
+    
+    t.results();
   }
 }
