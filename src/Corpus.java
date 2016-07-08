@@ -4,7 +4,6 @@ public class Corpus {
   
   private final Tokens tokens;
   private final Translator translator; // used to translate from ID to word/doc
-  private final Random rand = new Random();
   private final int wordCount;              // no. of unique words
   private final int docCount;               // no. of docs
   private final int tokenCount;             // total no. of tokens
@@ -84,7 +83,6 @@ public class Corpus {
     this.cycles = cycles;
     cycles();
     write();
-    kernel.dispose();
   }
   
   // write updated topics to db
@@ -124,62 +122,96 @@ public class Corpus {
   }
   
   private int cycle() {
-    int moves = 0;
-    double[] probabilities = new double[topicCount];
+    // TODO init should not be here - make this a field?
+    GibbsThread[] threads = new GibbsThread[P];
+
+    for (int proc = 0; proc < P; proc++) {
+      threads[proc] = new GibbsThread(proc);
+    }
     
     for (int epoch = 0; epoch < P; epoch++) {
       for (int proc = 0; proc < P; proc++) {
-        for (int i = tokenPartStart[proc]; i < tokenPartStart[proc + 1]; i++) {
-          int word = tokens.word(i);
-          int wps = (epoch + proc) % P;
-          // checks if the word is in the word partition
-          if (word >= wordPartStart[wps] && word < (wordPartStart[wps + 1])) {
-            int oldTopic = tokens.topic(i);
-            int doc = tokens.docs(i);
-            tokensInTopicLocal[oldTopic]--;      
-            wordsInTopic[word][oldTopic]--;
-            topicsInDoc[oldTopic][doc]--;
-            
-            int newTopic = sample(word, oldTopic, doc);
-            if (newTopic != oldTopic) moves++;
-            
-            tokensInTopicLocal[newTopic]++;      
-            wordsInTopic[word][newTopic]++;
-            topicsInDoc[newTopic][doc]++;
-            tokens.setTopic(i, newTopic);
-          }
-        }  
+        threads[proc].updateEpoch(epoch);
+        threads[proc].setTokensInTopic(tokensInTopic);
       }
     }
     
     return moves;
   }
   
-  private int sample(int word, int oldTopic, int doc) {
-    double[] probabilities = new double[topicCount];
-    double sum = 0;
+  class GibbsThread extends Thread {
+    private int epoch;
+    private int moves = 0;
+    private final int proc;
+    private int[] tokensInTopic; // local version of the array to avoid races
+    
+    public GibbsThread(int proc) {
+      this.proc = proc;
+    }
+    
+    public void updateEpoch(int epoch) { this.epoch = epoch; }
+    
+    public int moves() { return moves; }
+    
+    public int[] getTokensInTopic() { return tokensInTopic; }
+    
+    public void setTokensInTopic(int[] tokensInTopic) {
+      this.tokensInTopic = tokensInTopic;
+    }
+    
+    @Override
+    public void run() {
+      for (int i = tokenPartStart[proc]; i < tokenPartStart[proc + 1]; i++) {
+        int word = tokens.word(i);
+        int wps = (epoch + proc) % P;
+        // checks if the word is in the word partition
+        if (word >= wordPartStart[wps] && word < (wordPartStart[wps + 1])) {
+          int oldTopic = tokens.topic(i);
+          int doc = tokens.doc(i);
+          tokensInTopic[oldTopic]--;      
+          wordsInTopic[word][oldTopic]--;
+          topicsInDoc[oldTopic][doc]--;
+          
+          int newTopic = sample(word, oldTopic, doc);
+          if (newTopic != oldTopic) moves++;
+          
+          tokensInTopic[newTopic]++;      
+          wordsInTopic[word][newTopic]++;
+          topicsInDoc[newTopic][doc]++;
+          tokens.setTopic(i, newTopic);
+        }
+      }  
+    }
+    
+    
+    private int sample(int word, int oldTopic, int doc) {
+      double[] probabilities = new double[topicCount];
+      double sum = 0;
 
-    for (int topic = 0; topic < topicCount; topic++) {
-      probabilities[topic] = (wordsInTopic[word][topic] + beta)
-                           * (topicsInDoc[topic][doc] + alpha)
-                           / (tokensInTopic[topic] + docCount);
-      sum += probabilities[topic];
-    }
-    
-    int newTopic = -1;
-    double sample = rand.nextDouble() * sum; // between 0 and sum of all probs
-    
-    while (sample > 0.0) {
-      newTopic++;
-      sample -= probabilities[newTopic];
-    }
-    
-    if (newTopic == -1) {
-      throw new IllegalStateException ("New topic not sampled.  sample: " + sample + " sum: " + sum);
-    }
-    
-    return newTopic;
-  }  
+      for (int topic = 0; topic < topicCount; topic++) {
+        probabilities[topic] = (wordsInTopic[word][topic] + beta)
+                             * (topicsInDoc[topic][doc] + alpha)
+                             / (tokensInTopic[topic] + docCount);
+        sum += probabilities[topic];
+      }
+      
+      int newTopic = -1;
+      double sample = Math.random() * sum; // between 0 and sum of all probs
+      
+      while (sample > 0.0) {
+        newTopic++;
+        sample -= probabilities[newTopic];
+      }
+      
+      if (newTopic == -1) {
+        throw new IllegalStateException ("New topic not sampled.  sample: " + sample + " sum: " + sum);
+      }
+      
+      return newTopic;
+    }      
+  }
+  
+
   
   // Initialises all tokens with a randomly selected topic.
   private void randomiseTopics() {
