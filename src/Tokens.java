@@ -49,14 +49,14 @@ public class Tokens {
   public int topic(int i) {return topics.get(i); }
   public int size() {return topics.size(); }
   
-  private int[] toArray(TIntArrayList a) {
-    int[] ret = new int[size()];
-    return a.toArray(ret);
+  private int[] toArray(TIntArrayList a, int offset, int len) {
+    int[] ret = new int[len];
+    return a.toArray(ret, offset, len);
   }
   
-  public int[] words() { return toArray(words); }
-  public int[] docs() { return toArray(docs); }
-  public int[] topics() { return toArray(topics); }
+  public int[] words(int offset, int len) { return toArray(words, offset, len); }
+  public int[] docs(int offset, int len) { return toArray(docs, offset, len); }
+  public int[] topics(int offset, int len) { return toArray(topics, offset, len); }
   
   // shuffles the lists without losing info about their shared indices.
   // This is a modified version of Collections.shuffle()

@@ -1,5 +1,4 @@
 import java.util.*;
-import com.amd.aparapi.Range;
 
 public class Corpus {
   
@@ -24,14 +23,13 @@ public class Corpus {
   private int prevCycles; // no. of cycles run in previous session
   private int prevTopics; // no. of topics from last session
   
-  // GPU multithreading stuff:
-  private final int P = 96; // no. of GPU processors.
+  // multithreading stuff:
+  private final int P = 3; // no. of processors.
   private int docPartSize;
   private int wordPartSize;
   private int[] docPartStart  = new int[P + 1];
   private int[] wordPartStart = new int[P + 1];
   private int[] tokenPartStart= new int[P + 1];
-  private SamplerKernel kernel;
                                       
   public Corpus(CorpusBuilder builder) {
     tokens = builder.tokens();
@@ -65,10 +63,10 @@ public class Corpus {
     }
     
     initialiseMatrices();
-    initGPU();
+    initMulti();
   }
   
-  public void initGPU() {
+  public void initMulti() {
     docPartSize  = docCount / P; 
     wordPartSize = wordCount / P;
     
@@ -130,16 +128,57 @@ public class Corpus {
     double[] probabilities = new double[topicCount];
     
     for (int epoch = 0; epoch < P; epoch++) {
-      kernel = new SamplerKernel(tokensInTopic, tokens.words(), tokens.docs(), 
-                                 tokens.topics(), epoch, probabilities, 
-                                 tokenPartStart, wordPartStart, wordsInTopic,
-                                 topicsInDoc, beta, alpha, docCount, P);
-                                 
-      kernel.execute(Range.create(P));
-      // synchronise();
+      for (int proc = 0; proc < P; proc++) {
+        for (int i = tokenPartStart[proc]; i < tokenPartStart[proc + 1]; i++) {
+          int word = tokens.word(i);
+          int wps = (epoch + proc) % P;
+          // checks if the word is in the word partition
+          if (word >= wordPartStart[wps] && word < (wordPartStart[wps + 1])) {
+            int oldTopic = tokens.topic(i);
+            int doc = tokens.docs(i);
+            tokensInTopicLocal[oldTopic]--;      
+            wordsInTopic[word][oldTopic]--;
+            topicsInDoc[oldTopic][doc]--;
+            
+            int newTopic = sample(word, oldTopic, doc);
+            if (newTopic != oldTopic) moves++;
+            
+            tokensInTopicLocal[newTopic]++;      
+            wordsInTopic[word][newTopic]++;
+            topicsInDoc[newTopic][doc]++;
+            tokens.setTopic(i, newTopic);
+          }
+        }  
+      }
     }
     
     return moves;
+  }
+  
+  private int sample(int word, int oldTopic, int doc) {
+    double[] probabilities = new double[topicCount];
+    double sum = 0;
+
+    for (int topic = 0; topic < topicCount; topic++) {
+      probabilities[topic] = (wordsInTopic[word][topic] + beta)
+                           * (topicsInDoc[topic][doc] + alpha)
+                           / (tokensInTopic[topic] + docCount);
+      sum += probabilities[topic];
+    }
+    
+    int newTopic = -1;
+    double sample = rand.nextDouble() * sum; // between 0 and sum of all probs
+    
+    while (sample > 0.0) {
+      newTopic++;
+      sample -= probabilities[newTopic];
+    }
+    
+    if (newTopic == -1) {
+      throw new IllegalStateException ("New topic not sampled.  sample: " + sample + " sum: " + sum);
+    }
+    
+    return newTopic;
   }  
   
   // Initialises all tokens with a randomly selected topic.
