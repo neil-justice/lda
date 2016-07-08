@@ -11,10 +11,11 @@ public class Corpus {
   private final int tokenCount;        // total no. of tokens
   private final int topicCount;
   private final int[] tokensInTopic; 
+  private final int[] tokensInDoc; 
   private final int[][] wordsInTopic;
   private final int[][] topicsInDoc;
-  private final int[][] phiSum;        // multinomial dist. of words in topics
-  private final int[][] thetaSum;      // multinomial dist. of topics in docs.
+  private final double[][] phiSum;     // multinomial dist. of words in topics
+  private final double[][] thetaSum;   // multinomial dist. of topics in docs.
   
   // high alpha: each document is likely to contain a mixture of most topics.
   // low alpha:  more likely that a document may contain just a few topics. 
@@ -24,10 +25,10 @@ public class Corpus {
   private final double beta;  // hyperparameters
   private int cycles;
   private int samples; // no. of times the phi and theta sums have been added to
-  private final int burnLength; // length of burn-in phase to allow markov chain 
-                                // to converge.
-  private final int sampleLag;  // cycles to skip samples from between samples-
-                                // gives decorrelated states of the markov chain
+  private int burnLength; // length of burn-in phase to allow markov chain 
+                          // to converge.
+  private int sampleLag;  // cycles to skip samples from between samples, giving
+                          // us decorrelated states of the markov chain
   
   // DB stuff:
   private final SQLConnector c;
@@ -46,8 +47,8 @@ public class Corpus {
     wordsInTopic  = new int[wordCount][topicCount];
     topicsInDoc   = new int[topicCount][docCount];
     
-    phiSum        = new int[wordCount][topicCount];
-    thetaSum      = new int[topicCount][docCount];
+    phiSum        = new double[wordCount][topicCount];
+    thetaSum      = new double[topicCount][docCount];
     
     alpha = 50 / (double) topicCount;
     beta  = 200 / (double) wordCount;
@@ -90,7 +91,6 @@ public class Corpus {
   // initialises the matrix of word occurrence count in topic,
   // and the matrix of topic occurrence count in document
   private void initialiseMatrices() {
-    int count = 0;
     for (int i = 0; i < tokenCount; i++) {
       int word = tokens.word(i);
       int topic = tokens.topic(i);
@@ -99,9 +99,7 @@ public class Corpus {
       topicsInDoc[topic][doc]++;
       tokensInTopic[topic]++;
       tokensInDoc[doc]++;
-      count++;
     }
-    if (count != tokenCount) throw new IllegalStateException("incorrect token count");
   }  
   
   public void run(int cycles) {
@@ -129,7 +127,7 @@ public class Corpus {
   
   public void print() {
     printWords();
-    printDocs();
+    // printDocs();
     termScore();
   }  
   
@@ -138,15 +136,16 @@ public class Corpus {
     for (int i = 0; i < cycles; i++) {
       long s = System.nanoTime();
       int moves = cycle();
+      if (i >= burnLength && i % sampleLag == 0) updateParameters();
       long e = System.nanoTime();
       double time = (e - s) / 1000000000d;
       avg += time;
       System.out.print("Cycle " + i);
       System.out.printf(", seconds taken: %.03f", time );
-      System.out.println(", moves made: " + moves );
-      if (i >= burnLength && i % sampleLag == 0) {
-        updateParameters();
-      }
+      System.out.print(", moves made: " + moves );
+      if (i < burnLength) System.out.print(" (burn-in)");
+      if (i % sampleLag != 0) System.out.print(" (sample-lagging)");
+      System.out.println();
     }
     avg /= cycles;
     System.out.printf("Avg. seconds taken: %.03f%n", avg );    
@@ -209,24 +208,24 @@ public class Corpus {
     for (int topic = 0; topic < topicCount; topic++) {
       for (int doc = 0; doc < docCount; doc++) {
         thetaSum[topic][doc] += (topicsInDoc[topic][doc] + alpha)
-                             /  (tokensInDoc[doc] + topicCount * alpha);
+                             /  (double)(tokensInDoc[doc] + topicCount * alpha);
       }
     }
     for (int word = 0; word < wordCount; word++) {
       for (int topic = 0; topic < topicCount; topic++) {
         phiSum[word][topic] += (wordsInTopic[word][topic] + beta)
-                            /  (tokensIntopic[topic] + wordCount * beta);
+                            /  (double)(tokensInTopic[topic] + wordCount * beta);
       }
     }
     samples++;
   }
   
   private double[][] phi() {
-    double[][] phi = new double[topicCount][wordCount];
+    double[][] phi = new double[wordCount][topicCount];
 
     for (int word = 0; word < wordCount; word++) {
       for (int topic = 0; topic < topicCount; topic++) {
-        phi[topic][word] = phiSum[topic][word] / samples;
+        phi[word][topic] = phiSum[word][topic] / samples;
       }
     }
     
@@ -234,7 +233,7 @@ public class Corpus {
   }
   
   private double[][] theta() {
-    double[][] theta = new double[docCount][topicCount];
+    double[][] theta = new double[topicCount][docCount];
 
     for (int topic = 0; topic < topicCount; topic++) {
       for (int doc = 0; doc < docCount; doc++) {
