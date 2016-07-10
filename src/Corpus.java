@@ -151,7 +151,6 @@ public class Corpus {
     // check if all tokens have been through the gibbs sampler
     // int ch = tokens.check();
     // if (ch != 0) System.out.println("" + ch + "/" + tokenCount + " unchecked!");
-    // else System.out.println("All topics checked.");
   }
   
   // implements the multithreading collapsed gibbs sampling algorithm put
@@ -191,7 +190,6 @@ public class Corpus {
             count++;
           }
         } 
-        //synchronise local tokensInTopic arrays here and reload them
         synchronise();
       }
       // System.out.println("proc " + proc + " count: " + count + "/" + tokenCount);
@@ -224,21 +222,24 @@ public class Corpus {
       return newTopic;
     }
     
+    //synchronise local tokensInTopic arrays here and reload them
     private void synchronise() {
-      await();      
       for (int i = 0; i < tokensInTopic.length; i++) {
         localTokensInTopic[i] -= tokensInTopic[i];
       }
       
       await();
+      write();
+      await();
+      localTokensInTopic = Arrays.copyOf(tokensInTopic, tokensInTopic.length);
+    }
+
+    private synchronized void write() {
       for (int i = 0; i < tokensInTopic.length; i++) {
         tokensInTopic[i] += localTokensInTopic[i];
       }
       moves += localMoves;
       localMoves = 0;
-      
-      await();
-      localTokensInTopic = Arrays.copyOf(tokensInTopic, tokensInTopic.length);
     }
 
     private void await() {

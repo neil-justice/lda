@@ -26,7 +26,7 @@ public class Tokens {
     topics = new TIntArrayList(capacity);
     docStartPoints = new TIntArrayList();
     docStartPoints.add(0);
-    check = new ArrayList<Boolean>(capacity);
+    // check = new ArrayList<Boolean>(capacity);
   }
   
   public void add(int word, int doc) {
