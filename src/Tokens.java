@@ -7,7 +7,7 @@ public class Tokens {
   private final TIntArrayList docs;
   private final TIntArrayList topics;
   private final TIntArrayList docStartPoints;
-  private final ArrayList<Boolean> check;
+  // private final ArrayList<Boolean> check;
   private int lastDoc = 0;
   private Random random;
   
@@ -17,7 +17,7 @@ public class Tokens {
     topics = new TIntArrayList();
     docStartPoints = new TIntArrayList();
     docStartPoints.add(0);
-    check = new ArrayList<Boolean>();
+    // check = new ArrayList<Boolean>();
   }
   
   public Tokens(int capacity) {
@@ -39,7 +39,7 @@ public class Tokens {
     topics.add(topic);
     if (doc != lastDoc) docStartPoints.add(docs.size());
     lastDoc = doc;
-    check.add(false);
+    // check.add(false);
   }
   
   // assumes that the list has not been shuffled.
@@ -49,7 +49,7 @@ public class Tokens {
   
   public void setTopic(int i, int topic) { 
     topics.set(i, topic);
-    check.set(i, true);
+    // check.set(i, true);
   }
   public int word(int i) { return words.get(i); }
   public int doc(int i) { return docs.get(i); }
@@ -84,14 +84,14 @@ public class Tokens {
     list.set(j, temp);
   }
   
-  public int check() {
-    int count = 0;
-    for (Boolean b: check) {
-      if (b.equals(false)) count++;
-    }
-    Collections.fill(check, Boolean.FALSE);
-    return count;
-  }
+  // public int check() {
+  //   int count = 0;
+  //   for (Boolean b: check) {
+  //     if (b.equals(false)) count++;
+  //   }
+  //   Collections.fill(check, Boolean.FALSE);
+  //   return count;
+  // }
   
   public static void main(String[] args) {
     Tester t = new Tester();

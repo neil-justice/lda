@@ -25,7 +25,7 @@ public class Corpus {
   private int moves = 0;  // no. of tokens who have changed topic this cycle.
   
   // multithreading stuff:
-  private final int P = 1; // no. of processors.
+  private final int P = 3; // no. of processors.
   private final GibbsSampler[] gibbsSamplers = new GibbsSampler[P];
   private final CyclicBarrier barrier = new CyclicBarrier(P);
   private int docPartSize;
@@ -127,6 +127,7 @@ public class Corpus {
     System.out.printf("Avg. seconds taken: %.03f%n", avg );    
   }
   
+  //TODO thread pooling, executor etc
   private void cycle() {
     Thread[] threads = new Thread[P];
   
@@ -148,8 +149,8 @@ public class Corpus {
     }
     
     // check if all tokens have been through the gibbs sampler
-    int ch = tokens.check();
-    if (ch != 0) System.out.println("" + ch + "/" + tokenCount + " unchecked!");
+    // int ch = tokens.check();
+    // if (ch != 0) System.out.println("" + ch + "/" + tokenCount + " unchecked!");
     // else System.out.println("All topics checked.");
   }
   
@@ -189,22 +190,11 @@ public class Corpus {
             tokens.setTopic(i, newTopic);
             count++;
           }
-        }
-        // get the new changes:
-        subtractArray(localTokensInTopic, tokensInTopic);        
-        try {
-          barrier.await();
-        } catch (InterruptedException e) {
-          System.out.println(e.getMessage());
-          System.exit(1);
-        } catch (BrokenBarrierException e) {
-          System.out.println(e.getMessage());
-          System.exit(1);
-        }
+        } 
         //synchronise local tokensInTopic arrays here and reload them
         synchronise();
       }
-      System.out.println("proc " + proc + " count: " + count + "/" + tokenCount);
+      // System.out.println("proc " + proc + " count: " + count + "/" + tokenCount);
     }
     
     
@@ -234,22 +224,32 @@ public class Corpus {
       return newTopic;
     }
     
-    private synchronized void synchronise() {
+    private void synchronise() {
+      await();      
+      for (int i = 0; i < tokensInTopic.length; i++) {
+        localTokensInTopic[i] -= tokensInTopic[i];
+      }
+      
+      await();
       for (int i = 0; i < tokensInTopic.length; i++) {
         tokensInTopic[i] += localTokensInTopic[i];
       }
       moves += localMoves;
       localMoves = 0;
       
+      await();
       localTokensInTopic = Arrays.copyOf(tokensInTopic, tokensInTopic.length);
     }
 
-    // modifies the first array
-    private void subtractArray(int[] lh, int[] rh) {
-      if (lh.length != rh.length) throw new Error("what");
-      
-      for (int i = 0; i < lh.length; i++) {
-        lh[i] -= rh[i];
+    private void await() {
+      try {
+        barrier.await();
+      } catch (InterruptedException e) {
+        System.out.println(e.getMessage());
+        System.exit(1);
+      } catch (BrokenBarrierException e) {
+        System.out.println(e.getMessage());
+        System.exit(1);
       }
     }
   }
