@@ -7,6 +7,7 @@ public class Tokens {
   private final TIntArrayList docs;
   private final TIntArrayList topics;
   private final TIntArrayList docStartPoints;
+  private final ArrayList<Boolean> check;
   private int lastDoc = 0;
   private Random random;
   
@@ -16,6 +17,7 @@ public class Tokens {
     topics = new TIntArrayList();
     docStartPoints = new TIntArrayList();
     docStartPoints.add(0);
+    check = new ArrayList<Boolean>();
   }
   
   public Tokens(int capacity) {
@@ -24,6 +26,7 @@ public class Tokens {
     topics = new TIntArrayList(capacity);
     docStartPoints = new TIntArrayList();
     docStartPoints.add(0);
+    check = new ArrayList<Boolean>(capacity);
   }
   
   public void add(int word, int doc) {
@@ -36,6 +39,7 @@ public class Tokens {
     topics.add(topic);
     if (doc != lastDoc) docStartPoints.add(docs.size());
     lastDoc = doc;
+    check.add(false);
   }
   
   // assumes that the list has not been shuffled.
@@ -43,20 +47,23 @@ public class Tokens {
     return docStartPoints.get(doc);
   }
   
-  public void setTopic(int i, int topic) { topics.set(i, topic); }
+  public void setTopic(int i, int topic) { 
+    topics.set(i, topic);
+    check.set(i, true);
+  }
   public int word(int i) { return words.get(i); }
   public int doc(int i) { return docs.get(i); }
   public int topic(int i) {return topics.get(i); }
   public int size() {return topics.size(); }
   
-  private int[] toArray(TIntArrayList a, int offset, int len) {
-    int[] ret = new int[len];
-    return a.toArray(ret, offset, len);
-  }
-  
-  public int[] words(int offset, int len) { return toArray(words, offset, len); }
-  public int[] docs(int offset, int len) { return toArray(docs, offset, len); }
-  public int[] topics(int offset, int len) { return toArray(topics, offset, len); }
+  // private int[] toArray(TIntArrayList a, int offset, int len) {
+  //   int[] ret = new int[len];
+  //   return a.toArray(ret, offset, len);
+  // }
+  // 
+  // public int[] words(int offset, int len) { return toArray(words, offset, len); }
+  // public int[] docs(int offset, int len) { return toArray(docs, offset, len); }
+  // public int[] topics(int offset, int len) { return toArray(topics, offset, len); }
   
   // shuffles the lists without losing info about their shared indices.
   // This is a modified version of Collections.shuffle()
@@ -75,6 +82,15 @@ public class Tokens {
     int temp = list.get(i);
     list.set(i, list.get(j));
     list.set(j, temp);
+  }
+  
+  public int check() {
+    int count = 0;
+    for (Boolean b: check) {
+      if (b.equals(false)) count++;
+    }
+    Collections.fill(check, Boolean.FALSE);
+    return count;
   }
   
   public static void main(String[] args) {

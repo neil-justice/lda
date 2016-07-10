@@ -1,4 +1,5 @@
 import java.util.*;
+import java.util.concurrent.*;
 
 public class Corpus {
   
@@ -21,9 +22,12 @@ public class Corpus {
   private int cycles;
   private int prevCycles; // no. of cycles run in previous session
   private int prevTopics; // no. of topics from last session
+  private int moves = 0;  // no. of tokens who have changed topic this cycle.
   
   // multithreading stuff:
-  private final int P = 3; // no. of processors.
+  private final int P = 1; // no. of processors.
+  private final GibbsSampler[] gibbsSamplers = new GibbsSampler[P];
+  private final CyclicBarrier barrier = new CyclicBarrier(P);
   private int docPartSize;
   private int wordPartSize;
   private int[] docPartStart  = new int[P + 1];
@@ -106,81 +110,101 @@ public class Corpus {
   }  
   
   private void cycles() {
+    
     double avg = 0;
     for (int i = 0; i < cycles; i++) {
       long s = System.nanoTime();
-      int moves = cycle();
+      cycle();
       long e = System.nanoTime();
       double time = (e - s) / 1000000000d;
       avg += time;
       System.out.print("Cycle " + i);
       System.out.printf(", seconds taken: %.03f", time );
       System.out.println(", moves made: " + moves );
+      moves = 0;
     }
     avg /= cycles;
     System.out.printf("Avg. seconds taken: %.03f%n", avg );    
   }
   
-  private int cycle() {
-    // TODO init should not be here - make this a field?
-    GibbsThread[] threads = new GibbsThread[P];
-
+  private void cycle() {
+    Thread[] threads = new Thread[P];
+  
     for (int proc = 0; proc < P; proc++) {
-      threads[proc] = new GibbsThread(proc);
+      gibbsSamplers[proc] = new GibbsSampler(proc);
     }
     
-    for (int epoch = 0; epoch < P; epoch++) {
-      for (int proc = 0; proc < P; proc++) {
-        threads[proc].updateEpoch(epoch);
-        threads[proc].setTokensInTopic(tokensInTopic);
+    for (int i = 0; i < P; i++) {
+      threads[i] = new Thread(gibbsSamplers[i]);
+      threads[i].start();
+    }
+    
+    for (int i = 0; i < P; i++){
+      try {
+        threads[i].join();
+      } catch (InterruptedException e) {
+        System.out.print(e);
       }
     }
     
-    return moves;
+    // check if all tokens have been through the gibbs sampler
+    int ch = tokens.check();
+    if (ch != 0) System.out.println("" + ch + "/" + tokenCount + " unchecked!");
+    // else System.out.println("All topics checked.");
   }
   
-  class GibbsThread extends Thread {
-    private int epoch;
-    private int moves = 0;
-    private final int proc;
-    private int[] tokensInTopic; // local version of the array to avoid races
+  // implements the multithreading collapsed gibbs sampling algorithm put
+  // forward by Yan et. al. (2009)
+  class GibbsSampler implements Runnable {
+    private int localMoves = 0;
+    private final int proc;           // thread id
+    private int[] localTokensInTopic; // local version to avoid race conditions
+    private int count = 0;            // tokens processed by this thread
     
-    public GibbsThread(int proc) {
+    public GibbsSampler(int proc) {
       this.proc = proc;
+      localTokensInTopic = Arrays.copyOf(tokensInTopic, tokensInTopic.length);
     }
-    
-    public void updateEpoch(int epoch) { this.epoch = epoch; }
-    
-    public int moves() { return moves; }
-    
-    public int[] getTokensInTopic() { return tokensInTopic; }
-    
-    public void setTokensInTopic(int[] tokensInTopic) {
-      this.tokensInTopic = tokensInTopic;
-    }
-    
+
     @Override
     public void run() {
-      for (int i = tokenPartStart[proc]; i < tokenPartStart[proc + 1]; i++) {
-        int word = tokens.word(i);
-        int wps = (epoch + proc) % P;
-        // checks if the word is in the word partition
-        if (word >= wordPartStart[wps] && word < (wordPartStart[wps + 1])) {
-          int oldTopic = tokens.topic(i);
-          int doc = tokens.doc(i);
-          tokensInTopic[oldTopic]--;      
-          wordsInTopic[word][oldTopic]--;
-          topicsInDoc[oldTopic][doc]--;
-          
-          int newTopic = sample(word, oldTopic, doc);
-          if (newTopic != oldTopic) moves++;
-          
-          tokensInTopic[newTopic]++;      
-          wordsInTopic[word][newTopic]++;
-          topicsInDoc[newTopic][doc]++;
-          tokens.setTopic(i, newTopic);
+      for (int epoch = 0; epoch < P; epoch++) {
+        for (int i = tokenPartStart[proc]; i < tokenPartStart[proc + 1]; i++) {
+          int word = tokens.word(i);
+          int wps = (epoch + proc) % P;
+          // checks if the word is in the word partition
+          if (word >= wordPartStart[wps] && word < (wordPartStart[wps + 1])) {
+            int oldTopic = tokens.topic(i);
+            int doc = tokens.doc(i);
+            localTokensInTopic[oldTopic]--;      
+            wordsInTopic[word][oldTopic]--;
+            topicsInDoc[oldTopic][doc]--;
+            
+            int newTopic = sample(word, oldTopic, doc);
+            if (newTopic != oldTopic) localMoves++;
+            
+            localTokensInTopic[newTopic]++;      
+            wordsInTopic[word][newTopic]++;
+            topicsInDoc[newTopic][doc]++;
+            tokens.setTopic(i, newTopic);
+            count++;
+          }
         }
-      }  
+        // get the new changes:
+        subtractArray(localTokensInTopic, tokensInTopic);        
+        try {
+          barrier.await();
+        } catch (InterruptedException e) {
+          System.out.println(e.getMessage());
+          System.exit(1);
+        } catch (BrokenBarrierException e) {
+          System.out.println(e.getMessage());
+          System.exit(1);
+        }
+        //synchronise local tokensInTopic arrays here and reload them
+        synchronise();
+      }
+      System.out.println("proc " + proc + " count: " + count + "/" + tokenCount);
     }
     
     
@@ -191,7 +215,7 @@ public class Corpus {
       for (int topic = 0; topic < topicCount; topic++) {
         probabilities[topic] = (wordsInTopic[word][topic] + beta)
                              * (topicsInDoc[topic][doc] + alpha)
-                             / (tokensInTopic[topic] + docCount);
+                             / (localTokensInTopic[topic] + docCount);
         sum += probabilities[topic];
       }
       
@@ -208,10 +232,27 @@ public class Corpus {
       }
       
       return newTopic;
-    }      
-  }
-  
+    }
+    
+    private synchronized void synchronise() {
+      for (int i = 0; i < tokensInTopic.length; i++) {
+        tokensInTopic[i] += localTokensInTopic[i];
+      }
+      moves += localMoves;
+      localMoves = 0;
+      
+      localTokensInTopic = Arrays.copyOf(tokensInTopic, tokensInTopic.length);
+    }
 
+    // modifies the first array
+    private void subtractArray(int[] lh, int[] rh) {
+      if (lh.length != rh.length) throw new Error("what");
+      
+      for (int i = 0; i < lh.length; i++) {
+        lh[i] -= rh[i];
+      }
+    }
+  }
   
   // Initialises all tokens with a randomly selected topic.
   private void randomiseTopics() {
