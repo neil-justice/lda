@@ -25,8 +25,9 @@ public class Corpus {
   private int moves = 0;  // no. of tokens who have changed topic this cycle.
   
   // multithreading stuff:
-  private final int P = 3; // no. of processors.
-  private final GibbsSampler[] gibbsSamplers = new GibbsSampler[P];
+  private final int P = 4; // no. of processors.
+  private final ExecutorService exec = Executors.newFixedThreadPool(P);
+  private final List<GibbsSampler> gibbsSamplers = new ArrayList<>(P);
   private final CyclicBarrier barrier = new CyclicBarrier(P);
   private int docPartSize;
   private int wordPartSize;
@@ -81,6 +82,10 @@ public class Corpus {
     docPartStart[P]   = docCount;
     wordPartStart[P]  = wordCount;
     tokenPartStart[P] = tokenCount;
+    
+    for (int proc = 0; proc < P; proc++) {
+      gibbsSamplers.add(new GibbsSampler(proc));
+    }    
   }
   
   public void run(int cycles) {
@@ -127,25 +132,12 @@ public class Corpus {
     System.out.printf("Avg. seconds taken: %.03f%n", avg );    
   }
   
-  //TODO thread pooling, executor etc
   private void cycle() {
-    Thread[] threads = new Thread[P];
-  
-    for (int proc = 0; proc < P; proc++) {
-      gibbsSamplers[proc] = new GibbsSampler(proc);
-    }
-    
-    for (int i = 0; i < P; i++) {
-      threads[i] = new Thread(gibbsSamplers[i]);
-      threads[i].start();
-    }
-    
-    for (int i = 0; i < P; i++){
-      try {
-        threads[i].join();
-      } catch (InterruptedException e) {
-        System.out.print(e);
-      }
+    try {
+      List<Future<Object>> results = exec.invokeAll(gibbsSamplers);
+    } catch (InterruptedException e) {
+      System.out.println(e.getMessage());
+      System.exit(1);
     }
     
     // check if all tokens have been through the gibbs sampler
@@ -155,7 +147,7 @@ public class Corpus {
   
   // implements the multithreading collapsed gibbs sampling algorithm put
   // forward by Yan et. al. (2009)
-  class GibbsSampler implements Runnable {
+  class GibbsSampler implements Callable<Object> {
     private int localMoves = 0;
     private final int proc;           // thread id
     private int[] localTokensInTopic; // local version to avoid race conditions
@@ -167,7 +159,7 @@ public class Corpus {
     }
 
     @Override
-    public void run() {
+    public Object call() {
       for (int epoch = 0; epoch < P; epoch++) {
         for (int i = tokenPartStart[proc]; i < tokenPartStart[proc + 1]; i++) {
           int word = tokens.word(i);
@@ -193,8 +185,8 @@ public class Corpus {
         synchronise();
       }
       // System.out.println("proc " + proc + " count: " + count + "/" + tokenCount);
+      return null;
     }
-    
     
     private int sample(int word, int oldTopic, int doc) {
       double[] probabilities = new double[topicCount];
@@ -227,7 +219,6 @@ public class Corpus {
       for (int i = 0; i < tokensInTopic.length; i++) {
         localTokensInTopic[i] -= tokensInTopic[i];
       }
-      
       await();
       write();
       await();
