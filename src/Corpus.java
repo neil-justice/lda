@@ -137,6 +137,7 @@ public class Corpus {
     burnLength = cycles / 10;
     sampleLag = cycles / 50;
     cycles();
+    exec.shutdown();
     write();
   }
   
