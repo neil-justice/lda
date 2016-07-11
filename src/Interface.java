@@ -72,7 +72,7 @@ class Interface {
           case "q":
           case "quit":
             quit = true;
-            if (corpus != null) corpus.closeDB();
+            if (corpus != null) corpus.quit();
             break;
           default:
             System.out.println("Command not recognised.");
@@ -107,7 +107,7 @@ class Interface {
   }
   
   private void reload(String[] cmd) {
-    if (corpus != null) corpus.closeDB();
+    if (corpus != null) corpus.quit();
     
     if (cmd.length == 2) {
       int topics = parse(cmd[1]);   

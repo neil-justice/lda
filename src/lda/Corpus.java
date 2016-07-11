@@ -5,9 +5,9 @@ public class Corpus {
   
   private final Tokens tokens;
   private final Translator translator; // used to translate from ID to word/doc
-  private final int wordCount;              // no. of unique words
-  private final int docCount;               // no. of docs
-  private final int tokenCount;             // total no. of tokens
+  private final int wordCount;         // no. of unique words
+  private final int docCount;          // no. of docs
+  private final int tokenCount;        // total no. of tokens
   private final int topicCount;
   private final int[] tokensInTopic; 
   private final int[] tokensInDoc; 
@@ -15,7 +15,6 @@ public class Corpus {
   private final int[][] topicsInDoc;
   private final double[][] phiSum;     // multinomial dist. of words in topics
   private final double[][] thetaSum;   // multinomial dist. of topics in docs.
-  
   // high alpha: each document is likely to contain a mixture of most topics.
   // low alpha:  more likely that a document may contain just a few topics. 
   // high beta: each topic is likely to contain a mixture of most of words
@@ -28,12 +27,12 @@ public class Corpus {
                           // to converge.
   private int sampleLag;  // cycles to skip samples from between samples, giving
                           // us decorrelated states of the markov chain
+  private int moves = 0;  // no. of tokens who have changed topic this cycle.
   
   // DB stuff:
   private final SQLConnector c;
   private int prevCycles; // no. of cycles run in previous session
   private int prevTopics; // no. of topics from last session
-  private int moves = 0;  // no. of tokens who have changed topic this cycle.
   
   // multithreading stuff:
   private final int P = 4; // no. of processors.
@@ -61,7 +60,7 @@ public class Corpus {
     phiSum        = new double[wordCount][topicCount];
     thetaSum      = new double[topicCount][docCount];
     
-    alpha = 50 / (double) topicCount;
+    alpha = 30 / (double) topicCount;
     beta  = 200 / (double) wordCount;
     samples = 0;
     
@@ -137,22 +136,23 @@ public class Corpus {
     burnLength = cycles / 10;
     sampleLag = cycles / 50;
     cycles();
-    exec.shutdown();
     write();
   }
   
-  // write updated topics to db
-  // TODO the strange thing here is that we only store one sample...
+  // write phi and theta to db, as well as no. of cycles run and the topicCount
+  // used.
   public void write() {
     if (!c.isOpen()) c.open();
     
-    c.updateTokens(tokens); 
+    c.writeTheta(theta());
+    c.writePhi(phi());
     c.setTopics(topicCount);
     c.setCycles(prevCycles + cycles);
   }
   
-  //close DB connection
-  public void closeDB() {
+  //close DB connection and shutdown thread pool
+  public void quit() {
+    exec.shutdown();
     c.close();
   }
   
@@ -392,8 +392,6 @@ public class Corpus {
   private double[] geometricMean(double[][] matrix) {
     int height = matrix.length;
     int width = matrix[0].length;
-    if (height != wordCount) throw new Error("oops");
-    if (width != topicCount) throw new Error("oops2");
     
     double[] geometricMean = new double[height];
     
