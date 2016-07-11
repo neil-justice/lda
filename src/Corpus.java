@@ -70,7 +70,7 @@ public class Corpus {
     initMulti();
   }
   
-  public void initMulti() {
+  private void initMulti() {
     docPartSize  = docCount / P; 
     wordPartSize = wordCount / P;
     
@@ -134,7 +134,7 @@ public class Corpus {
   
   private void cycle() {
     try {
-      List<Future<Object>> results = exec.invokeAll(gibbsSamplers);
+      exec.invokeAll(gibbsSamplers);
     } catch (InterruptedException e) {
       System.out.println(e.getMessage());
       System.exit(1);
