@@ -48,12 +48,12 @@ public class Tokens {
   }
   
   public void setTopic(int i, int topic) { 
-    topics.set(i, topic);
+    topics.setQuick(i, topic);
     // check.set(i, true);
   }
-  public int word(int i) { return words.get(i); }
-  public int doc(int i) { return docs.get(i); }
-  public int topic(int i) {return topics.get(i); }
+  public int word(int i) { return words.getQuick(i); }
+  public int doc(int i) { return docs.getQuick(i); }
+  public int topic(int i) {return topics.getQuick(i); }
   public int size() {return topics.size(); }
   
   // private int[] toArray(TIntArrayList a, int offset, int len) {
@@ -79,8 +79,8 @@ public class Tokens {
   }
 
   private static void swap(TIntArrayList list, int i, int j) {
-    int temp = list.get(i);
-    list.set(i, list.get(j));
+    int temp = list.getQuick(i);
+    list.set(i, list.getQuick(j));
     list.set(j, temp);
   }
   
