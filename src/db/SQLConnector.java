@@ -22,6 +22,7 @@ public class SQLConnector implements AutoCloseable {
 
   public void open() {
     try {
+      if (isOpen()) return;
       c = DriverManager.getConnection(connection);
       c.setAutoCommit(false);  // Allow transactions
       open = true;

@@ -64,7 +64,7 @@ public class Corpus {
     beta  = 200 / (double) wordCount;
     samples = 0;
     
-    c = new SQLConnector(builder.dir());
+    c = builder.connector();
     c.open();
     
     translator = new Translator(c);
@@ -202,7 +202,7 @@ public class Corpus {
     private int localMoves = 0;
     private final int proc;           // thread id
     private int[] localTokensInTopic; // local version to avoid race conditions
-    private int count = 0;            // tokens processed by this thread
+    // private int count = 0;            // tokens processed by this thread
     
     public GibbsSampler(int proc) {
       this.proc = proc;
@@ -230,7 +230,7 @@ public class Corpus {
             wordsInTopic[word][newTopic]++;
             topicsInDoc[newTopic][doc]++;
             tokens.setTopic(i, newTopic);
-            count++;
+            // count++;
           }
         } 
         synchronise();
@@ -259,7 +259,7 @@ public class Corpus {
       }
       
       if (newTopic == -1) {
-        throw new Error("Sampling failure.  sample: " + sample + " sum: " + sum);
+        throw new Error("Sampling failure. Sample: " + sample + " sum: " + sum);
       }
       
       return newTopic;

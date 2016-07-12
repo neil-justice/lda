@@ -55,6 +55,7 @@ class LDA {
     TextCleaner.main(null);
     DirectoryLoader.main(null);
     Tokens.main(null);
+    Graph.main(null);
     System.exit(0);
   }
 }

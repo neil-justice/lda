@@ -2,13 +2,13 @@
  * one approach: given the theta for each community, and the theta for this node,
  * use KL divergence to find the closest community.  is it the actual community?
  */
-import gnu.trove.list.array.TIntarrayList;
+import gnu.trove.list.array.TIntArrayList;
 import java.util.*;
 
 public class CommunityPredictor {
   private final int docCount;
   private final int topicCount;
-  private final List<TIntArrayList> communities;
+  private final List<TIntArrayList> communities = null;
   
   public CommunityPredictor(int docCount, int topicCount) {
     this.docCount = docCount;
