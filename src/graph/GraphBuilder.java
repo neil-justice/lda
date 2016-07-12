@@ -10,7 +10,7 @@ public class GraphBuilder
 {
   private Translator translator;
   private SQLConnector c;
-  private int[][] matrix;
+  private SparseMatrix matrix;
   private TIntArrayList[] adjList;
   private int[] degrees;
   private int order = 0;
@@ -52,13 +52,7 @@ public class GraphBuilder
     BufferedReader reader = new BufferedReader(new FileReader(file));
     String line;
     order = getOrder(file, delimiter);
-    
-    matrix = new int[order][order];
-    degrees = new int[order];
-    adjList = new TIntArrayList[order];
-    for (int i = 0; i < order; i++) {
-      adjList[i] = new TIntArrayList();
-    }
+    initialise();
     
     while ((line = reader.readLine()) != null) {
       String[] splitLine = line.split(delimiter);
@@ -66,8 +60,9 @@ public class GraphBuilder
       int n2 = Integer.parseInt(splitLine[1]);
       int weight = Integer.parseInt(splitLine[2]);
 
-      if (matrix[n1][n2] == 0 && matrix[n2][n1] == 0) insertEdge(n1, n2, weight);
+      if (matrix.get(n1, n2) == 0 && matrix.get(n2, n1) == 0) insertEdge(n1, n2, weight);
     }
+    reader.close();
   }
   
   private int getOrder(File file, String delimiter)
@@ -94,12 +89,7 @@ public class GraphBuilder
     BufferedReader reader = new BufferedReader(new FileReader(file));
     String line;
     order = c.getCount("Doc");
-    matrix = new int[order][order];
-    degrees = new int[order];
-    adjList = new TIntArrayList[order];
-    for (int i = 0; i < order; i++) {
-      adjList[i] = new TIntArrayList();
-    }
+    initialise();
     
     while ((line = reader.readLine()) != null) {
       String[] splitLine = line.split(delimiter);
@@ -108,15 +98,29 @@ public class GraphBuilder
       int weight = Integer.parseInt(splitLine[2]);
       int n1 = translator.getDocIndex(srcId);
       int n2 = translator.getDocIndex(dstId);
-      if (matrix[n1][n2] != 0) throw new Error("duplicate val at " + srcId + " " + dstId);
-      if (matrix[n2][n1] != 0) throw new Error("duplicate val at " + srcId + " " + dstId);
+      if (matrix.get(n1, n2) != 0 || matrix.get(n2, n1) != 0) {
+        System.out.println("n1: " + n1 + " n2: " + n2 + " mget12: " + 
+                           matrix.get(n1, n2) + " mget21: " + 
+                           matrix.get(n2, n1) + " weight: " + weight);
+        throw new Error("duplicate val at " + srcId + " " + dstId);
+      }
       insertEdge(n1, n2, weight);
+    }
+    reader.close();
+  }
+  
+  private void initialise() {
+    matrix = new SparseMatrix(order);
+    degrees = new int[order];
+    adjList = new TIntArrayList[order];
+    for (int i = 0; i < order; i++) {
+      adjList[i] = new TIntArrayList();
     }
   }
   
   private void insertEdge(int n1, int n2, int weight) {
-    matrix[n1][n2] = weight;
-    matrix[n2][n1] = weight;
+    matrix.set(n1, n2, weight);
+    matrix.set(n2, n1, weight);
     adjList[n1].add(n2);
     adjList[n2].add(n1);
     degrees[n1] += weight;
@@ -125,26 +129,28 @@ public class GraphBuilder
   }
   
   public GraphBuilder setSize(int order) {
-    matrix = new int[order][order];
-    degrees = new int[order];
     this.order = order;
-    adjList = new TIntArrayList[order];
-    for (int i = 0; i < order; i++) {
-      adjList[i] = new TIntArrayList();
-    }
+    initialise();
     
     return this;
   }
   
   public GraphBuilder addEdge(int n1, int n2, int weight) {
-    if (matrix[n1][n2] != 0) throw new Error("already exists");
+    if (matrix.get(n1, n2) != 0) throw new Error("already exists");
     if (matrix == null) throw new Error("initialise first");
     insertEdge(n1, n2, weight);
     
     return this;
-  }  
+  }
   
-  public int[][] matrix() { return matrix; }
+  public GraphBuilder coarseGrain(int communityCount) {
+    this.order = communityCount;
+    initialise();
+    
+    return this;
+  }
+  
+  public SparseMatrix matrix() { return matrix; }
   public TIntArrayList[] adjList() { return adjList; }
   public int[] degrees() { return degrees; }
   public int size() { return size; }

@@ -42,6 +42,7 @@ class Interface {
     dir = dl.dir();
     ft = new FileTracker(dir);
     c = new SQLConnector(dir);
+    c.open();
     showInfo();
   }
 
@@ -76,6 +77,10 @@ class Interface {
           case "quit":
             quit = true;
             if (corpus != null) corpus.quit();
+            break;
+          case "graph":
+            Graph g = new GraphBuilder().fromFileAndDB("data/largest-subgraph-min.csv", c).build();
+            g.reassignCommunities();            
             break;
           default:
             System.out.println("Command not recognised.");

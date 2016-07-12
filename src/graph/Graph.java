@@ -4,7 +4,7 @@ import gnu.trove.list.array.TIntArrayList;
 import tester.Tester;
 
 class Graph {
-  private final int[][] matrix;          // adjacency matrix with weight info
+  private final SparseMatrix matrix;          // adjacency matrix with weight info
   private final TIntArrayList[] adjList; // adjacency list
   private final int[] degrees;           // degree of each node
   private final int[] communities;       // community of each node
@@ -33,7 +33,7 @@ class Graph {
     for (int i = 0; i < order; i++) {
       communities[i] = i;
       commTotalDegree[i] = degree(i);
-      commIntDegree[i] = matrix[i][i]; // catches self-edges
+      commIntDegree[i] = matrix.get(i, i); // catches self-edges
       communitiesCount = order;
     }
   }
@@ -49,10 +49,10 @@ class Graph {
     for (int i = 0; i < adjList[node].size(); i++) {
       int neighbour = adjList[node].get(i);
       if (communities[neighbour] == community) {
-        commIntDegree[community] += (matrix[node][neighbour] * 2);
+        commIntDegree[community] += (matrix.get(node, neighbour) * 2);
       }
       if (communities[neighbour] == oldComm) {
-        commIntDegree[oldComm] -= (matrix[node][neighbour] * 2);
+        commIntDegree[oldComm] -= (matrix.get(node, neighbour) * 2);
       }
     }
     
@@ -64,7 +64,7 @@ class Graph {
     int dnodecomm = 0;
     for (int i = 0; i < adjList[node].size(); i++) {
       int neigh = adjList[node].get(i);
-      if (communities[neigh] == community) dnodecomm += matrix[node][neigh];
+      if (communities[neigh] == community) dnodecomm += matrix.get(node, neigh);
     }
     return dnodecomm;
   }
@@ -110,7 +110,6 @@ class Graph {
   
   private boolean makeBestMove(int node) {
     double max = 0d;
-    int oldComm = communities[node];
     int best = -1;
     
     for (int i = 0; i < adjList[node].size(); i++) {
@@ -122,7 +121,7 @@ class Graph {
       }
     }
     
-    if (best > 0 && best != oldComm) {
+    if (best > 0 && best != communities[node]) {
       moveTo(node, best);
       return true;
     }
@@ -148,7 +147,7 @@ class Graph {
   
   public int degree(int node) { return degrees[node]; }
   
-  public int edge(int n1, int n2) { return matrix[n1][n2]; }
+  public int edge(int n1, int n2) { return matrix.get(n1, n2); }
 
   public static void main(String[] args) {
     Tester t = new Tester();

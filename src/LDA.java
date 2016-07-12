@@ -56,6 +56,7 @@ class LDA {
     DirectoryLoader.main(null);
     Tokens.main(null);
     Graph.main(null);
+    SparseMatrix.main(null);
     System.exit(0);
   }
 }

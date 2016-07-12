@@ -31,7 +31,7 @@
         <pathelement path="${bin}"/>
         <path refid="libs" />
       </classpath>
-      <jvmarg value="-Xmx3G"/>
+      <jvmarg value="-Xmx6G"/>
     </java>
   </target>
 
