@@ -4,7 +4,7 @@ import gnu.trove.list.array.TIntArrayList;
 import tester.Tester;
 
 class Graph {
-  private final SparseMatrix matrix;          // adjacency matrix with weight info
+  private final SparseMatrix matrix;     // adjacency matrix with weight info
   private final TIntArrayList[] adjList; // adjacency list
   private final int[] degrees;           // degree of each node
   private final int[] communities;       // community of each node
@@ -38,7 +38,7 @@ class Graph {
     }
   }
   
-  public void moveTo(int node, int community) {
+  public void moveToComm(int node, int community) {
     int oldComm = communities[node];
     if (oldComm == community) return;
     
@@ -67,26 +67,7 @@ class Graph {
       if (communities[neigh] == community) dnodecomm += matrix.get(node, neigh);
     }
     return dnodecomm;
-  }
-  
-  public void reassignCommunities() {
-    double mod = modularity();
-    double precision = 0.000001;
-    double oldMod;
-    int moves;
-    boolean hasChanged;
-    
-    do {
-      hasChanged = true;
-      oldMod = mod;
-      moves = maximiseLocalModularity();
-      mod = modularity();
-      if (mod - oldMod <= precision) hasChanged = false;
-      if (moves == 0) hasChanged = false;
-      System.out.printf("Mod: %5f  Delta: %5f  Comms: %d Moves:  %d%n", 
-                        mod ,(mod - oldMod), communitiesCount(), moves);
-    } while (hasChanged);
-  }  
+  } 
   
   public double modularity() {
     double q  = 0d;
@@ -100,42 +81,11 @@ class Graph {
     return q;
   }
   
-  private int maximiseLocalModularity() {
-    int moves = 0;
-    for (int node = 0; node < order; node++) {
-      if (makeBestMove(node)) moves++;
-    }
-    return moves;
-  }
+  public double m2() { return m2; }
   
-  private boolean makeBestMove(int node) {
-    double max = 0d;
-    int best = -1;
-    
-    for (int i = 0; i < adjList[node].size(); i++) {
-      int community = communities[adjList[node].get(i)];
-      double inc = deltaModularity(node, community);
-      if (inc > max) {
-        max = inc;
-        best = community;
-      }
-    }
-    
-    if (best > 0 && best != communities[node]) {
-      moveTo(node, best);
-      return true;
-    }
-    else return false;
-  }
-
-  // change in modularity if node is moved to community
-  private double deltaModularity(int node, int community) {
-    double dnodecomm = (double) dnodecomm(node, community);
-    double ctot      = (double) totDegree(community);
-    double wdeg      = (double) degree(node);
-
-    return dnodecomm - ((ctot * wdeg) / m2);
-  }
+  public TIntArrayList neighbours(int node) { return adjList[node]; }
+  
+  public int community(int node) { return communities[node]; }
   
   public int communitiesCount() { return communitiesCount; }
    
@@ -144,6 +94,8 @@ class Graph {
   public int intDegree(int community) { return commIntDegree[community]; }
   
   public int size() { return size; }
+  
+  public int order() { return order; }
   
   public int degree(int node) { return degrees[node]; }
   
@@ -161,10 +113,10 @@ class Graph {
                                 .addEdge(4,6,11)
                                 .addEdge(5,6,17)
                                 .build();
-    g.moveTo(1,0);
-    g.moveTo(2,0);
-    g.moveTo(4,3);
-    g.moveTo(5,3);
+    g.moveToComm(1,0);
+    g.moveToComm(2,0);
+    g.moveToComm(4,3);
+    g.moveToComm(5,3);
     
     t.is(g.degree(1),26);
     t.is(g.size(),89);
@@ -183,6 +135,7 @@ class Graph {
     t.results();
     
     g = new GraphBuilder().fromFile("data/gtests/arxiv.txt").build();
-    g.reassignCommunities();
+    LouvainDetector ld = new LouvainDetector(g);
+    ld.run();
   }
 }

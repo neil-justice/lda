@@ -80,7 +80,8 @@ class Interface {
             break;
           case "graph":
             Graph g = new GraphBuilder().fromFileAndDB("data/largest-subgraph-min.csv", c).build();
-            g.reassignCommunities();            
+            LouvainDetector ld = new LouvainDetector(g);
+            ld.run();
             break;
           default:
             System.out.println("Command not recognised.");
