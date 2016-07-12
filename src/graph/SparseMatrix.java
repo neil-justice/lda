@@ -1,3 +1,4 @@
+/* Sparse square matrix using hashmap. */
 import gnu.trove.map.hash.TLongIntHashMap;
 import tester.Tester;
 

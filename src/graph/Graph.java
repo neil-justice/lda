@@ -4,16 +4,17 @@ import gnu.trove.list.array.TIntArrayList;
 import tester.Tester;
 
 class Graph {
-  private final SparseMatrix matrix;     // adjacency matrix with weight info
-  private final TIntArrayList[] adjList; // adjacency list
-  private final int[] degrees;           // degree of each node
-  private final int[] communities;       // community of each node
-  private final int[] commTotalDegree;   // total degree of community
-  private final int[] commIntDegree;     // internal degree of community
-  private final int order;               // no. of nodes
-  private final int size;                // sum of edge weights
-  private final double m2;               // sum of edge weights * 2
-  private int communitiesCount = 0;      // total no. of communities
+  private final SparseMatrix matrix;       // adjacency matrix with weight info
+  private final TIntArrayList[] adjList;   // adjacency list
+  private final int[] degrees;             // degree of each node
+  private final int[] communities;         // community of each node
+  private final int[] commTotalDegree;     // total degree of community
+  private final int[] commIntDegree;       // internal degree of community
+  private final int order;                 // no. of nodes
+  private final int size;                  // sum of edge weights
+  private final double m2;                 // sum of edge weights * 2
+  private final LouvainDetector detector = new LouvainDetector(this);
+  private int numComms = 0;                // total no. of communities
   
   public Graph(GraphBuilder builder) {
     matrix      = builder.matrix();
@@ -34,7 +35,7 @@ class Graph {
       communities[i] = i;
       commTotalDegree[i] = degree(i);
       commIntDegree[i] = matrix.get(i, i); // catches self-edges
-      communitiesCount = order;
+      numComms = order;
     }
   }
   
@@ -56,7 +57,7 @@ class Graph {
       }
     }
     
-    if (totDegree(oldComm) == 0) communitiesCount--;
+    if (totDegree(oldComm) == 0) numComms--;
   }
   
   // weight between a community and a node
@@ -81,13 +82,31 @@ class Graph {
     return q;
   }
   
+  public List<TIntArrayList> detectCommunities() {
+    detector.run();
+    TIntArrayList[] comms = new TIntArrayList[order];
+    
+    for (int node = 0; node < order; node++) {
+      int community = community(node);
+      if (comms[community] == null) comms[community] = new TIntArrayList();
+      comms[community].add(node);
+    }
+    
+    List<TIntArrayList> ret = new ArrayList<>();
+    for (int list = 0; list < order; list++) {
+      if (comms[list] != null) ret.add(comms[list]);
+    }
+
+    return ret;
+  }
+  
   public double m2() { return m2; }
   
   public TIntArrayList neighbours(int node) { return adjList[node]; }
   
   public int community(int node) { return communities[node]; }
   
-  public int communitiesCount() { return communitiesCount; }
+  public int numComms() { return numComms; }
    
   public int totDegree(int community) { return commTotalDegree[community]; }
   
@@ -130,12 +149,11 @@ class Graph {
     t.is(g.intDegree(1), 0);
     t.is(g.intDegree(2), 0);
     t.is(g.intDegree(6), 0);
-    t.is(g.communitiesCount(),3);
+    t.is(g.numComms(),3);
     
     t.results();
     
     g = new GraphBuilder().fromFile("data/gtests/arxiv.txt").build();
-    LouvainDetector ld = new LouvainDetector(g);
-    ld.run();
+    g.detectCommunities();
   }
 }

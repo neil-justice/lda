@@ -31,7 +31,7 @@ public class LouvainDetector {
       if (mod - oldMod <= precision) hasChanged = false;
       if (moves == 0) hasChanged = false;
       System.out.printf("Mod: %5f  Delta: %5f  Comms: %d Moves:  %d%n", 
-                        mod ,(mod - oldMod), g.communitiesCount(), moves);
+                        mod ,(mod - oldMod), g.numComms(), moves);
     } while (hasChanged);
   } 
   
