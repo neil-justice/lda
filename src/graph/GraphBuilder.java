@@ -15,6 +15,8 @@ public class GraphBuilder
   private int[] degrees;
   private int order = 0;
   private int size  = 0;
+  private CommunityStructure cs;
+  private int layer = 0;
   
   public GraphBuilder fromFile(String filename) {
     try {
@@ -26,6 +28,7 @@ public class GraphBuilder
     } catch (IOException e) {
       throw new Error("IO error");
     }
+    this.cs = new CommunityStructure(order);
     return this;
   }
 
@@ -43,6 +46,7 @@ public class GraphBuilder
     } catch (IOException e) {
       throw new Error("IO error");
     }
+    this.cs = new CommunityStructure(order);
     return this;
   }
   
@@ -130,6 +134,7 @@ public class GraphBuilder
   
   public GraphBuilder setSize(int order) {
     this.order = order;
+    this.cs = new CommunityStructure(order);
     initialise();
     
     return this;
@@ -143,9 +148,12 @@ public class GraphBuilder
     return this;
   }
   
-  public GraphBuilder coarseGrain(int communityCount) {
-    this.order = communityCount;
+  public GraphBuilder coarseGrain(Graph g, CommunityStructure cs) {
+    this.order = cs.numComms(cs.layer());
+    this.cs = cs;
+    this.layer = cs.layer();
     initialise();
+    
     
     return this;
   }
@@ -155,6 +163,8 @@ public class GraphBuilder
   public int[] degrees() { return degrees; }
   public int size() { return size; }
   public int order() { return order; }
+  public int layer() { return layer; }
+  public CommunityStructure communityStructure() { return cs; }
   
   public Graph build() {
     return new Graph(this);

@@ -1,42 +1,31 @@
 /* An undirected, weighted, unmodifiable graph data structure.  */
 import java.util.*;
 import gnu.trove.list.array.TIntArrayList;
+import gnu.trove.map.hash.TIntIntHashMap;
 import tester.Tester;
 
 class Graph {
   private final SparseIntMatrix matrix;   // adjacency matrix with weight info
   private final TIntArrayList[] adjList;  // adjacency list
+  private final TIntArrayList[] comms;    // community members
   private final int[] degrees;            // degree of each node
   private final int order;                // no. of nodes
   private final int size;                 // sum of edge weights
   private final double m2;                // sum of edge weights * 2
   private final LouvainDetector detector = new LouvainDetector(this);
-  private int layer = 0;                  // current community layer
-  private final TIntArrayList numComms;   // total no. of communities per layer
-  private final List<int[]> commLayers;   // list of community layers
-  private final List<int[]> totDegrees;   // total degree of community in layer
-  private final List<int[]> intDegrees;   // int. degree of community in layer
-  private final List<Graph> coarseGraphs  // coarse-grained community graphs
+  private final CommunityStructure cs;
+  private final int layer; // if > 0, its a coarse-grained community graph
   
   public Graph(GraphBuilder builder) {
-    matrix      = builder.matrix();
-    adjList     = builder.adjList();
-    degrees     = builder.degrees();
-    order       = builder.order();
-    size        = builder.size();
-    m2          = (double) size * 2d;
+    matrix  = builder.matrix();
+    adjList = builder.adjList();
+    degrees = builder.degrees();
+    order   = builder.order();
+    size    = builder.size();
+    m2      = (double) size * 2d;
+    cs      = builder.communityStructure();
+    layer   = builder.layer();
     
-    commLayers   = new ArrayList<int[]>();
-    totDegrees   = new ArrayList<int[]>();
-    intDegrees   = new ArrayList<int[]>();
-    numComms     = new TIntArrayList();
-    coarseGraphs = new ArrayList<Graph>();
-    
-    commLayers.add(new int[order]);
-    totDegrees.add(new int[order]);
-    intDegrees.add(new int[order]);
-    numComms.add(order);
-    coarseGraphs.add(this);
     initialiseCommunities();
   }
   
@@ -66,7 +55,7 @@ class Graph {
       }
     }
     
-    if (totDegree(oldComm) == 0) numComms.set(layer, numComms() - 1);
+    if (totDegree(oldComm) == 0) decNumComms();
   }
   
   // weight between a community and a node
@@ -93,41 +82,35 @@ class Graph {
 
   public int[] detectCommunities() {
     if (detector.run() > 0) {
-      incrLayer();
-      coarseGraphs.get(layer).detectCommunities();
+      cs.newLayer(order);
     }
-    return commLayers.get(layer);
+    return communities();
   }
   
-  public void incrLayer() {
-    layer++;
-    commLayers.add(new int[order]);
-    totDegrees.add(new int[order]);
-    intDegrees.add(new int[order]);
-    Graph coarse = new GraphBuilder().coarseGrain(this).build();
-    coarseGraphs.add(coarse);
-    numComms.add(0);
+  public int[] communityNeighbours(int community) {
+    int[] neighbours = new int[order];
+    
+    for (int i = 0; i < )
   }
   
-  public CommunityStructure exportCommunities() {
-    return new CommunityStructure()
-  }
-  
-  private int[] totDegrees() { return totDegrees.get(layer); }
-  private int[] intDegrees() { return intDegrees.get(layer); }
-  private int[] communities() { return commLayers.get(layer); }
+  private int[] totDegrees() { return cs.totDegrees(layer); }
+  private int[] intDegrees() { return cs.intDegrees(layer); }
+  private int[] communities() { return cs.communities(layer); }
 
-  public int layer() { return layer; }
+  public int numComms() { return cs.numComms(layer); }
+  public void decNumComms() { cs.decNumComms(layer); }
+  
+  public int community(int node) { return cs.communities(layer)[node]; }
+  public int totDegree(int comm) { return cs.totDegrees(layer)[comm]; }
+  public int intDegree(int comm) { return cs.intDegrees(layer)[comm]; }
+
   public double m2() { return m2; }
-  public TIntArrayList neighbours(int node) { return adjList[node]; }
-  public int numComms() { return numComms.get(layer); }
-  public int community(int node) { return commLayers.get(layer)[node]; }
-  public int totDegree(int comm) { return totDegrees.get(layer)[comm]; }
-  public int intDegree(int comm) { return intDegrees.get(layer)[comm]; }
+  public int edge(int n1, int n2) { return matrix.get(n1, n2); }
   public int size() { return size; }
+  public int layer() { return layer; }
   public int order() { return order; }
   public int degree(int node) { return degrees[node]; }
-  public int edge(int n1, int n2) { return matrix.get(n1, n2); }
+  public TIntArrayList neighbours(int node) { return adjList[node]; }
 
   public static void main(String[] args) {
     Tester t = new Tester();
@@ -159,6 +142,10 @@ class Graph {
     t.is(g.intDegree(2), 0);
     t.is(g.intDegree(6), 0);
     t.is(g.numComms(),3);
+    t.is(g.createLayerMap().get(0), 0);
+    t.is(g.createLayerMap().get(3), 1);
+    t.is(g.createLayerMap().get(6), 2);
+    t.is(g.createLayerMap().size(), 3);
     
     t.results();
     
