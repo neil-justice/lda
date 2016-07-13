@@ -4,17 +4,19 @@ import gnu.trove.list.array.TIntArrayList;
 import tester.Tester;
 
 class Graph {
-  private final SparseIntMatrix matrix;    // adjacency matrix with weight info
-  private final TIntArrayList[] adjList;   // adjacency list
-  private final int[] degrees;             // degree of each node
-  private final int[] communities;         // community of each node
-  private final int[] commTotalDegree;     // total degree of community
-  private final int[] commIntDegree;       // internal degree of community
-  private final int order;                 // no. of nodes
-  private final int size;                  // sum of edge weights
-  private final double m2;                 // sum of edge weights * 2
+  private final SparseIntMatrix matrix;   // adjacency matrix with weight info
+  private final TIntArrayList[] adjList;  // adjacency list
+  private final int[] degrees;            // degree of each node
+  private final int order;                // no. of nodes
+  private final int size;                 // sum of edge weights
+  private final double m2;                // sum of edge weights * 2
   private final LouvainDetector detector = new LouvainDetector(this);
-  private int numComms = 0;                // total no. of communities
+  private int layer = 0;                  // current community layer
+  private final TIntArrayList numComms;   // total no. of communities per layer
+  private final List<int[]> commLayers;   // list of community layers
+  private final List<int[]> totDegrees;   // total degree of community in layer
+  private final List<int[]> intDegrees;   // int. degree of community in layer
+  private final List<Graph> coarseGraphs  // coarse-grained community graphs
   
   public Graph(GraphBuilder builder) {
     matrix      = builder.matrix();
@@ -24,40 +26,47 @@ class Graph {
     size        = builder.size();
     m2          = (double) size * 2d;
     
-    communities     = new int[order];
-    commTotalDegree = new int[order];
-    commIntDegree   = new int[order];
+    commLayers   = new ArrayList<int[]>();
+    totDegrees   = new ArrayList<int[]>();
+    intDegrees   = new ArrayList<int[]>();
+    numComms     = new TIntArrayList();
+    coarseGraphs = new ArrayList<Graph>();
+    
+    commLayers.add(new int[order]);
+    totDegrees.add(new int[order]);
+    intDegrees.add(new int[order]);
+    numComms.add(order);
+    coarseGraphs.add(this);
     initialiseCommunities();
   }
   
   private void initialiseCommunities() {
     for (int i = 0; i < order; i++) {
-      communities[i] = i;
-      commTotalDegree[i] = degree(i);
-      commIntDegree[i] = matrix.get(i, i); // catches self-edges
-      numComms = order;
+      communities()[i] = i;
+      totDegrees()[i] = degree(i);
+      intDegrees()[i] = matrix.get(i, i); // catches self-edges
     }
   }
   
   public void moveToComm(int node, int community) {
-    int oldComm = communities[node];
+    int oldComm = community(node);
     if (oldComm == community) return;
     
-    communities[node] = community;
-    commTotalDegree[oldComm] -= degree(node);
-    commTotalDegree[community] += degree(node);
+    communities()[node] = community;
+    totDegrees()[oldComm] -= degree(node);
+    totDegrees()[community] += degree(node);
     
     for (int i = 0; i < adjList[node].size(); i++) {
       int neighbour = adjList[node].get(i);
-      if (communities[neighbour] == community) {
-        commIntDegree[community] += (matrix.get(node, neighbour) * 2);
+      if (community(neighbour) == community) {
+        intDegrees()[community] += (matrix.get(node, neighbour) * 2);
       }
-      if (communities[neighbour] == oldComm) {
-        commIntDegree[oldComm] -= (matrix.get(node, neighbour) * 2);
+      if (community(neighbour) == oldComm) {
+        intDegrees()[oldComm] -= (matrix.get(node, neighbour) * 2);
       }
     }
     
-    if (totDegree(oldComm) == 0) numComms--;
+    if (totDegree(oldComm) == 0) numComms.set(layer, numComms() - 1);
   }
   
   // weight between a community and a node
@@ -65,7 +74,7 @@ class Graph {
     int dnodecomm = 0;
     for (int i = 0; i < adjList[node].size(); i++) {
       int neigh = adjList[node].get(i);
-      if (communities[neigh] == community) dnodecomm += matrix.get(node, neigh);
+      if (community(neigh) == community) dnodecomm += matrix.get(node, neigh);
     }
     return dnodecomm;
   } 
@@ -83,28 +92,41 @@ class Graph {
   }
 
   public int[] detectCommunities() {
-    detector.run();
-    return communities;
-  }  
+    if (detector.run() > 0) {
+      incrLayer();
+      coarseGraphs.get(layer).detectCommunities();
+    }
+    return commLayers.get(layer);
+  }
   
+  public void incrLayer() {
+    layer++;
+    commLayers.add(new int[order]);
+    totDegrees.add(new int[order]);
+    intDegrees.add(new int[order]);
+    Graph coarse = new GraphBuilder().coarseGrain(this).build();
+    coarseGraphs.add(coarse);
+    numComms.add(0);
+  }
+  
+  public CommunityStructure exportCommunities() {
+    return new CommunityStructure()
+  }
+  
+  private int[] totDegrees() { return totDegrees.get(layer); }
+  private int[] intDegrees() { return intDegrees.get(layer); }
+  private int[] communities() { return commLayers.get(layer); }
+
+  public int layer() { return layer; }
   public double m2() { return m2; }
-  
   public TIntArrayList neighbours(int node) { return adjList[node]; }
-  
-  public int community(int node) { return communities[node]; }
-  
-  public int numComms() { return numComms; }
-   
-  public int totDegree(int community) { return commTotalDegree[community]; }
-  
-  public int intDegree(int community) { return commIntDegree[community]; }
-  
+  public int numComms() { return numComms.get(layer); }
+  public int community(int node) { return commLayers.get(layer)[node]; }
+  public int totDegree(int comm) { return totDegrees.get(layer)[comm]; }
+  public int intDegree(int comm) { return intDegrees.get(layer)[comm]; }
   public int size() { return size; }
-  
   public int order() { return order; }
-  
   public int degree(int node) { return degrees[node]; }
-  
   public int edge(int n1, int n2) { return matrix.get(n1, n2); }
 
   public static void main(String[] args) {

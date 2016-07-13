@@ -1,7 +1,7 @@
 
 
 public class LouvainDetector {
-  
+  private int totalMoves = 0;
   private final Graph g;
   private final double precision = 0.000001;
   
@@ -9,12 +9,13 @@ public class LouvainDetector {
     this.g = g;
   }
   
-  public void run() {
+  public int run() {
     long s1 = System.nanoTime();
     reassignCommunities();
     long e1 = System.nanoTime();
     double time = (e1 - s1) / 1000000000d;
     System.out.println("seconds taken: " + time );
+    return totalMoves;
   }
   
   private void reassignCommunities() {
@@ -27,6 +28,7 @@ public class LouvainDetector {
       hasChanged = true;
       oldMod = mod;
       moves = maximiseLocalModularity();
+      totalMoves += moves;
       mod = g.modularity();
       if (mod - oldMod <= precision) hasChanged = false;
       if (moves == 0) hasChanged = false;
