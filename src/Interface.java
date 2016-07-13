@@ -80,7 +80,8 @@ class Interface {
             break;
           case "graph":
             Graph g = new GraphBuilder().fromFileAndDB("data/largest-subgraph-min.csv", c).build();
-            g.detectCommunities();
+            CommunityPredictor predictor = new CommunityPredictor(g.detectCommunities(), c.getTheta());
+            predictor.run();
             break;
           default:
             System.out.println("Command not recognised.");

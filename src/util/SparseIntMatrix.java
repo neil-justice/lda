@@ -2,11 +2,11 @@
 import gnu.trove.map.hash.TLongIntHashMap;
 import tester.Tester;
 
-public class SparseMatrix {
+public class SparseIntMatrix {
   private final TLongIntHashMap map = new TLongIntHashMap();
   private final long size;
   
-  public SparseMatrix(int size) {
+  public SparseIntMatrix(int size) {
     this.size = (long) size;
   }
   
@@ -24,7 +24,7 @@ public class SparseMatrix {
   
   public static void main(String[] args) {
     Tester t = new Tester();
-    SparseMatrix m = new SparseMatrix(3);
+    SparseIntMatrix m = new SparseIntMatrix(3);
     
     for (int i = 0; i < m.size(); i++) {
       for (int j = 0; j < m.size(); j++) {

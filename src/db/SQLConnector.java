@@ -178,7 +178,29 @@ public class SQLConnector implements AutoCloseable {
     } catch (SQLException e) {
       System.out.println(e.getMessage());
     }    
-  }  
+  }
+  
+  public double[][] getTheta() {
+    if (c == null) { throw new IllegalStateException(); }
+    final String cmd = "SELECT * FROM Theta";
+    int topicCount = getTopics();
+    int docCount = getCount("Doc");
+    double[][] theta = new double[topicCount][docCount];
+    
+    try (PreparedStatement s = c.prepareStatement(cmd)) {
+      try (ResultSet r = s.executeQuery()) {
+        while (r.next()) {
+          int topic = r.getInt("topic");
+          int doc = r.getInt("doc");
+          theta[topic][doc] = r.getDouble("val");
+        }
+        return theta;
+      }
+    } catch (SQLException e) {
+      System.out.println(e.getMessage());
+      throw new RuntimeException(e);
+    }
+  }
   
   public Tokens getTokens() {
     if (c == null) { throw new IllegalStateException(); }

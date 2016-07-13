@@ -10,7 +10,7 @@ public class GraphBuilder
 {
   private Translator translator;
   private SQLConnector c;
-  private SparseMatrix matrix;
+  private SparseIntMatrix matrix;
   private TIntArrayList[] adjList;
   private int[] degrees;
   private int order = 0;
@@ -110,7 +110,7 @@ public class GraphBuilder
   }
   
   private void initialise() {
-    matrix = new SparseMatrix(order);
+    matrix = new SparseIntMatrix(order);
     degrees = new int[order];
     adjList = new TIntArrayList[order];
     for (int i = 0; i < order; i++) {
@@ -150,7 +150,7 @@ public class GraphBuilder
     return this;
   }
   
-  public SparseMatrix matrix() { return matrix; }
+  public SparseIntMatrix matrix() { return matrix; }
   public TIntArrayList[] adjList() { return adjList; }
   public int[] degrees() { return degrees; }
   public int size() { return size; }

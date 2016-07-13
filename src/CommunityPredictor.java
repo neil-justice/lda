@@ -2,65 +2,91 @@
  * one approach: given the theta for each community, and the theta for this node,
  * use KL divergence to find the closest community.  is it the actual community?
  */
-import gnu.trove.list.array.TIntArrayList;
 import java.util.*;
 
 public class CommunityPredictor {
   private final int docCount;
   private final int topicCount;
-  private final List<TIntArrayList> communities;
+  private final int[] communities; // communities[doc] == comm of that doc
+  private final int[] bestFit; // bestFit[doc] == predicted comm of that doc
+  private final int[] commSizes; // size of each community
   private final int numComms;
   private final double[][] theta;
-  private final double[][] commThetas; //aggregated theta values for comms
-  private final double[][] KLDivergence; // K-L distance between each doc and each comm
+  private final SparseDoubleMatrix commThetas; //aggregated theta values for comms
+  private int correct = 0; // no. of correct predictions
   
-  public CommunityPredictor(int docCount, int topicCount,
-                            List<TIntArrayList> communities, double[][] theta) {
-    this.docCount = docCount;
-    this.topicCount = topicCount;
+  public CommunityPredictor(int[] communities, double[][] theta) {
     this.communities = communities;
     this.theta = theta;
-    this.numComms = communities.size();
-    commThetas = new double[topicCount][numComms];
-    KLDivergence = new double[docCount][numComms];
+    topicCount = theta.length;
+    docCount = communities.length;
+    numComms = docCount; // because community numbers are not consecutive
+    commSizes = new int[numComms];
+    commThetas = new SparseDoubleMatrix(topicCount, numComms);
+    bestFit = new int[docCount];
   }
   
   public void run() {
-    aggregateAll();
-    KLDivergence();
+    aggregate();
+    getBestFit();
+    System.out.println(correct + "/" + docCount + " predicted correctly.");
   }
   
-  // aggregate theta values for documents to get community values
-  private void aggregateAll() {
-    for (int comm = 0; comm < numComms; comm++) {
-      aggregate(communities.get(comm), comm);
-    }
-  }
-  
-  private void aggregate(TIntArrayList community, int comm) {
-    int size = community.size();
-    for (int i = 0; i < size; i++) {
-      int doc = community.get(i);
+  private void aggregate() {
+    System.out.println("Aggregating...");
+    for (int doc = 0; doc < docCount; doc++) {
+      int comm = communities[doc];
+      commSizes[comm]++;
       for (int topic = 0; topic < topicCount; topic++) {
-        commThetas[topic][comm] += theta[topic][doc];
+        commThetas.add(topic, comm, theta[topic][doc]);
       }
     }
     for (int topic = 0; topic < topicCount; topic++) {
-      commThetas[topic][comm] /= size;
-    }
-  }
-  
-  // finds the distance between each document and each community
-  private void KLDivergence() {
-    for (int doc = 0; doc < docCount; doc++) {
       for (int comm = 0; comm < numComms; comm++) {
-        for (int topic = 0; topic < topicCount; topic++) {
-          KLDivergence[doc][comm] += theta[topic][doc] 
-                                  *  log2(theta[topic][doc] 
-                                  / commThetas[topic][comm]);
+        if (commSizes[comm] != 0) {
+          commThetas.div(topic, comm, commSizes[comm]);
         }
       }
     }
+  }
+  
+  // finds the closest community to each doc based on KL-divergence of the theta
+  // values of the doc and the community(aggregate of docs)
+  private void getBestFit() {
+    int checked = 0;
+    System.out.println("Calculating closest community...");
+    for (int doc = 0; doc < docCount; doc++) {
+      bestFit[doc] = getClosestComm(doc);
+      if (bestFit[doc] == communities[doc]) correct++;
+      checked++;
+      System.out.println(correct + "/" + checked + " predicted correctly.");
+    }
+  }
+  
+  private int getClosestComm(int doc) {
+    double min = Double.MAX_VALUE;
+    int closestComm = -1;
+    
+    for (int comm = 0; comm < numComms; comm++) {
+      if (commSizes[comm] != 0) {
+        double KLDivergence = getKLDivergence(doc, comm);
+        if (KLDivergence < min) {
+          min = KLDivergence;
+          closestComm = comm;
+        }
+      }
+    }
+    return closestComm;
+  }
+  
+  private double getKLDivergence(int doc, int comm) {
+    double KLDivergence = 0d;
+    for (int topic = 0; topic < topicCount; topic++) {
+      KLDivergence += theta[topic][doc] * 
+                      log2(theta[topic][doc] /  commThetas.get(topic, comm));
+                      
+    }
+    return KLDivergence;
   }
   
   private double log2(double x) {

@@ -4,7 +4,7 @@ import gnu.trove.list.array.TIntArrayList;
 import tester.Tester;
 
 class Graph {
-  private final SparseMatrix matrix;       // adjacency matrix with weight info
+  private final SparseIntMatrix matrix;    // adjacency matrix with weight info
   private final TIntArrayList[] adjList;   // adjacency list
   private final int[] degrees;             // degree of each node
   private final int[] communities;         // community of each node
@@ -81,24 +81,11 @@ class Graph {
 
     return q;
   }
-  
-  public List<TIntArrayList> detectCommunities() {
-    detector.run();
-    TIntArrayList[] comms = new TIntArrayList[order];
-    
-    for (int node = 0; node < order; node++) {
-      int community = community(node);
-      if (comms[community] == null) comms[community] = new TIntArrayList();
-      comms[community].add(node);
-    }
-    
-    List<TIntArrayList> ret = new ArrayList<>();
-    for (int list = 0; list < order; list++) {
-      if (comms[list] != null) ret.add(comms[list]);
-    }
 
-    return ret;
-  }
+  public int[] detectCommunities() {
+    detector.run();
+    return communities;
+  }  
   
   public double m2() { return m2; }
   
