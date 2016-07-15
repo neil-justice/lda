@@ -1,26 +1,48 @@
 /* Sparse square matrix using hashmap. */
 import gnu.trove.map.hash.TLongIntHashMap;
+import gnu.trove.iterator.TLongIntIterator;
 import tester.Tester;
 
 public class SparseIntMatrix {
-  private final TLongIntHashMap map = new TLongIntHashMap();
+  private final TLongIntHashMap map;
   private final long size;
   
   public SparseIntMatrix(int size) {
     this.size = (long) size;
+    map = new TLongIntHashMap();
+  }
+  
+  public SparseIntMatrix(SparseIntMatrix m) {
+    this.size = (long) m.size();
+    map = m.copyMap();
   }
   
   public int get (int x, int y) { 
-    long lx = (long) x;
-    long ly = (long) y;
-    return map.get(lx * size + ly); 
+    return map.get((long) x * size + (long) y);
   }
+  
   public void set (int x, int y, int val) { 
-    long lx = (long) x;
-    long ly = (long) y;
-    map.put(lx * size + ly, val); 
+    map.put((long) x * size + (long) y, val);
   }
+  
+  public void add (int x, int y, int val) {
+    set(x, y, get(x, y) + val);
+  }
+  
+  private boolean isNonZero(long key, int val) {
+    if (val == 0) return false;
+    return true;
+  }
+  
+  public void compress() {
+    map.retainEntries(this::isNonZero);
+  }
+  
   public int size() { return (int) size; }
+  
+  public TLongIntIterator iterator() { return map.iterator(); }
+  
+  public TLongIntHashMap copyMap() { return new TLongIntHashMap(map); }
   
   public static void main(String[] args) {
     Tester t = new Tester();

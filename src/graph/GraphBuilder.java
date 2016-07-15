@@ -5,6 +5,8 @@ import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.util.*;
 import gnu.trove.list.array.TIntArrayList;
+import gnu.trove.map.hash.TIntIntHashMap;
+import gnu.trove.iterator.TLongIntIterator;
 
 public class GraphBuilder
 {
@@ -14,8 +16,7 @@ public class GraphBuilder
   private TIntArrayList[] adjList;
   private int[] degrees;
   private int order = 0;
-  private int size  = 0;
-  private CommunityStructure cs;
+  private int sizeDbl  = 0;
   private int layer = 0;
   
   public GraphBuilder fromFile(String filename) {
@@ -28,7 +29,6 @@ public class GraphBuilder
     } catch (IOException e) {
       throw new Error("IO error");
     }
-    this.cs = new CommunityStructure(order);
     return this;
   }
 
@@ -46,7 +46,6 @@ public class GraphBuilder
     } catch (IOException e) {
       throw new Error("IO error");
     }
-    this.cs = new CommunityStructure(order);
     return this;
   }
   
@@ -64,7 +63,7 @@ public class GraphBuilder
       int n2 = Integer.parseInt(splitLine[1]);
       int weight = Integer.parseInt(splitLine[2]);
 
-      if (matrix.get(n1, n2) == 0 && matrix.get(n2, n1) == 0) insertEdge(n1, n2, weight);
+      if (matrix.get(n1, n2) == 0 && matrix.get(n2, n1) == 0) insertEdgeSym(n1, n2, weight);
     }
     reader.close();
   }
@@ -103,12 +102,9 @@ public class GraphBuilder
       int n1 = translator.getDocIndex(srcId);
       int n2 = translator.getDocIndex(dstId);
       if (matrix.get(n1, n2) != 0 || matrix.get(n2, n1) != 0) {
-        System.out.println("n1: " + n1 + " n2: " + n2 + " mget12: " + 
-                           matrix.get(n1, n2) + " mget21: " + 
-                           matrix.get(n2, n1) + " weight: " + weight);
         throw new Error("duplicate val at " + srcId + " " + dstId);
       }
-      insertEdge(n1, n2, weight);
+      insertEdgeSym(n1, n2, weight);
     }
     reader.close();
   }
@@ -121,20 +117,29 @@ public class GraphBuilder
       adjList[i] = new TIntArrayList();
     }
   }
+
+  //inserts symmetrical edge
+  private void insertEdgeSym(int n1, int n2, int weight) {
+    insertEdge(n1, n2, weight);
+    insertEdge(n2, n1, weight);
+  }
   
   private void insertEdge(int n1, int n2, int weight) {
     matrix.set(n1, n2, weight);
-    matrix.set(n2, n1, weight);
     adjList[n1].add(n2);
-    adjList[n2].add(n1);
     degrees[n1] += weight;
-    degrees[n2] += weight;
-    size += weight;
+    sizeDbl += weight;
+  }
+  
+  private void insertLoop(int n, int weight) {
+    matrix.set(n, n, weight);
+    adjList[n].add(n);
+    degrees[n] += weight;
+    sizeDbl += weight;
   }
   
   public GraphBuilder setSize(int order) {
     this.order = order;
-    this.cs = new CommunityStructure(order);
     initialise();
     
     return this;
@@ -143,17 +148,32 @@ public class GraphBuilder
   public GraphBuilder addEdge(int n1, int n2, int weight) {
     if (matrix.get(n1, n2) != 0) throw new Error("already exists");
     if (matrix == null) throw new Error("initialise first");
-    insertEdge(n1, n2, weight);
+    insertEdgeSym(n1, n2, weight);
     
     return this;
   }
   
-  public GraphBuilder coarseGrain(Graph g, CommunityStructure cs) {
-    this.order = cs.numComms(cs.layer());
-    this.cs = cs;
-    this.layer = cs.layer();
+  public GraphBuilder coarseGrain(Graph g, TIntIntHashMap map) {
+    this.order = g.numComms();
+    this.layer = g.layer() + 1;
     initialise();
+    g.compressCommMatrix();
     
+    for ( TLongIntIterator it = g.communityWeightIterator(); it.hasNext(); ) {
+      it.advance();
+      int weight = it.value();
+      if (weight != 0) {
+        int c1 = (int) it.key() % g.order();
+        int c2 = (int) it.key() / g.order();
+        int n1 = map.get(c1);
+        int n2 = map.get(c2);
+        if (matrix.get(n1, n2) == 0) {
+          if (n1 != n2) insertEdgeSym(n1, n2, weight);
+          else insertLoop(n1, weight);
+          //System.out.println("n1: " + n1 + " n2: " + n2 + " weight: " + weight);
+        }
+      }
+    }
     
     return this;
   }
@@ -161,10 +181,9 @@ public class GraphBuilder
   public SparseIntMatrix matrix() { return matrix; }
   public TIntArrayList[] adjList() { return adjList; }
   public int[] degrees() { return degrees; }
-  public int size() { return size; }
+  public int sizeDbl() { return sizeDbl; }
   public int order() { return order; }
   public int layer() { return layer; }
-  public CommunityStructure communityStructure() { return cs; }
   
   public Graph build() {
     return new Graph(this);

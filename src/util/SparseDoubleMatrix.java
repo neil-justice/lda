@@ -13,15 +13,11 @@ public class SparseDoubleMatrix {
   }
   
   public double get (int x, int y) { 
-    long lx = (long) x;
-    long ly = (long) y;
-    return map.get(lx * ymax + ly); 
+    return map.get((long) x * ymax + (long) y); 
   }
   
   public void set (int x, int y, double val) { 
-    long lx = (long) x;
-    long ly = (long) y;
-    map.put(lx * ymax + ly, val); 
+    map.put((long) x * ymax + (long) y, val); 
   }
   
   public void add (int x, int y, double val) {
