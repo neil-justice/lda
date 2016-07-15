@@ -8,6 +8,7 @@ public class LouvainDetector {
   private final List<Graph> graphs = new ArrayList<Graph>();
   // maps between communities on L and nodes on L + 1:
   private final List<TIntIntHashMap> layerMaps = new ArrayList<>();
+  private final List<int[]> communities = new ArrayList<int[]>();
   private final Maximiser m = new Maximiser();
   
   public LouvainDetector(Graph g) {
@@ -25,7 +26,7 @@ public class LouvainDetector {
       if (totalMoves > 0 && maxLayers >= layer) addNewLayer();
     }
     while (totalMoves > 0 && maxLayers >= layer);
-    
+    mapToNextLayer(graphs.get(0), layerMaps.get(0), graphs.get(1).communities());
   }
 
   private void addNewLayer() {
@@ -57,7 +58,56 @@ public class LouvainDetector {
     }
     
     return map;
-  }  
+  }
+  
+  // uses the layer maps to assign a community from each layer to the base layer
+  // graph.
+  private void buildCommunityList() {
+    List<int[]> rawComms = new ArrayList<int[]>();
+    communities.add(graphs.get(0).communities());
+    
+    for (int i = 0; i < layer; i++) {
+      rawComms.add(graphs.get(i).communities());
+    }
+    
+    for (int i = 0; i < layer - 1; i++) {
+      communities.add(mapToBaseLayer(i , rawComms));
+    }
+  }
+  
+  // maps layers to each other until the specified layer has been mapped to the
+  // base layer
+  private int[] mapToBaseLayer(int layer, List<int[]> rawComms) {
+    int[] a = mapToNextLayer(graphs.get(layer), layerMaps.get(layer), 
+                             rawComms.get(layer + 1));
+    
+    while (layer >= 0) {
+      a = mapToNextLayer(graphs.get(layer), layerMaps.get(layer), a);
+      layer--;
+    }
+    
+    return a;
+  }
+  
+  // maps each node in a layer to its community on the layer above it
+  private int[] mapToNextLayer(Graph g, TIntIntHashMap map, int[] commsL2) {
+    int[] commsL1 = g.communities();
+    int[] NL1toCL2 = new int[g.order()];
+
+    for (int nodeL1 = 0; nodeL1 < g.order(); nodeL1++) {
+      int commL1 = commsL1[nodeL1];
+      int nodeL2 = map.get(commL1);
+      int commL2 = commsL2[nodeL2];
+      NL1toCL2[node] = commL2;
+    }
+    
+    // for (int node = 0; node < g.order(); node++) {
+    //   System.out.println("n: " + node + " c1: " + communities[node] +
+    //                      " c2: " + layerAbove[node]);
+    // }
+    
+    return NL1toCL2;
+  }
   
   class Maximiser {
     private final Random rnd = new Random();
@@ -93,9 +143,9 @@ public class LouvainDetector {
         mod = g.modularity();
         if (mod - oldMod <= precision) hasChanged = false;
         if (moves == 0) hasChanged = false;
-        System.out.printf("Mod: %5f  Delta: %5f  Comms: %d Moves:  %d%n", 
-                          mod ,(mod - oldMod), g.numComms(), moves);
       } while (hasChanged);
+      System.out.printf("Mod: %5f  Comms: %d Moves:  %d%n", 
+                          mod , g.numComms(), totalMoves);
     } 
     
     private int maximiseLocalModularity() {

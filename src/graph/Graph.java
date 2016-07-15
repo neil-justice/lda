@@ -155,20 +155,20 @@ class Graph {
     t.is(g.totDegree(1), 0);
     t.is(g.totDegree(5), 0);
     t.is(g.intDegree(0), 62);
-    t.is(g.intDegree(3), 60);
+    t.is(g.intDegree(3), 50);
     t.is(g.intDegree(1), 0);
     t.is(g.intDegree(2), 0);
     t.is(g.intDegree(6), 0);
     t.is(g.numComms(),3);
-    t.is(g.communityWeight(0, 3), 0);
+    t.is(g.communityWeight(0, 0), 62);
     t.is(g.communityWeight(3, 0), 0);
     t.is(g.communityWeight(3, 6), 28);
-    t.is(g.communityWeight(3, 3), 60);
+    t.is(g.communityWeight(3, 3), 50);
     t.is(g.communityWeight(6, 6), 0);
     
     t.results();
     
-    g = new GraphBuilder().fromFile("data/gtests/arxiv.txt").build();
+    g = new GraphBuilder().fromFile("data/gtests/30-cliques.csv").build();
     g.detectCommunities();
   }
 }
