@@ -15,10 +15,10 @@ public class LouvainDetector {
     graphs.add(g);
   }
   
-  public void run() { run(9999); }
+  public int[] run() { return run(9999); }
   
-  public void run(int maxLayers) {
-    if (maxLayers == 0) return;
+  public int[] run(int maxLayers) {
+    if (maxLayers <= 0) return null;
     
     do {
       System.out.printf("Round %d:%n", layer);
@@ -26,7 +26,9 @@ public class LouvainDetector {
       if (totalMoves > 0 && maxLayers >= layer) addNewLayer();
     }
     while (totalMoves > 0 && maxLayers >= layer);
-    mapToNextLayer(graphs.get(0), layerMaps.get(0), graphs.get(1).communities());
+    
+    buildCommunityList();
+    return communities.get(layer - 1);
   }
 
   private void addNewLayer() {
@@ -35,9 +37,6 @@ public class LouvainDetector {
     layerMaps.add(map);
     layer++;
     Graph coarse = new GraphBuilder().coarseGrain(last, map).build();
-    if (last.m2() != coarse.m2()) {
-      throw new Error("Coarse-grain error: " + last.size() + "!=" + coarse.size());
-    }
     graphs.add(coarse);
   }
   
@@ -56,6 +55,7 @@ public class LouvainDetector {
         count++;
       }
     }
+    if (map.size() != g.numComms()) throw new Error("Map creation failed.");
     
     return map;
   }
@@ -80,6 +80,7 @@ public class LouvainDetector {
   private int[] mapToBaseLayer(int layer, List<int[]> rawComms) {
     int[] a = mapToNextLayer(graphs.get(layer), layerMaps.get(layer), 
                              rawComms.get(layer + 1));
+    layer--;
     
     while (layer >= 0) {
       a = mapToNextLayer(graphs.get(layer), layerMaps.get(layer), a);
@@ -98,13 +99,8 @@ public class LouvainDetector {
       int commL1 = commsL1[nodeL1];
       int nodeL2 = map.get(commL1);
       int commL2 = commsL2[nodeL2];
-      NL1toCL2[node] = commL2;
+      NL1toCL2[nodeL1] = commL2;
     }
-    
-    // for (int node = 0; node < g.order(); node++) {
-    //   System.out.println("n: " + node + " c1: " + communities[node] +
-    //                      " c2: " + layerAbove[node]);
-    // }
     
     return NL1toCL2;
   }

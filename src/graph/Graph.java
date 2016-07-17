@@ -54,7 +54,7 @@ class Graph {
     communities[node] = newComm;
     totDegrees[oldComm] -= degree(node);
     totDegrees[newComm] += degree(node);
-    
+
     for (int i = 0; i < adjList[node].size(); i++) {
       int neighbour = adjList[node].get(i);
       int weight = weight(node, neighbour);
@@ -103,8 +103,7 @@ class Graph {
   }
 
   public int[] detectCommunities() {
-    detector.run();
-    return communities();
+    return detector.run();
   }
   
   // private int[] totDegrees() { return totDegrees; }
@@ -126,7 +125,7 @@ class Graph {
   public TIntArrayList neighbours(int node) { return adjList[node]; }
   
   public int communityWeight(int c1, int c2) { return cmatrix.get(c1, c2); }
-  public TLongIntIterator communityWeightIterator() { return cmatrix.iterator(); }
+  public SparseIntMatrix.Iterator commWeightIterator() { return cmatrix.iterator(); }
   public void compressCommMatrix() { cmatrix.compress(); }
   
   public static void main(String[] args) {
@@ -168,7 +167,7 @@ class Graph {
     
     t.results();
     
-    g = new GraphBuilder().fromFile("data/gtests/30-cliques.csv").build();
+    g = new GraphBuilder().fromFile("data/gtests/arxiv.txt").build();
     g.detectCommunities();
   }
 }

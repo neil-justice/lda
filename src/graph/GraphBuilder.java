@@ -157,24 +157,40 @@ public class GraphBuilder
     this.order = g.numComms();
     this.layer = g.layer() + 1;
     initialise();
-    g.compressCommMatrix();
+    //g.compressCommMatrix();
     
-    for ( TLongIntIterator it = g.communityWeightIterator(); it.hasNext(); ) {
+    int sum = 0;
+    int sum2 = 0;
+    for ( SparseIntMatrix.Iterator it = g.commWeightIterator(); it.hasNext(); ) {
       it.advance();
       int weight = it.value();
       if (weight != 0) {
-        int c1 = (int) it.key() % g.order();
-        int c2 = (int) it.key() / g.order();
-        int n1 = map.get(c1);
-        int n2 = map.get(c2);
-        if (matrix.get(n1, n2) == 0) {
-          if (n1 != n2) insertEdgeSym(n1, n2, weight);
-          else insertLoop(n1, weight);
-          //System.out.println("n1: " + n1 + " n2: " + n2 + " weight: " + weight);
+        int n1 = map.get((int) it.x());
+        int n2 = map.get((int) it.y());
+
+        matrix.set(n1, n2, weight);
+        adjList[n1].add(n2);
+        degrees[n1] += weight;
+        sizeDbl += weight;
+        sum2 += weight;
+        // System.out.println("n1: " + n1 + " n2: " + n2 + " weight: " + weight);
+        
+        sum += weight;
+      }
+    }
+    for (int n1 = 0; n1 < order; n1++) {
+      for (int n2 = 0; n2 < order; n2++) {
+        int val1 = matrix.get(n1, n2);
+        int val2 = matrix.get(n2, n1);
+        if (val1 != val2) {
+          System.out.print("" + n1 + ", " + n2 + " = " + val1);
+          System.out.println(", " + n2 + ", " + n1 + " = " + val2);
         }
       }
     }
-    
+    if (sum != g.size() * 2) throw new Error("builder recieved wrong weights");
+    if (sum != sum2) throw new Error("matrix error: " + sum + " != " + sum2);
+    if (sum != sizeDbl) throw new Error("Coarse-grain error: " + sum + " != " + sizeDbl);
     return this;
   }
   
