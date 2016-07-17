@@ -6,7 +6,6 @@ import java.io.IOException;
 import java.util.*;
 import gnu.trove.list.array.TIntArrayList;
 import gnu.trove.map.hash.TIntIntHashMap;
-import gnu.trove.iterator.TLongIntIterator;
 
 public class GraphBuilder
 {
@@ -106,6 +105,7 @@ public class GraphBuilder
       }
       insertEdgeSym(n1, n2, weight);
     }
+    if (!matrix.isSymmetric()) throw new Error("constructed asymmetric matrix");
     reader.close();
   }
   
@@ -131,13 +131,6 @@ public class GraphBuilder
     sizeDbl += weight;
   }
   
-  private void insertLoop(int n, int weight) {
-    matrix.set(n, n, weight);
-    adjList[n].add(n);
-    degrees[n] += weight;
-    sizeDbl += weight;
-  }
-  
   public GraphBuilder setSize(int order) {
     this.order = order;
     initialise();
@@ -157,39 +150,21 @@ public class GraphBuilder
     this.order = g.numComms();
     this.layer = g.layer() + 1;
     initialise();
-    //g.compressCommMatrix();
-    
     int sum = 0;
-    int sum2 = 0;
+    
     for ( SparseIntMatrix.Iterator it = g.commWeightIterator(); it.hasNext(); ) {
       it.advance();
       int weight = it.value();
       if (weight != 0) {
         int n1 = map.get((int) it.x());
         int n2 = map.get((int) it.y());
-
-        matrix.set(n1, n2, weight);
-        adjList[n1].add(n2);
-        degrees[n1] += weight;
-        sizeDbl += weight;
-        sum2 += weight;
-        // System.out.println("n1: " + n1 + " n2: " + n2 + " weight: " + weight);
-        
+        insertEdge(n1, n2, weight);
         sum += weight;
       }
     }
-    for (int n1 = 0; n1 < order; n1++) {
-      for (int n2 = 0; n2 < order; n2++) {
-        int val1 = matrix.get(n1, n2);
-        int val2 = matrix.get(n2, n1);
-        if (val1 != val2) {
-          System.out.print("" + n1 + ", " + n2 + " = " + val1);
-          System.out.println(", " + n2 + ", " + n1 + " = " + val2);
-        }
-      }
-    }
+    
+    if (!matrix.isSymmetric()) throw new Error("asymmetric matrix");
     if (sum != g.size() * 2) throw new Error("builder recieved wrong weights");
-    if (sum != sum2) throw new Error("matrix error: " + sum + " != " + sum2);
     if (sum != sizeDbl) throw new Error("Coarse-grain error: " + sum + " != " + sizeDbl);
     return this;
   }

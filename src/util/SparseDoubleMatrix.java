@@ -1,5 +1,6 @@
 /* Sparse matrix using hashmap. */
 import gnu.trove.map.hash.TLongDoubleHashMap;
+import gnu.trove.iterator.TLongDoubleIterator;
 import tester.Tester;
 
 public class SparseDoubleMatrix {
@@ -27,6 +28,18 @@ public class SparseDoubleMatrix {
   public void div (int x, int y, double val) {
     set(x, y, get(x, y) / val);
   }
+
+  public SparseDoubleMatrix.Iterator iterator() { return new Iterator(); }
+  
+  public class Iterator {
+    private final TLongDoubleIterator iterator = map.iterator();
+
+    public void advance() { iterator.advance(); }
+    public boolean hasNext() { return iterator.hasNext(); }
+    public double value() { return iterator.value(); }
+    public int x() { return (int) (iterator.key() % ymax); }
+    public int y() { return (int) (iterator.key() / ymax); }
+  }  
   
   public static void main(String[] args) {
     Tester t = new Tester();

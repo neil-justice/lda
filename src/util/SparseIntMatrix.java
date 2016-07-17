@@ -36,7 +36,7 @@ public class SparseIntMatrix {
     return true;
   }
   
-  public void compress() { map.retainEntries(this::isNonZero); }
+  private void compress() { map.retainEntries(this::isNonZero); }
   
   public int size() { return (int) size; }
   

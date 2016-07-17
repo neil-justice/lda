@@ -9,6 +9,7 @@ public class CommunityPredictor {
   private final int topicCount;
   private final int[] communities; // communities[doc] == comm of that doc
   private final int[] bestFit; // bestFit[doc] == predicted comm of that doc
+  private final int[] commScore; // number of correct predictions of that community
   private final int[] commSizes; // size of each community
   private final int numComms;
   private final double[][] theta;
@@ -22,14 +23,24 @@ public class CommunityPredictor {
     docCount = communities.length;
     numComms = docCount; // because community numbers are not consecutive
     commSizes = new int[numComms];
-    commThetas = new SparseDoubleMatrix(topicCount, numComms);
+    commScore = new int[numComms];
     bestFit = new int[docCount];
+    commThetas = new SparseDoubleMatrix(topicCount, numComms);
   }
   
   public void run() {
     aggregate();
     getBestFit();
     System.out.println(correct + "/" + docCount + " predicted correctly.");
+    printScores();
+  }
+  
+  private void printScores() {
+    for (int comm = 0; comm < numComms; comm++) {
+      if (commSizes[comm] != 0) {
+        System.out.println("comm " + comm + ": " + commScore[comm] + "/" + commSizes[comm]);
+      }
+    }
   }
   
   private void aggregate() {
@@ -57,7 +68,10 @@ public class CommunityPredictor {
     System.out.println("Calculating closest community...");
     for (int doc = 0; doc < docCount; doc++) {
       bestFit[doc] = getClosestComm(doc);
-      if (bestFit[doc] == communities[doc]) correct++;
+      if (bestFit[doc] == communities[doc]) {
+        correct++;
+        commScore[communities[doc]]++;
+      }
       checked++;
       System.out.println(correct + "/" + checked + " predicted correctly.");
     }

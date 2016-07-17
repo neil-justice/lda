@@ -2,7 +2,6 @@
 import java.util.*;
 import gnu.trove.list.array.TIntArrayList;
 import gnu.trove.map.hash.TIntIntHashMap;
-import gnu.trove.iterator.TLongIntIterator;
 import tester.Tester;
 
 class Graph {
@@ -126,7 +125,6 @@ class Graph {
   
   public int communityWeight(int c1, int c2) { return cmatrix.get(c1, c2); }
   public SparseIntMatrix.Iterator commWeightIterator() { return cmatrix.iterator(); }
-  public void compressCommMatrix() { cmatrix.compress(); }
   
   public static void main(String[] args) {
     Tester t = new Tester();
