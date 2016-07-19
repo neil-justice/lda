@@ -62,6 +62,6 @@ class CTUT {
     Graph.main(null);
     SparseIntMatrix.main(null);
     SparseDoubleMatrix.main(null);
-    System.exit(0);
+    System.exit(0);   
   }
 }

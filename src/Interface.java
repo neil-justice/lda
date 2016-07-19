@@ -81,11 +81,18 @@ class Interface {
           case "predict":
             predictCommunityTopics();
             break;
+          case "chart":
+            viewCharts();
+            break;
           default:
             System.out.println("Command not recognised.");
         }
       } 
     }
+  }
+  
+  private void viewCharts() {
+    ThetaPlotter thp = new ThetaPlotter(c.getTheta());
   }
   
   private void predictCommunityTopics() {

@@ -58,8 +58,8 @@ public class CommunityPredictor {
       aggregate();
       getBestCommTopics();
       getBestFit();
-      System.out.println("Layer " + layer + ": " + correct + "/" + docCount + 
-                         " predicted correctly.");
+      System.out.printf("Layer %d: %d/%d = %.01f%% predicted correctly%n", layer, 
+                         correct, docCount, (correct / (double) docCount) * 100);
       // printScores();
     }
     
