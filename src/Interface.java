@@ -78,17 +78,21 @@ class Interface {
             quit = true;
             if (corpus != null) corpus.quit();
             break;
-          case "graph":
-            Graph g = new GraphBuilder().fromFileAndDB("data/largest-subgraph-min.csv", c).build();
-            g.detectCommunities();
-            CommunityPredictor predictor = new CommunityPredictor(g.detectCommunities(), c.getTheta());
-            predictor.run();
+          case "predict":
+            predictCommunityTopics();
             break;
           default:
             System.out.println("Command not recognised.");
         }
       } 
     }
+  }
+  
+  private void predictCommunityTopics() {
+    Graph g = new GraphBuilder().fromFileAndDB("data/largest-subgraph-min.csv", c).build();
+    LouvainDetector ld = new LouvainDetector(g);
+    CommunityPredictor predictor = new CommunityPredictor(ld.run(), c.getTheta());
+    predictor.run();
   }
   
   private void showInfo() {

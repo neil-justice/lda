@@ -18,7 +18,6 @@ class Graph {
   private final int order;                // no. of nodes
   private final int size;                 // sum of edge weights
   private final double m2;                // sum of edge weights * 2
-  private final LouvainDetector detector = new LouvainDetector(this);
   
   public Graph(GraphBuilder builder) {
     matrix  = builder.matrix();
@@ -100,10 +99,6 @@ class Graph {
 
     return q;
   }
-
-  public int[] detectCommunities() {
-    return detector.run();
-  }
   
   // private int[] totDegrees() { return totDegrees; }
   // private int[] intDegrees() { return intDegrees; }
@@ -166,6 +161,7 @@ class Graph {
     t.results();
     
     g = new GraphBuilder().fromFile("data/gtests/arxiv.txt").build();
-    g.detectCommunities();
+    LouvainDetector ld = new LouvainDetector(g);
+    ld.run();
   }
 }

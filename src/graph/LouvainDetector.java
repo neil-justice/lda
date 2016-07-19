@@ -15,10 +15,11 @@ public class LouvainDetector {
     graphs.add(g);
   }
   
-  public int[] run() { return run(9999); }
+  public List<int[]> run() { return run(9999); }
   
-  public int[] run(int maxLayers) {
+  public List<int[]> run(int maxLayers) {
     if (maxLayers <= 0) return null;
+    System.out.printf("Detecting graph communities...");
     
     do {
       System.out.printf("Round %d:%n", layer);
@@ -28,7 +29,7 @@ public class LouvainDetector {
     while (totalMoves > 0 && maxLayers >= layer);
     
     buildCommunityList();
-    return communities.get(layer - 1);
+    return communities;
   }
 
   private void addNewLayer() {

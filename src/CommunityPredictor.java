@@ -7,103 +7,116 @@ import java.util.*;
 public class CommunityPredictor {
   private final int docCount;
   private final int topicCount;
-  private final int[] communities; // communities[doc] == comm of that doc
-  private final int[] bestFit; // bestFit[doc] == predicted comm of that doc
-  private final int[] commScore; // number of correct predictions of that community
-  private final int[] commSizes; // size of each community
-  private final int numComms;
   private final double[][] theta;
-  private final SparseDoubleMatrix commThetas; //aggregated theta values for comms
-  private int correct = 0; // no. of correct predictions
+  private final int[] bestTopicInDoc;  // most commonly ocurring topic in each doc
+  private final List<int[]> communityLayers;
   
-  public CommunityPredictor(int[] communities, double[][] theta) {
-    this.communities = communities;
+  public CommunityPredictor(List<int[]> communityLayers, double[][] theta) {
+    this.communityLayers = communityLayers;
     this.theta = theta;
     topicCount = theta.length;
-    docCount = communities.length;
-    numComms = docCount; // because community numbers are not consecutive
-    commSizes = new int[numComms];
-    commScore = new int[numComms];
-    bestFit = new int[docCount];
-    commThetas = new SparseDoubleMatrix(topicCount, numComms);
+    docCount = communityLayers.get(0).length;
+    bestTopicInDoc = new int[docCount];
+
+    for (int doc = 0; doc < docCount; doc++) {
+      double max = 0d;
+      for (int topic = 0; topic < topicCount; topic++) {
+        if (theta[topic][doc] > max) {
+          max = theta[topic][doc];
+          bestTopicInDoc[doc] = topic;
+        }
+      }
+    }   
   }
   
   public void run() {
-    aggregate();
-    getBestFit();
-    System.out.println(correct + "/" + docCount + " predicted correctly.");
-    printScores();
-  }
-  
-  private void printScores() {
-    for (int comm = 0; comm < numComms; comm++) {
-      if (commSizes[comm] != 0) {
-        System.out.println("comm " + comm + ": " + commScore[comm] + "/" + commSizes[comm]);
-      }
+    for (int i = 0; i < communityLayers.size(); i++) {
+      LayerPredictor lp = new LayerPredictor(communityLayers.get(i), i);
+      lp.run();
     }
   }
   
-  private void aggregate() {
-    System.out.println("Aggregating...");
-    for (int doc = 0; doc < docCount; doc++) {
-      int comm = communities[doc];
-      commSizes[comm]++;
-      for (int topic = 0; topic < topicCount; topic++) {
-        commThetas.add(topic, comm, theta[topic][doc]);
-      }
-    }
-    for (int topic = 0; topic < topicCount; topic++) {
-      for (int comm = 0; comm < numComms; comm++) {
-        if (commSizes[comm] != 0) {
-          commThetas.div(topic, comm, commSizes[comm]);
-        }
-      }
-    }
-  }
-  
-  // finds the closest community to each doc based on KL-divergence of the theta
-  // values of the doc and the community(aggregate of docs)
-  private void getBestFit() {
-    int checked = 0;
-    System.out.println("Calculating closest community...");
-    for (int doc = 0; doc < docCount; doc++) {
-      bestFit[doc] = getClosestComm(doc);
-      if (bestFit[doc] == communities[doc]) {
-        correct++;
-        commScore[communities[doc]]++;
-      }
-      checked++;
-      System.out.println(correct + "/" + checked + " predicted correctly.");
-    }
-  }
-  
-  private int getClosestComm(int doc) {
-    double min = Double.MAX_VALUE;
-    int closestComm = -1;
+  class LayerPredictor {
+    private final int[] communities;     // communities[doc] == comm of that doc
+    private final int[] bestTopicInComm; // most commonly ocurring topic in each comm
+    private final int[] commScore;       // number of correct predictions of that community
+    private final int[] commSizes;       // size of each community
+    private final SparseDoubleMatrix commThetas; //aggregated theta values for comms
+    private final int layer;
+    private int correct = 0; // no. of correct predictions
     
-    for (int comm = 0; comm < numComms; comm++) {
-      if (commSizes[comm] != 0) {
-        double KLDivergence = getKLDivergence(doc, comm);
-        if (KLDivergence < min) {
-          min = KLDivergence;
-          closestComm = comm;
+    public LayerPredictor(int[] communities, int layer) {
+      this.layer = layer;
+      this.communities = communities;
+      commSizes = new int[docCount];
+      commScore = new int[docCount];
+      bestTopicInComm = new int[docCount];
+      commThetas = new SparseDoubleMatrix(topicCount, docCount);
+    }
+    
+    public void run() {
+      aggregate();
+      getBestCommTopics();
+      getBestFit();
+      System.out.println("Layer " + layer + ": " + correct + "/" + docCount + 
+                         " predicted correctly.");
+      // printScores();
+    }
+    
+    private void printScores() {
+      for (int comm = 0; comm < docCount; comm++) {
+        if (commSizes[comm] != 0) {
+          System.out.println("comm " + comm + ": " + 
+                             "best topic: " + bestTopicInComm[comm] + " " +
+                             commScore[comm] + "/" + commSizes[comm]);
         }
       }
     }
-    return closestComm;
-  }
-  
-  private double getKLDivergence(int doc, int comm) {
-    double KLDivergence = 0d;
-    for (int topic = 0; topic < topicCount; topic++) {
-      KLDivergence += theta[topic][doc] * 
-                      log2(theta[topic][doc] /  commThetas.get(topic, comm));
-                      
+    
+    private void aggregate() {
+      for (int doc = 0; doc < docCount; doc++) {
+        int comm = communities[doc];
+        commSizes[comm]++;
+        for (int topic = 0; topic < topicCount; topic++) {
+          commThetas.add(topic, comm, theta[topic][doc]);
+        }
+      }
+      for (int topic = 0; topic < topicCount; topic++) {
+        for (int comm = 0; comm < docCount; comm++) {
+          if (commSizes[comm] != 0) {
+            commThetas.div(topic, comm, commSizes[comm]);
+          }
+        }
+      }
     }
-    return KLDivergence;
-  }
-  
-  private double log2(double x) {
-    return Math.log(x) / Math.log(2);
+    
+    private void getBestCommTopics() {
+      
+      for (int comm = 0; comm < docCount; comm++) {
+        double max = 0d;
+        for (int topic = 0; topic < topicCount; topic++) {
+          if (commThetas.get(topic, comm) > max) {
+            max = commThetas.get(topic, comm);
+            bestTopicInComm[comm] = topic;
+          }
+        }
+      }    
+    }
+    
+    // finds the closest community to each doc based on KL-divergence of the theta
+    // values of the doc and the community(aggregate of docs)
+    private void getBestFit() {
+      int checked = 0;
+      for (int doc = 0; doc < docCount; doc++) {
+        int comm = communities[doc];
+        if (bestTopicInDoc[doc] == bestTopicInComm[comm]) {
+          correct++;
+          commScore[comm]++;
+        }
+        checked++;
+        // System.out.println(correct + "/" + checked + " predicted correctly.");
+      }
+    }
+    
   }
 }

@@ -1,6 +1,10 @@
+/* CTUT - Community Topic Usage Tracker.  
+ * Uses LDA (Latent dirichlet allocation) to determine the topic of discussion
+ * of a set of documents, and the Louvain method of graph community detection to
+ * find graph communities. */
 import java.util.*;
 
-class LDA {
+class CTUT {
   
   public static final String FREQFILE = "wordfreqs.txt";
   public static final String CLEANEDFILE = "clean.txt";
@@ -11,9 +15,9 @@ class LDA {
   private Interface UI;
   
   public static void main(String[] args) {
-    LDA lda = new LDA();
-    if (args.length > 0 && "-t".equals(args[0])) lda.test();
-    lda.run(args);
+    CTUT ct = new CTUT();
+    if (args.length > 0 && "-t".equals(args[0])) ct.test();
+    ct.run(args);
   }
    
   // use cases: test, clean, load dir
