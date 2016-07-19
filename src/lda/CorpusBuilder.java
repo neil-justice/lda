@@ -7,6 +7,7 @@ public class CorpusBuilder {
   
   private final TLongArrayList documents = new TLongArrayList();
   private final TObjectIntHashMap<String> words = new TObjectIntHashMap<>();
+  private final SQLConnector c;
   private Tokens tokens;
   private int tokenCount = 0;
   private int wordCount;
@@ -14,8 +15,9 @@ public class CorpusBuilder {
   private int topicCount;
   private String dir;
   
-  public CorpusBuilder(int topicCount) {
+  public CorpusBuilder(int topicCount, SQLConnector c) {
     this.topicCount = topicCount;
+    this.c = c;
   }
   
   public CorpusBuilder fromFile(String dir) {
@@ -111,6 +113,7 @@ public class CorpusBuilder {
   public int docCount() { return docCount; }
   public int tokenCount() { return tokenCount; }
   public int topicCount() { return topicCount; }
+  public SQLConnector connector() { return c; }
   public String dir() { return dir; }
   public Corpus build() { return new Corpus(this); }
 }

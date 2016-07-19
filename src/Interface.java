@@ -4,12 +4,14 @@ class Interface {
   private final String dir;
   private final Scanner input = new Scanner(System.in);
   private final FileTracker ft;
+  private final SQLConnector c;
   private Corpus corpus;
   private boolean quit = false;
   
   public Interface(String dir) {
     this.dir = dir;
     ft = new FileTracker(dir);
+    c = new SQLConnector(dir);
     showInfo();
   }
   
@@ -35,10 +37,12 @@ class Interface {
         chosen = false;
       }
     }
-    
     dl.setDirectory(choice);
+    
     dir = dl.dir();
     ft = new FileTracker(dir);
+    c = new SQLConnector(dir);
+    c.open();
     showInfo();
   }
 
@@ -72,13 +76,23 @@ class Interface {
           case "q":
           case "quit":
             quit = true;
-            if (corpus != null) corpus.closeDB();
+            if (corpus != null) corpus.quit();
+            break;
+          case "predict":
+            predictCommunityTopics();
             break;
           default:
             System.out.println("Command not recognised.");
         }
       } 
     }
+  }
+  
+  private void predictCommunityTopics() {
+    Graph g = new GraphBuilder().fromFileAndDB("data/largest-subgraph-min.csv", c).build();
+    LouvainDetector ld = new LouvainDetector(g);
+    CommunityPredictor predictor = new CommunityPredictor(ld.run(), c.getTheta());
+    predictor.run();
   }
   
   private void showInfo() {
@@ -107,12 +121,12 @@ class Interface {
   }
   
   private void reload(String[] cmd) {
-    if (corpus != null) corpus.closeDB();
+    if (corpus != null) corpus.quit();
     
     if (cmd.length == 2) {
       int topics = parse(cmd[1]);   
       if (topics > 0) {
-        corpus = new CorpusBuilder(topics).fromFile(dir).build();
+        corpus = new CorpusBuilder(topics, c).fromFile(dir).build();
         System.out.println("Corpus reloaded.");
       }
     }
@@ -128,7 +142,7 @@ class Interface {
     if (cmd.length == 2) {
       int topics = parse(cmd[1]);   
       if (topics > 0) {
-        corpus = new CorpusBuilder(topics).fromDatabase(dir).build();
+        corpus = new CorpusBuilder(topics, c).fromDatabase(dir).build();
         System.out.println("Corpus loaded.");
       }
     }
@@ -145,7 +159,6 @@ class Interface {
       int cycles = parse(cmd[1]);
       if (cycles > 0) corpus.run(cycles);
     }
-    else corpus.run(100);
   }
   
   private void print() {

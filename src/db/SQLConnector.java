@@ -22,6 +22,7 @@ public class SQLConnector implements AutoCloseable {
 
   public void open() {
     try {
+      if (isOpen()) return;
       c = DriverManager.getConnection(connection);
       c.setAutoCommit(false);  // Allow transactions
       open = true;
@@ -56,7 +57,7 @@ public class SQLConnector implements AutoCloseable {
   
   // only PRAGMAs which persist should be initialised here.
   private void initialiseParameters() {
-    setDefaultCacheSize(1000000);
+    setDefaultCacheSize(100000);
     setPageSize(4096);
   }
 
@@ -108,7 +109,7 @@ public class SQLConnector implements AutoCloseable {
   
   public void buildTokenList(Tokens tokens) {
     if (c == null) { throw new IllegalStateException(); }
-    final String cmd = "INSERT INTO Token VALUES( ?, ?, ?, ? );";
+    final String cmd = "INSERT INTO Token VALUES( ?, ?, ? );";
     final int batchSize = 100000;
     try (PreparedStatement s = c.prepareStatement(cmd)) {
       long b = System.nanoTime();
@@ -116,7 +117,6 @@ public class SQLConnector implements AutoCloseable {
         s.setInt(1, i);
         s.setInt(2, tokens.word(i));
         s.setInt(3, tokens.doc(i));
-        s.setInt(4, tokens.topic(i));
         s.addBatch();
         if ( i % batchSize == 0 && i > 0) {
           s.executeBatch();
@@ -132,10 +132,74 @@ public class SQLConnector implements AutoCloseable {
     }
   }
   
-  public void updateTokens(Tokens tokens) {
-    tm.dropTokenTable();
-    tm.createTokenTable();
-    buildTokenList(tokens);
+  public void writePhi(double[][] phi) {
+    if (c == null) { throw new IllegalStateException(); }
+    tm.dropPhiTable();
+    tm.createPhiTable();
+    final String cmd = "INSERT INTO Phi VALUES( null, ?, ?, ? );";
+    final int height = phi.length;
+    final int width = phi[0].length;
+    
+    try (PreparedStatement s = c.prepareStatement(cmd)) {
+      for (int word = 0; word < height; word++) {
+        for (int topic = 0; topic < width; topic++) {
+          s.setInt(1, word);
+          s.setInt(2, topic);
+          s.setDouble(3, phi[word][topic]);
+          s.addBatch();
+        }
+      }
+      s.executeBatch();
+      c.commit();
+    } catch (SQLException e) {
+      System.out.println(e.getMessage());
+    }    
+  }
+  
+  public void writeTheta(double[][] theta) {
+    if (c == null) { throw new IllegalStateException(); }
+    tm.dropThetaTable();
+    tm.createThetaTable();
+    final String cmd = "INSERT INTO Theta VALUES( null, ?, ?, ? );";
+    final int height = theta.length;
+    final int width = theta[0].length;
+    
+    try (PreparedStatement s = c.prepareStatement(cmd)) {
+      for (int topic = 0; topic < height; topic++) {
+        for (int doc = 0; doc < width; doc++) {
+          s.setInt(1, topic);
+          s.setInt(2, doc);
+          s.setDouble(3, theta[topic][doc]);
+          s.addBatch();
+        }
+      }
+      s.executeBatch();
+      c.commit();
+    } catch (SQLException e) {
+      System.out.println(e.getMessage());
+    }    
+  }
+  
+  public double[][] getTheta() {
+    if (c == null) { throw new IllegalStateException(); }
+    final String cmd = "SELECT * FROM Theta";
+    int topicCount = getTopics();
+    int docCount = getCount("Doc");
+    double[][] theta = new double[topicCount][docCount];
+    
+    try (PreparedStatement s = c.prepareStatement(cmd)) {
+      try (ResultSet r = s.executeQuery()) {
+        while (r.next()) {
+          int topic = r.getInt("topic");
+          int doc = r.getInt("doc");
+          theta[topic][doc] = r.getDouble("val");
+        }
+        return theta;
+      }
+    } catch (SQLException e) {
+      System.out.println(e.getMessage());
+      throw new RuntimeException(e);
+    }
   }
   
   public Tokens getTokens() {
@@ -148,7 +212,7 @@ public class SQLConnector implements AutoCloseable {
       try (ResultSet r = s.executeQuery()) {
         long b = System.nanoTime();
         while (r.next()) {
-          tokens.add(r.getInt("word"), r.getInt("doc"), r.getInt("topic"));
+          tokens.add(r.getInt("word"), r.getInt("doc"));
           cnt++;
         }
         long e = System.nanoTime();
@@ -196,6 +260,24 @@ public class SQLConnector implements AutoCloseable {
       throw new RuntimeException(e);
     }
   }
+  
+  public TLongIntHashMap getDocIndexes() {
+    if (c == null) { throw new IllegalStateException(); }
+    final String cmd = "SELECT * FROM Doc";
+    TLongIntHashMap docs = new TLongIntHashMap();
+
+    try (PreparedStatement s = c.prepareStatement(cmd)) {
+      try (ResultSet r = s.executeQuery()) {
+        while (r.next()) {
+          docs.put(r.getLong("doc"), r.getInt("id"));
+        }
+        return docs;
+      }
+    } catch (SQLException e) {
+      System.out.println(e.getMessage());
+      throw new RuntimeException(e);
+    }
+  }  
   
   public int getCount(String table) {
     if (c == null) { throw new IllegalStateException(); }
