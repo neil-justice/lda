@@ -5,6 +5,7 @@ class Interface {
   private final Scanner input = new Scanner(System.in);
   private final FileTracker ft;
   private final SQLConnector c;
+  private CommunityStructure structure;
   private Corpus corpus;
   private boolean quit = false;
   
@@ -92,13 +93,15 @@ class Interface {
   }
   
   private void viewCharts() {
-    ThetaPlotter thp = new ThetaPlotter(c.getTheta());
+    if (structure == null) predictCommunityTopics();
+    ThetaPlotter thp = new ThetaPlotter(structure);
   }
   
   private void predictCommunityTopics() {
     Graph g = new GraphBuilder().fromFileAndDB("data/largest-subgraph-min.csv", c).build();
     LouvainDetector ld = new LouvainDetector(g);
-    CommunityPredictor predictor = new CommunityPredictor(ld.run(), c.getTheta());
+    structure = new CommunityStructure(ld.run(), c.getTheta());
+    CommunityPredictor predictor = new CommunityPredictor(structure);
     predictor.run();
   }
   

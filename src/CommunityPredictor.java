@@ -9,13 +9,13 @@ public class CommunityPredictor {
   private final int topicCount;
   private final double[][] theta;
   private final int[] bestTopicInDoc;  // most commonly ocurring topic in each doc
-  private final List<int[]> communityLayers;
+  private final CommunityStructure structure;
   
-  public CommunityPredictor(List<int[]> communityLayers, double[][] theta) {
-    this.communityLayers = communityLayers;
-    this.theta = theta;
-    topicCount = theta.length;
-    docCount = communityLayers.get(0).length;
+  public CommunityPredictor(CommunityStructure structure) {
+    this.structure = structure;
+    theta = structure.theta();
+    topicCount = structure.topicCount();
+    docCount = structure.docCount();
     bestTopicInDoc = new int[docCount];
 
     for (int doc = 0; doc < docCount; doc++) {
@@ -30,8 +30,8 @@ public class CommunityPredictor {
   }
   
   public void run() {
-    for (int i = 0; i < communityLayers.size(); i++) {
-      LayerPredictor lp = new LayerPredictor(communityLayers.get(i), i);
+    for (int i = 0; i < structure.layers(); i++) {
+      LayerPredictor lp = new LayerPredictor(structure, i);
       lp.run();
     }
   }
@@ -45,17 +45,16 @@ public class CommunityPredictor {
     private final int layer;
     private int correct = 0; // no. of correct predictions
     
-    public LayerPredictor(int[] communities, int layer) {
+    public LayerPredictor(CommunityStructure cs, int layer) {
       this.layer = layer;
-      this.communities = communities;
-      commSizes = new int[docCount];
+      communities = cs.communities(layer);
+      commSizes = cs.commSizes(layer);
+      commThetas = cs.commThetas(layer);
       commScore = new int[docCount];
       bestTopicInComm = new int[docCount];
-      commThetas = new SparseDoubleMatrix(topicCount, docCount);
     }
     
     public void run() {
-      aggregate();
       getBestCommTopics();
       getBestFit();
       System.out.printf("Layer %d: %d/%d = %.01f%% predicted correctly%n", layer, 
@@ -69,23 +68,6 @@ public class CommunityPredictor {
           System.out.println("comm " + comm + ": " + 
                              "best topic: " + bestTopicInComm[comm] + " " +
                              commScore[comm] + "/" + commSizes[comm]);
-        }
-      }
-    }
-    
-    private void aggregate() {
-      for (int doc = 0; doc < docCount; doc++) {
-        int comm = communities[doc];
-        commSizes[comm]++;
-        for (int topic = 0; topic < topicCount; topic++) {
-          commThetas.add(topic, comm, theta[topic][doc]);
-        }
-      }
-      for (int topic = 0; topic < topicCount; topic++) {
-        for (int comm = 0; comm < docCount; comm++) {
-          if (commSizes[comm] != 0) {
-            commThetas.div(topic, comm, commSizes[comm]);
-          }
         }
       }
     }
