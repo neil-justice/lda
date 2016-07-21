@@ -95,6 +95,8 @@ class Interface {
   private void viewCharts() {
     if (structure == null) predictCommunityTopics();
     ThetaPlotter thp = new ThetaPlotter(structure);
+    DocumentSimilaritySpace simSpace = new DocumentSimilaritySpace(structure);
+    simSpace.run();
   }
   
   private void predictCommunityTopics() {

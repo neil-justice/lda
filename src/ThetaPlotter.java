@@ -4,14 +4,18 @@ import javax.swing.event.ListSelectionEvent;
 import java.awt.Color;
 import java.awt.BasicStroke;
 import java.awt.BorderLayout;
+import java.awt.event.*;
 import de.erichseifert.gral.data.*;
 import de.erichseifert.gral.plots.XYPlot;
 import de.erichseifert.gral.plots.lines.DefaultLineRenderer2D;
 import de.erichseifert.gral.plots.lines.LineRenderer;
 import de.erichseifert.gral.plots.points.PointRenderer;
 import de.erichseifert.gral.ui.DrawablePanel;
+import de.erichseifert.gral.io.plots.*;
 import de.erichseifert.gral.graphics.Insets2D;
 import java.util.*;
+import java.io.*;
+import java.io.FileOutputStream;
 
 public class ThetaPlotter {
   private final int BVAL = 40; // border around graph
@@ -68,11 +72,10 @@ public class ThetaPlotter {
     plot.getAxis(XYPlot.AXIS_X).setAutoscaled(false);
     plot.setInsets(new Insets2D.Double(BVAL, BVAL, BVAL, BVAL));
     plotPanel = new DrawablePanel(plot);
-    plotPanel.setSize(500, 400);
     return plotPanel;
   }
 
-  private JScrollPane listPanel() {
+  private JPanel listPanel() {
     DefaultListModel listModel = new DefaultListModel();
     for (int comm = 0; comm < docCount; comm++) {
       if (commSizes[comm] > 0) listModel.addElement(comm);
@@ -82,15 +85,18 @@ public class ThetaPlotter {
     list.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
     list.setSelectedIndex(0);
     list.addListSelectionListener(this::listenOnList);
+    
     JScrollPane listScrollPane = new JScrollPane(list);
-    listScrollPane.setBorder(BorderFactory.createCompoundBorder(
-                             new EmptyBorder(BVAL, 0, BVAL, BVAL / 2), 
-                             new EtchedBorder()));
-    listScrollPane.setSize(100, 400);
-    return listScrollPane;    
+    JButton png = new JButton("Save as PNG");
+    png.addActionListener(this::savePNG);
+    JPanel panel = new JPanel(new BorderLayout());
+    panel.add(listScrollPane, BorderLayout.CENTER);
+    panel.add(png, BorderLayout.SOUTH);
+    panel.setBorder(new EmptyBorder(BVAL, 0, BVAL, BVAL / 2));
+    return panel;    
   }
   
-  public void listenOnList(ListSelectionEvent e) {
+  private void listenOnList(ListSelectionEvent e) {
     if (e.getValueIsAdjusting() == false) {
       int index = list.getSelectedIndex();
       if (index != -1) {
@@ -98,10 +104,22 @@ public class ThetaPlotter {
         plot.clear();
         addComm(comm);
         plotPanel.repaint();
-        System.out.println(comm);
       }
     }
-  }  
+  }
+  
+  private void savePNG(ActionEvent ae) {
+    try {
+      int comm = list.getSelectedValue();
+      File f = new File("charts/" + comm + ".png");
+      DrawableWriter writer = DrawableWriterFactory.getInstance().get("image/png");
+      writer.write(plot, new FileOutputStream(f), 600, 400);      
+    } catch (FileNotFoundException e) {
+      e.printStackTrace();
+    } catch (IOException e) {
+      e.printStackTrace();
+    }
+  }
   
   // adds a doc's theta values to the graph
   private void addDoc(int doc) {

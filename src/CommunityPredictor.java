@@ -13,9 +13,9 @@ public class CommunityPredictor {
   
   public CommunityPredictor(CommunityStructure structure) {
     this.structure = structure;
-    theta = structure.theta();
+    theta      = structure.theta();
     topicCount = structure.topicCount();
-    docCount = structure.docCount();
+    docCount   = structure.docCount();
     bestTopicInDoc = new int[docCount];
 
     for (int doc = 0; doc < docCount; doc++) {
@@ -48,9 +48,9 @@ public class CommunityPredictor {
     public LayerPredictor(CommunityStructure cs, int layer) {
       this.layer = layer;
       communities = cs.communities(layer);
-      commSizes = cs.commSizes(layer);
-      commThetas = cs.commThetas(layer);
-      commScore = new int[docCount];
+      commSizes   = cs.commSizes(layer);
+      commThetas  = cs.commThetas(layer);
+      commScore       = new int[docCount];
       bestTopicInComm = new int[docCount];
     }
     
