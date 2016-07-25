@@ -14,11 +14,11 @@ public class TextCleaner {
   private final List<String> searchterms = new ArrayList<String>();
   
   public TextCleaner() {
-    FileLoader.loadList(LDA.SEARCHTERMS, searchterms);
+    FileLoader.loadList(CTUT.SEARCHTERMS, searchterms);
   }
   
   public void clean(String in, String dir) {
-    FileLoader.processFile(in, dir + LDA.CLEANEDFILE, this::lineOperation);
+    FileLoader.processFile(in, dir + CTUT.CLEANEDFILE, this::lineOperation);
 
     wordfreqs.write(dir);
     tagfreqs.write(dir, "tagfreqs.txt");

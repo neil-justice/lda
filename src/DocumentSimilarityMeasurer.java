@@ -13,6 +13,7 @@ public class DocumentSimilarityMeasurer {
     topicCount = structure.topicCount();
     docCount = structure.docCount();
     thetaLog = new double[topicCount][docCount];
+    
     calculateLogs();
   }
 
@@ -43,6 +44,28 @@ public class DocumentSimilarityMeasurer {
     for (int topic = 0; topic < topicCount; topic++) {
       if (theta[topic][doc] != 0 && prob[topic] != 0) {
         KLDivergence += theta[topic][doc] * (thetaLog[topic][doc] - Math.log(prob[topic]));
+      }
+    }
+    return KLDivergence / Math.log(2);
+  }
+  
+  // JS distance between a doc and a comm
+  public double JSCommDistance(int comm, int doc, int layer) {
+    SparseDoubleMatrix commThetas = structure.commThetas(layer);
+    double M[] = new double[topicCount]; //avg of the two distributions
+    
+    for (int topic = 0; topic < topicCount; topic++) {
+      M[topic] = (theta[topic][doc] + commThetas.get(topic, comm)) / 2;
+    }
+    return (KLDivergence(doc, M) + KLCommDivergence(comm, M, commThetas)) / 2;
+  }
+  
+  // KL div between a comm and a prob. dist.
+  private double KLCommDivergence(int comm, double[] prob, SparseDoubleMatrix commThetas) {
+    double KLDivergence = 0d;
+    for (int topic = 0; topic < topicCount; topic++) {
+      if (commThetas.get(topic, comm) != 0 && prob[topic] != 0) {
+        KLDivergence += commThetas.get(topic, comm) * Math.log(commThetas.get(topic, comm) / prob[topic]);
       }
     }
     return KLDivergence / Math.log(2);

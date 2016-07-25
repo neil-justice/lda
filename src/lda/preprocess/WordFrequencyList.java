@@ -9,7 +9,7 @@ class WordFrequencyList {
   
   public void load(String dir) {
     try {
-      BufferedReader reader = new BufferedReader(new FileReader(new File(dir + LDA.FREQFILE)));
+      BufferedReader reader = new BufferedReader(new FileReader(new File(dir + CTUT.FREQFILE)));
       String line;
       
       while ((line = reader.readLine()) != null) {
@@ -29,7 +29,7 @@ class WordFrequencyList {
   }
   
   public void write(String dir) {
-    write(dir, LDA.FREQFILE);
+    write(dir, CTUT.FREQFILE);
   }
   
   public void write(String dir, String filename) {

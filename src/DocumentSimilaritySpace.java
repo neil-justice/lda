@@ -1,3 +1,5 @@
+/* simplistic trilateration approach to situate docs in space using JS Metric
+ * as distance between two points.  Is not incredibly accurate. */
 import java.util.*;
 
 public class DocumentSimilaritySpace {
@@ -32,23 +34,12 @@ public class DocumentSimilaritySpace {
     findBasePoints();
     setBasePointCoords();
     
-    int NaNcount = 0;
     for (int doc = 0; doc < docCount; doc++) {
       if (doc != b1 && doc != b2 && doc != b3) setCoords(doc);
-      // System.out.println("x: " + x[doc] + " y: " + y[doc] + " z: " + z[doc]);
-      if (Double.isNaN(z[doc])) NaNcount++;
-    }
-    System.out.println("nan: " + NaNcount);
-    System.out.println("x[b1]: " + x[b1] + " y[b1]: " + y[b1]);
-    System.out.println("x[b2]: " + x[b2] + " y[b2]: " + y[b2]);
-    System.out.println("x[b3]: " + x[b3] + " y[b3]: " + y[b3]);
-    System.out.println("dist(b1, b2): " + a);
-    System.out.println("dist(b1, b3): " + b);
-    System.out.println("dist(b2, b3): " + c);    
+      System.out.println(x[doc] + " " + y[doc] + " " + structure.communities(1)[doc]);
+    }   
   }
   
-  // x = (aa - bb + (x[b2] * x[b2]) / (2*x[b2])
-  // y = (dd - ff + b3xx + b3yy) / (2d * y[b3]) - (x[b3]/y[b3]) * x[doc]
   private void setCoords(int doc) {
     double d = dist(b1, doc);
     double e = dist(b2, doc);
@@ -62,14 +53,8 @@ public class DocumentSimilaritySpace {
     x[doc] = (dd - ee + aa) / (2d * a);
     y[doc] = ((dd - ff + b3xx + b3yy) / (2d * y[b3])) - ((x[b3]/y[b3]) * x[doc]);
     z[doc] = Math.sqrt(dd - (x[doc] * x[doc]) - (y[doc] * y[doc]));
-    
-    System.out.println("diff: " + (d - checkDist(b1, doc)));
-    // System.out.println("dist(b1, doc): " + d + "dist(b2, doc): " + e + "dist(b3, doc): " + f);
   }
 
-  // for b3: where a = dist(b1, b2), b = dist(b1, b3), c = dist(b2, b3);
-  // x = (a^2+b^2-c^2)/(2*a)
-  // y = sqrt((a+b+c)*(a+b-c)*(b+c-a)*(c+a-b))/(2*a)
   // all others are 0 so do not need setting
   private void setBasePointCoords() {
     x[b2] = a;
@@ -107,8 +92,11 @@ public class DocumentSimilaritySpace {
     System.out.println("Found base points in: " + time + "s");
   }
   
-  private double dist(int d1, int d2) { return simRanker.JSDistance(d1, d2); } 
+  // the sqrt is to convert the JSdivergence to the JS metric.
+  private double dist(int d1, int d2) { return Math.sqrt(simRanker.JSDistance(d1, d2)); } 
   
+  // checks the euclidean distances between the generated coords with the 
+  // JS distances
   private double checkDist(int d1, int d2) {
     double x1 = x[d1];
     double x2 = x[d2];
@@ -119,4 +107,8 @@ public class DocumentSimilaritySpace {
     
     return Math.sqrt((x1-x2)*(x1-x2) + (y1-y2)*(y1-y2) + (z1-z2)*(z1-z2));
   }
+  
+  public double[] x() { return x; }
+  public double[] y() { return y; }
+  public double[] z() { return z; }  
 }

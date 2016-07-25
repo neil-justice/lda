@@ -16,14 +16,14 @@ class Preprocessor {
     System.out.println(toRemove.size() + " / " + wordfreqs.size() + " words to be removed");
     wordfreqs.removeAll(toRemove);
     wordfreqs.write(dir);
-    FileLoader.processFile(dir + LDA.CLEANEDFILE, dir + LDA.PROCESSEDFILE, this::removeWords);
+    FileLoader.processFile(dir + CTUT.CLEANEDFILE, dir + CTUT.PROCESSEDFILE, this::removeWords);
     System.out.println(tokenCount + " tokens kept out of " + totalCount);
   }
   
   private void buildRemovalList() {
     
-    FileLoader.loadList(LDA.STOPWORDS, toRemove);
-    FileLoader.loadList(LDA.SEARCHTERMS, doNotRemove);
+    FileLoader.loadList(CTUT.STOPWORDS, toRemove);
+    FileLoader.loadList(CTUT.SEARCHTERMS, doNotRemove);
     
     for (Map.Entry<String, Integer> e: wordfreqs.entrySet()) {
       String word = e.getKey();

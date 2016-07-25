@@ -11,9 +11,9 @@ public class FileTracker {
     this.dir = new File(dir);
     if (!this.dir.isDirectory()) throw new Error("Not a directory.");
     
-    clean = new File(dir + LDA.CLEANEDFILE);
-    processed = new File(dir + LDA.PROCESSEDFILE);
-    database = new File(dir + LDA.DATABASE);
+    clean = new File(dir + CTUT.CLEANEDFILE);
+    processed = new File(dir + CTUT.PROCESSEDFILE);
+    database = new File(dir + CTUT.DATABASE);
   }
   
   public boolean isClean() { return clean.exists(); }

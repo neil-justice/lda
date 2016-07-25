@@ -1,21 +1,26 @@
 import javax.swing.*;
 import javax.swing.border.*;
 import javax.swing.event.ListSelectionEvent;
-import java.awt.Color;
-import java.awt.BasicStroke;
-import java.awt.BorderLayout;
+import java.awt.*;
 import java.awt.event.*;
 import de.erichseifert.gral.data.*;
 import de.erichseifert.gral.plots.XYPlot;
+import de.erichseifert.gral.plots.BarPlot;
+import de.erichseifert.gral.plots.BarPlot.BarRenderer;
 import de.erichseifert.gral.plots.lines.DefaultLineRenderer2D;
 import de.erichseifert.gral.plots.lines.LineRenderer;
 import de.erichseifert.gral.plots.points.PointRenderer;
 import de.erichseifert.gral.ui.DrawablePanel;
 import de.erichseifert.gral.io.plots.*;
 import de.erichseifert.gral.graphics.Insets2D;
+import de.erichseifert.gral.plots.colors.QuasiRandomColors;
 import java.util.*;
 import java.io.*;
 import java.io.FileOutputStream;
+
+import de.erichseifert.gral.util.GraphicsUtils;
+import de.erichseifert.gral.graphics.Insets2D;
+import de.erichseifert.gral.graphics.Location;
 
 public class ThetaPlotter {
   private final int BVAL = 40; // border around graph
@@ -25,54 +30,78 @@ public class ThetaPlotter {
   private final double[][] theta;
   private final int topicCount;
   private final int docCount;
+  private double[] docCommCloseness;
   private int[] communities;
   private int[] commSizes;
   private SparseDoubleMatrix commThetas;
+  private int numComms;
   
   private JFrame frame;
   private JList<Integer> list;
-  private DrawablePanel plotPanel;
-  private XYPlot plot;
+  private DrawablePanel thetaPanel;
+  private DrawablePanel JSPanel;
+  private XYPlot thetaPlot;
+  private BarPlot JSPlot;
   private final Random rnd = new Random();
   
   public ThetaPlotter(CommunityStructure structure) {
     this.structure = structure;
+    int layer = 4;
     
     theta       = structure.theta();
     topicCount  = structure.topicCount();
     docCount    = structure.docCount();
-    commThetas  = structure.commThetas(1);
-    communities = structure.communities(1);
-    commSizes   = structure.commSizes(1);
-    
+    commThetas  = structure.commThetas(layer);
+    communities = structure.communities(layer);
+    commSizes   = structure.commSizes(layer);
+    numComms    = structure.numComms(layer);
+    docCommCloseness = structure.docCommCloseness(layer);
+
     SwingUtilities.invokeLater(this::run);
   }
   
   public void run() {
     frame = new JFrame();
-    frame.setSize(600, 400);
+    frame.setSize(800, 400);
     frame.setDefaultCloseOperation(frame.EXIT_ON_CLOSE);
     frame.setTitle("CTUT");
-    frame.add(plotPanel(), BorderLayout.CENTER);
-    frame.add(listPanel(), BorderLayout.EAST);
+    frame.setLayout(new BoxLayout(frame.getContentPane(), BoxLayout.X_AXIS));
+    frame.add(thetaPanel());
+    frame.add(JSPanel());
     frame.setLocationByPlatform(true);
     frame.setVisible(true);
-    addComm(communities[0]);
+  }
+
+  private JPanel JSPanel() {
+    DataTable data = new DataTable(Integer.class, Double.class);
+    data.add(1, 1d);
+    JSPlot = new BarPlot(data);
+    JSPlot.setInsets(new Insets2D.Double(BVAL, BVAL, BVAL, BVAL));
+
+    JSPlot.getAxis(XYPlot.AXIS_Y).setRange(0d, 1d);
+    JSPlot.getAxis(XYPlot.AXIS_Y).setAutoscaled(false);
+    JSPanel = new DrawablePanel(JSPlot);
+    JPanel panel = new JPanel(new BorderLayout());
+    panel.add(JSPanel, BorderLayout.CENTER);
+    return panel;
   }
   
-  private DrawablePanel plotPanel() {
+  private JPanel thetaPanel() {
     DataTable data = new DataTable(Integer.class, Double.class);
     data.add(0, 0d);
     
-    plot = new XYPlot(data);
+    thetaPlot = new XYPlot(data);
     
-    plot.getAxis(XYPlot.AXIS_X).setRange(0, topicCount - 1);
-    plot.getAxis(XYPlot.AXIS_Y).setRange(0d, 1d);
-    plot.getAxis(XYPlot.AXIS_Y).setAutoscaled(false);
-    plot.getAxis(XYPlot.AXIS_X).setAutoscaled(false);
-    plot.setInsets(new Insets2D.Double(BVAL, BVAL, BVAL, BVAL));
-    plotPanel = new DrawablePanel(plot);
-    return plotPanel;
+    thetaPlot.getAxis(XYPlot.AXIS_X).setRange(0, topicCount - 1);
+    thetaPlot.getAxis(XYPlot.AXIS_Y).setRange(0d, 1d);
+    thetaPlot.getAxis(XYPlot.AXIS_Y).setAutoscaled(false);
+    thetaPlot.getAxis(XYPlot.AXIS_X).setAutoscaled(false);
+    thetaPlot.setInsets(new Insets2D.Double(BVAL, BVAL, BVAL, BVAL));
+    thetaPanel = new DrawablePanel(thetaPlot);
+    JPanel panel = new JPanel(new BorderLayout());
+    panel.add(thetaPanel, BorderLayout.CENTER);
+    panel.add(listPanel(), BorderLayout.EAST);
+    return panel;
   }
 
   private JPanel listPanel() {
@@ -99,13 +128,73 @@ public class ThetaPlotter {
   private void listenOnList(ListSelectionEvent e) {
     if (e.getValueIsAdjusting() == false) {
       int index = list.getSelectedIndex();
-      if (index != -1) {
-        int comm = list.getSelectedValue();
-        plot.clear();
-        addComm(comm);
-        plotPanel.repaint();
+      if (index != -1) loadComm();
+    }
+  }
+  
+  private void loadComm() {
+    int comm = list.getSelectedValue();
+    thetaPlot.clear();
+    JSPlot.clear();
+    addCommToThetaPlot(comm);
+    addCommToJSPlot(comm);
+    thetaPanel.repaint();
+    JSPanel.repaint();    
+  }
+
+  // adds a doc's theta values to the graph
+  private void addDoc(int doc) {
+    DataTable data = new DataTable(Integer.class, Double.class);
+    for (int topic = 0; topic < topicCount; topic++) {
+      data.add(topic, theta[topic][doc]);
+    }
+    thetaPlot.add(data);
+    Color colour = randomColour();
+    LineRenderer lines = new DefaultLineRenderer2D();
+    thetaPlot.setLineRenderers(data, lines);
+    
+    thetaPlot.getPointRenderers(data).get(0).setColor(colour);
+    thetaPlot.getLineRenderers(data).get(0).setColor(colour);
+  }
+  
+  private void addCommToThetaPlot(int comm) {
+    DataTable data = new DataTable(Integer.class, Double.class);
+    
+    for (int topic = 0; topic < topicCount; topic++) {
+      data.add(topic, commThetas.get(topic, comm));
+    }
+    for (int doc = 0; doc < docCount; doc++) {
+      if (communities[doc] == comm) addDoc(doc);
+    }
+    thetaPlot.add(data);
+    Color colour = new Color(0f, 0f, 0f);
+    LineRenderer lines = new DefaultLineRenderer2D();
+    thetaPlot.setLineRenderers(data, lines);
+    thetaPlot.getPointRenderers(data).get(0).setColor(colour);
+    thetaPlot.getLineRenderers(data).get(0).setColor(colour);
+    thetaPlot.getLineRenderers(data).get(0).setStroke(new BasicStroke(3f));
+  }
+  
+  private void addCommToJSPlot(int comm) {
+    DataTable data = new DataTable(Double.class, Double.class);
+    
+    double count = 0.5d;
+    for(int doc = 0; doc < docCount; doc++) {
+      if (communities[doc] == comm) {
+        data.add(count, docCommCloseness[doc]);
+        count++;
       }
     }
+    JSPlot.add(data);
+
+    Color colour = randomColour();
+    Color border = randomColour();
+
+		BarRenderer pointRenderer = (BarRenderer) JSPlot.getPointRenderers(data).get(0);
+		pointRenderer.setColor(colour);
+		pointRenderer.setBorderStroke(new BasicStroke(1f));
+		pointRenderer.setBorderColor(border);
+    JSPlot.getAxis(XYPlot.AXIS_X).setRange(0,(int) count);
   }
   
   private void savePNG(ActionEvent ae) {
@@ -113,7 +202,7 @@ public class ThetaPlotter {
       int comm = list.getSelectedValue();
       File f = new File("charts/" + comm + ".png");
       DrawableWriter writer = DrawableWriterFactory.getInstance().get("image/png");
-      writer.write(plot, new FileOutputStream(f), 600, 400);      
+      writer.write(thetaPlot, new FileOutputStream(f), 600, 400);      
     } catch (FileNotFoundException e) {
       e.printStackTrace();
     } catch (IOException e) {
@@ -121,64 +210,8 @@ public class ThetaPlotter {
     }
   }
   
-  // adds a doc's theta values to the graph
-  private void addDoc(int doc) {
-    DataTable data = new DataTable(Integer.class, Double.class);
-    
-    for (int topic = 0; topic < topicCount; topic++) {
-      data.add(topic, theta[topic][doc]);
-    }
-    
-    plot.add(data);
-
-    Color colour = randomColour();
-    LineRenderer lines = new DefaultLineRenderer2D();
-    data.setName("d" + doc);
-    
-    plot.setLineRenderers(data, lines);
-    plot.getPointRenderers(data).get(0).setColor(colour);
-    plot.getLineRenderers(data).get(0).setColor(colour);
-  }
-  
   private Color randomColour() {
     return new Color(rnd.nextFloat(), rnd.nextFloat(), rnd.nextFloat());
-  }
-  
-  private void removeDoc(int doc) {
-    DataSource toRemove = null;
-    
-    for (DataSource data: plot.getVisibleData()) {
-      if (data.getName().equals("d" + doc)) {
-        toRemove = data;
-      }
-    }
-    if (toRemove != null) plot.remove(toRemove);
-  }
-  
-  private void addComm(int comm) {
-    DataTable data = new DataTable(Integer.class, Double.class);
-    
-    for (int topic = 0; topic < topicCount; topic++) {
-      data.add(topic, commThetas.get(topic, comm));
-    }
-    
-    int count = 0;
-    for (int doc = 0; doc < docCount; doc++) {
-      if (communities[doc] == comm) {
-        addDoc(doc);
-        count++;
-      }
-    }
-    
-    plot.add(data);
-    Color colour = new Color(0f, 0f, 0f);
-    LineRenderer lines = new DefaultLineRenderer2D();
-    data.setName("c" + comm);
-    
-    plot.setLineRenderers(data, lines);
-    plot.getPointRenderers(data).get(0).setColor(colour);
-    plot.getLineRenderers(data).get(0).setColor(colour);
-    plot.getLineRenderers(data).get(0).setStroke(new BasicStroke(3f));
   }  
 }
 

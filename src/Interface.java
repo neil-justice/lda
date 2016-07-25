@@ -85,6 +85,12 @@ class Interface {
           case "chart":
             viewCharts();
             break;
+          case "louvain":
+            runLouvainDetector();
+            break;
+          case "infomap":
+            loadInfomapResults();
+            break;
           default:
             System.out.println("Command not recognised.");
         }
@@ -92,17 +98,26 @@ class Interface {
     }
   }
   
-  private void viewCharts() {
-    if (structure == null) predictCommunityTopics();
-    ThetaPlotter thp = new ThetaPlotter(structure);
-    DocumentSimilaritySpace simSpace = new DocumentSimilaritySpace(structure);
-    simSpace.run();
-  }
-  
-  private void predictCommunityTopics() {
+  private void runLouvainDetector() {
     Graph g = new GraphBuilder().fromFileAndDB("data/largest-subgraph-min.csv", c).build();
     LouvainDetector ld = new LouvainDetector(g);
     structure = new CommunityStructure(ld.run(), c.getTheta());
+  }
+  
+  private void loadInfomapResults() {
+    InfomapResultsReader irr = new InfomapResultsReader("newNodes.tree");
+    structure = new CommunityStructure(irr.run(), c.getTheta());
+  }
+  
+  private void viewCharts() {
+    if (structure == null) runLouvainDetector();
+    ThetaPlotter thp = new ThetaPlotter(structure);
+    // DocumentSimilaritySpace simSpace = new DocumentSimilaritySpace(structure);
+    // simSpace.run();
+  }
+  
+  private void predictCommunityTopics() {
+    if (structure == null) runLouvainDetector();
     CommunityPredictor predictor = new CommunityPredictor(structure);
     predictor.run();
   }

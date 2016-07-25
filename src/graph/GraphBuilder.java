@@ -1,8 +1,4 @@
-import java.io.BufferedReader;
-import java.io.FileReader;
-import java.io.File;
-import java.io.FileNotFoundException;
-import java.io.IOException;
+import java.io.*;
 import java.util.*;
 import gnu.trove.list.array.TIntArrayList;
 import gnu.trove.map.hash.TIntIntHashMap;
@@ -45,6 +41,7 @@ public class GraphBuilder
     } catch (IOException e) {
       throw new Error("IO error");
     }
+    
     return this;
   }
   
@@ -67,6 +64,7 @@ public class GraphBuilder
     reader.close();
   }
   
+  // gets the no. of nodes from the file
   private int getOrder(File file, String delimiter)
   throws NumberFormatException, FileNotFoundException, IOException {
     
@@ -89,6 +87,8 @@ public class GraphBuilder
   throws NumberFormatException, FileNotFoundException, IOException {
     
     BufferedReader reader = new BufferedReader(new FileReader(file));
+    // BufferedWriter writer = new BufferedWriter(new FileWriter(new File("newNodes.txt")));
+    // int cnt = 0;
     String line;
     order = c.getCount("Doc");
     initialise();
@@ -100,11 +100,19 @@ public class GraphBuilder
       int weight = Integer.parseInt(splitLine[2]);
       int n1 = translator.getDocIndex(srcId);
       int n2 = translator.getDocIndex(dstId);
+     
+      // cnt++;
+      // String outString = n1 + " " + n2 + " " + weight;
+      // writer.write(outString);
+      // writer.newLine();
+      // if (cnt % 100 == 0) writer.flush();
+      
       if (matrix.get(n1, n2) != 0 || matrix.get(n2, n1) != 0) {
         throw new Error("duplicate val at " + srcId + " " + dstId);
       }
       insertEdgeSym(n1, n2, weight);
     }
+    // writer.flush();
     if (!matrix.isSymmetric()) throw new Error("constructed asymmetric matrix");
     reader.close();
   }

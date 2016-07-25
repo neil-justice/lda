@@ -17,7 +17,7 @@ public class SQLConnector implements AutoCloseable {
   private boolean open; // will only catch intentional closure.
   
   public SQLConnector(String dir) {
-    connection = "jdbc:sqlite:" + dir + LDA.DATABASE;
+    connection = "jdbc:sqlite:" + dir + CTUT.DATABASE;
   }
 
   public void open() {

@@ -25,7 +25,7 @@ public class CorpusBuilder {
     tokens = new Tokens();
     
     try {
-      BufferedReader reader = new BufferedReader(new FileReader(new File(dir + LDA.PROCESSEDFILE)));
+      BufferedReader reader = new BufferedReader(new FileReader(new File(dir + CTUT.PROCESSEDFILE)));
       String line;
       int i = 0;
       
@@ -41,7 +41,7 @@ public class CorpusBuilder {
     } catch (NumberFormatException e) {
       throw new Error("invalid doc ID");
     } catch (FileNotFoundException e) {
-      throw new Error("file " + LDA.PROCESSEDFILE + " not found at " + dir);
+      throw new Error("file " + CTUT.PROCESSEDFILE + " not found at " + dir);
     } catch (IOException e) {
       throw new Error("IO error");
     }
@@ -58,7 +58,7 @@ public class CorpusBuilder {
     SQLConnector c = new SQLConnector(dir);
     
     c.open();
-    System.out.println("Database found at " + dir + LDA.DATABASE + "  Loading...");
+    System.out.println("Database found at " + dir + CTUT.DATABASE + "  Loading...");
     c.showPragmas();
     tokens     = c.getTokens();
     tokenCount = tokens.size();
