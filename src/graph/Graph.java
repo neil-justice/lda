@@ -103,6 +103,7 @@ class Graph {
   // private int[] totDegrees() { return totDegrees; }
   // private int[] intDegrees() { return intDegrees; }
   public int[] communities() { return Arrays.copyOf(communities, order); }
+  public int[] communitiesBacked() { return communities; }
 
   public int numComms() { return numComms; }
   

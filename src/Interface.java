@@ -91,11 +91,29 @@ class Interface {
           case "infomap":
             loadInfomapResults();
             break;
+          case "random":
+            assignRandomCommunities();
+            break;
+          case "js":
+            clusterUsingJSDistance();
+            break;
           default:
             System.out.println("Command not recognised.");
         }
       } 
     }
+  }
+  
+  private void clusterUsingJSDistance() {
+    Graph g = new GraphBuilder().fromFileAndDB("data/largest-subgraph-min.csv", c).build();
+    JSClusterer clusterer = new JSClusterer(g, c.getTheta());
+    structure = new CommunityStructure(clusterer.run(), c.getTheta());
+  }
+  
+  private void assignRandomCommunities() {
+    Graph g = new GraphBuilder().fromFileAndDB("data/largest-subgraph-min.csv", c).build();
+    RandomCommunityAssigner assigner = new RandomCommunityAssigner(g.order());
+    structure = new CommunityStructure(assigner.run(), c.getTheta());
   }
   
   private void runLouvainDetector() {

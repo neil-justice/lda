@@ -24,7 +24,7 @@ public class DocumentSimilaritySpace {
   public DocumentSimilaritySpace(CommunityStructure structure) {
     this.structure = structure;
     docCount = structure.docCount();    
-    simRanker = new DocumentSimilarityMeasurer(structure);
+    simRanker = new DocumentSimilarityMeasurer(structure.theta());
     x = new double[docCount];
     y = new double[docCount];
     z = new double[docCount];

@@ -9,13 +9,25 @@ public class CommunityPredictor {
   private final int topicCount;
   private final double[][] theta;
   private final int[] bestTopicInDoc;  // most commonly ocurring topic in each doc
-  private final CommunityStructure structure;
+  private final int layers;
+  
+  private final List<int[]> communityLayers;
+  private final List<int[]> commSizesLayers;  // size of each community
+  private final List<SparseDoubleMatrix> commThetaLayers;
+  private final List<int[]> bestTopicInCommLayers = new ArrayList<int[]>();
+  private final List<double[]> commJSAvg;
   
   public CommunityPredictor(CommunityStructure structure) {
-    this.structure = structure;
     theta      = structure.theta();
     topicCount = structure.topicCount();
     docCount   = structure.docCount();
+    layers     = structure.layers();
+    commJSAvg  = structure.commJSAvg();
+    
+    communityLayers = structure.communityLayers();
+    commSizesLayers = structure.commSizesLayers();
+    commThetaLayers = structure.commThetaLayers();
+    
     bestTopicInDoc = new int[docCount];
 
     for (int doc = 0; doc < docCount; doc++) {
@@ -30,11 +42,17 @@ public class CommunityPredictor {
   }
   
   public void run() {
-    for (int i = 0; i < structure.layers(); i++) {
-      LayerPredictor lp = new LayerPredictor(structure, i);
-      lp.run();
+    for (int i = 0; i < layers; i++) {
+      LayerPredictor lp = new LayerPredictor(i);
+      bestTopicInCommLayers.add(lp.run());
     }
   }
+  
+  public int[] bestTopicInDoc() { return bestTopicInDoc; }
+  public int bestTopicInDoc(int doc) { return bestTopicInDoc[doc]; }
+  
+  public int[] bestTopicInComm(int layer) { return bestTopicInCommLayers.get(layer); }
+  public int bestTopicInComm(int layer, int comm) { return bestTopicInCommLayers.get(layer)[comm]; }
   
   class LayerPredictor {
     private final int[] communities;     // communities[doc] == comm of that doc
@@ -45,29 +63,31 @@ public class CommunityPredictor {
     private final int layer;
     private int correct = 0; // no. of correct predictions
     
-    public LayerPredictor(CommunityStructure cs, int layer) {
+    public LayerPredictor(int layer) {
       this.layer = layer;
-      communities = cs.communities(layer);
-      commSizes   = cs.commSizes(layer);
-      commThetas  = cs.commThetas(layer);
+      communities = communityLayers.get(layer);
+      commSizes   = commSizesLayers.get(layer);
+      commThetas  = commThetaLayers.get(layer);
       commScore       = new int[docCount];
       bestTopicInComm = new int[docCount];
     }
     
-    public void run() {
+    public int[] run() {
       getBestCommTopics();
       getBestFit();
       System.out.printf("Layer %d: %d/%d = %.01f%% predicted correctly%n", layer, 
                          correct, docCount, (correct / (double) docCount) * 100);
-      // printScores();
+      printScores();
+      return bestTopicInComm;
     }
     
     private void printScores() {
       for (int comm = 0; comm < docCount; comm++) {
         if (commSizes[comm] != 0) {
-          System.out.println("comm " + comm + ": " + 
-                             "best topic: " + bestTopicInComm[comm] + " " +
-                             commScore[comm] + "/" + commSizes[comm]);
+          System.out.println("comm: " + comm +
+                             " best: " + bestTopicInComm[comm] + " " +
+                             commScore[comm] + "/" + commSizes[comm] 
+                              + " JS " + commJSAvg.get(layer)[comm]);
         }
       }
     }

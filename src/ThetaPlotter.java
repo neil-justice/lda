@@ -43,19 +43,15 @@ public class ThetaPlotter {
   private XYPlot thetaPlot;
   private BarPlot JSPlot;
   private final Random rnd = new Random();
+  private int layer;
   
   public ThetaPlotter(CommunityStructure structure) {
     this.structure = structure;
-    int layer = 4;
     
     theta       = structure.theta();
     topicCount  = structure.topicCount();
     docCount    = structure.docCount();
-    commThetas  = structure.commThetas(layer);
-    communities = structure.communities(layer);
-    commSizes   = structure.commSizes(layer);
-    numComms    = structure.numComms(layer);
-    docCommCloseness = structure.docCommCloseness(layer);
+    setLayer(1);
 
     SwingUtilities.invokeLater(this::run);
   }
@@ -125,6 +121,15 @@ public class ThetaPlotter {
     return panel;    
   }
   
+  private void setLayer(int layer) {
+    this.layer  = layer;
+    commThetas  = structure.commThetas(layer);
+    communities = structure.communities(layer);
+    commSizes   = structure.commSizes(layer);
+    numComms    = structure.numComms(layer);
+    docCommCloseness = structure.docCommCloseness(layer);
+  }
+  
   private void listenOnList(ListSelectionEvent e) {
     if (e.getValueIsAdjusting() == false) {
       int index = list.getSelectedIndex();
@@ -139,7 +144,8 @@ public class ThetaPlotter {
     addCommToThetaPlot(comm);
     addCommToJSPlot(comm);
     thetaPanel.repaint();
-    JSPanel.repaint();    
+    JSPanel.repaint();
+    System.out.println("distance from U: " + structure.commVariance(layer)[comm]);
   }
 
   // adds a doc's theta values to the graph
