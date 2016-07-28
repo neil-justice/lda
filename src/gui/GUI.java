@@ -38,9 +38,9 @@ public class GUI {
     thetaPanel = new ThetaPlotPanel(structure);
     JSPanel = new JSDivergencePanel(structure);
     infoPanel = new CommInfoPanel(structure);
-    heatmap = new HeatmapPanel(structure, 1);
+    heatmap = new HeatmapPanel(structure, 0);
     docCount = structure.docCount();
-    setLayer(1);
+    setLayer(0);
 
     SwingUtilities.invokeLater(this::run);
   }

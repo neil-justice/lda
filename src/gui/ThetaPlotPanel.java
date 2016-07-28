@@ -32,7 +32,6 @@ public class ThetaPlotPanel extends JPanel {
     theta       = structure.theta();
     topicCount  = structure.topicCount();
     docCount    = structure.docCount();
-    setLayer(1);
    
     DataTable data = newDataTable();
     data.add(0, 0d);
