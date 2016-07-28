@@ -22,6 +22,7 @@
       destdir="${bin}"
       includeantruntime="false">
       <classpath refid="libs"/>
+      <compilerarg value="-Xlint:unchecked"/>
     </javac>
   </target>
 

@@ -2,7 +2,7 @@ import java.util.*;
 import gnu.trove.list.array.TIntArrayList;
 import gnu.trove.map.hash.TIntIntHashMap;
 
-public class LouvainDetector {
+public class LouvainDetector implements Clusterer {
   private int totalMoves = 0;
   private int layer = 0; // current community layer
   private final List<Graph> graphs = new ArrayList<Graph>();
@@ -15,6 +15,7 @@ public class LouvainDetector {
     graphs.add(g);
   }
   
+  @Override
   public List<int[]> run() { return run(9999); }
   
   public List<int[]> run(int maxLayers) {

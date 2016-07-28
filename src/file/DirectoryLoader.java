@@ -1,3 +1,4 @@
+/* tracks which directories are available to load from the output dir */
 import java.io.*;
 import java.nio.file.*;
 

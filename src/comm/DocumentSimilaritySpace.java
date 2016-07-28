@@ -24,7 +24,7 @@ public class DocumentSimilaritySpace {
   public DocumentSimilaritySpace(CommunityStructure structure) {
     this.structure = structure;
     docCount = structure.docCount();    
-    simRanker = new DocumentSimilarityMeasurer(structure.theta());
+    simRanker = new DocumentSimilarityMeasurer(structure.theta(), structure.inverseTheta());
     x = new double[docCount];
     y = new double[docCount];
     z = new double[docCount];
@@ -92,8 +92,8 @@ public class DocumentSimilaritySpace {
     System.out.println("Found base points in: " + time + "s");
   }
   
-  // the sqrt is to convert the JSdivergence to the JS metric.
-  private double dist(int d1, int d2) { return Math.sqrt(simRanker.JSDistance(d1, d2)); } 
+  // the sqrt is to convert the JSdivergence to the JS distance.
+  private double dist(int d1, int d2) { return Math.sqrt(simRanker.JSDivergence(d1, d2)); } 
   
   // checks the euclidean distances between the generated coords with the 
   // JS distances

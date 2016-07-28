@@ -10,6 +10,8 @@ class CTUT {
   public static final String CLEANEDFILE = "clean.txt";
   public static final String PROCESSEDFILE = "processed.txt";
   public static final String DATABASE = "data.db";
+  public static final String GRAPH = "graph.csv";
+  public static final String INFOMAP = "infomap.tree";
   public static final String STOPWORDS = "lists/stopwords.txt";
   public static final String SEARCHTERMS = "lists/searchterms.txt";
   private Interface UI;

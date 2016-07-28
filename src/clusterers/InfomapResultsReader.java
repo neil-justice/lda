@@ -3,7 +3,7 @@ import java.io.*;
 import gnu.trove.map.hash.TObjectIntHashMap;
 import gnu.trove.map.hash.TIntObjectHashMap;
 
-public class InfomapResultsReader {
+public class InfomapResultsReader implements Clusterer {
   private int nodeCount = 0;
   private int layerCount = 0;
   private final File file;
@@ -14,6 +14,7 @@ public class InfomapResultsReader {
     file = new File(filename);
   }
   
+  @Override
   public List<int[]> run() {
     read();
     process();

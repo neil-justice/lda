@@ -28,6 +28,10 @@ public class SparseDoubleMatrix {
   public void div (int x, int y, double val) {
     set(x, y, get(x, y) / val);
   }
+  
+  public int xmax() { return (int) xmax; }
+  
+  public int ymax() { return (int) ymax; }
 
   public SparseDoubleMatrix.Iterator iterator() { return new Iterator(); }
   

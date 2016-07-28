@@ -2,9 +2,8 @@
 import java.util.*;
 import gnu.trove.set.hash.TIntHashSet;
 
-public class JSClusterer {
+public class JSClusterer implements Clusterer {
   private final Graph g;
-  private final DocumentSimilarityMeasurer simRanker;
   private final TIntHashSet[] members;  // community members
   private final double[][] theta;
   private final double[][] inverseTheta;
@@ -18,7 +17,6 @@ public class JSClusterer {
     this.g = g;
     this.theta = theta;
     topicCount = theta.length;
-    simRanker = new DocumentSimilarityMeasurer(theta);
     members = new TIntHashSet[g.order()];
     comms = g.order();
     
@@ -32,6 +30,7 @@ public class JSClusterer {
     }
   }
   
+  @Override
   public List<int[]> run() {
     cluster();
     
@@ -51,6 +50,7 @@ public class JSClusterer {
   private void moveAll() {
     for (int doc = 0; doc < g.order(); doc++) {
       makeBestMove(doc);
+      if (doc % 1000 == 0) System.out.println(doc);
     }
     comms = g.order();
     for (int comm = 0; comm < g.order(); comm++) {
@@ -67,16 +67,17 @@ public class JSClusterer {
     int newComm = -1;
     double min;
     double dist = 1d;
-    //boolean found = false;
+    boolean found = false;
     if (members[oldComm].size() == 1) min = threshold;
-    else min = simRanker.JSDistance(inverseTheta[doc], getCommTheta(oldComm));
+    else min = DocumentSimilarityMeasurer.JSDivergence(inverseTheta[doc], getCommTheta(oldComm));
     
-    for (comm = 0; comm < g.order(); comm++) {
+    for (comm = 0; comm < g.order() && found == false; comm++) {
       if (members[comm].size() != 0 &&  comm != oldComm) {
-        dist = simRanker.JSDistance(inverseTheta[doc], getCommTheta(comm));
+        dist = DocumentSimilarityMeasurer.JSDivergence(inverseTheta[doc], getCommTheta(comm));
         if (dist < min) {
           min = dist;
           newComm = comm;
+          found = true;
         }
       }
     }
@@ -123,8 +124,8 @@ public class JSClusterer {
   private void initialiseProbMatrices() {
     for (int doc = 0; doc < g.order(); doc++) {
       for (int topic = 0; topic < topicCount; topic++) {
-        inverseTheta[doc][topic] = theta[topic][doc];
         communityProbSum[doc][topic] = theta[topic][doc];
+        inverseTheta[doc][topic] = theta[topic][doc];
       }
     }
   }

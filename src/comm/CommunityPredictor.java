@@ -1,7 +1,7 @@
 /* Can community membership predict topic usage?
  * one approach: given the theta for each community, and the theta for this node,
  * use KL divergence to find the closest community.  is it the actual community?
- */
+ 
 import java.util.*;
 
 public class CommunityPredictor {
@@ -77,7 +77,7 @@ public class CommunityPredictor {
       getBestFit();
       System.out.printf("Layer %d: %d/%d = %.01f%% predicted correctly%n", layer, 
                          correct, docCount, (correct / (double) docCount) * 100);
-      printScores();
+      // printScores();
       return bestTopicInComm;
     }
     
@@ -121,4 +121,4 @@ public class CommunityPredictor {
     }
     
   }
-}
+}*/

@@ -79,9 +79,6 @@ class Interface {
             quit = true;
             if (corpus != null) corpus.quit();
             break;
-          case "predict":
-            predictCommunityTopics();
-            break;
           case "chart":
             viewCharts();
             break;
@@ -92,10 +89,10 @@ class Interface {
             loadInfomapResults();
             break;
           case "random":
-            assignRandomCommunities();
+            compareToRandom();
             break;
           case "js":
-            clusterUsingJSDistance();
+            clusterUsingJSDivergence();
             break;
           default:
             System.out.println("Command not recognised.");
@@ -104,59 +101,37 @@ class Interface {
     }
   }
   
-  private void clusterUsingJSDistance() {
-    Graph g = new GraphBuilder().fromFileAndDB("data/largest-subgraph-min.csv", c).build();
+  private void clusterUsingJSDivergence() {
+    Graph g = getGraph();
     JSClusterer clusterer = new JSClusterer(g, c.getTheta());
     structure = new CommunityStructure(clusterer.run(), c.getTheta());
   }
   
-  private void assignRandomCommunities() {
-    Graph g = new GraphBuilder().fromFileAndDB("data/largest-subgraph-min.csv", c).build();
-    RandomCommunityAssigner assigner = new RandomCommunityAssigner(g.order());
-    structure = new CommunityStructure(assigner.run(), c.getTheta());
+  private void compareToRandom() {
+    if (structure == null) runLouvainDetector();
+    RandomCommunityAssigner assigner = new RandomCommunityAssigner(structure.communityLayers());
+    
+    CommunityStructure randomStructure = new CommunityStructure(assigner.run(), c.getTheta());
   }
   
   private void runLouvainDetector() {
-    Graph g = new GraphBuilder().fromFileAndDB("data/largest-subgraph-min.csv", c).build();
+    Graph g = getGraph();
     LouvainDetector ld = new LouvainDetector(g);
     structure = new CommunityStructure(ld.run(), c.getTheta());
   }
   
   private void loadInfomapResults() {
-    InfomapResultsReader irr = new InfomapResultsReader("newNodes.tree");
+    if (!ft.hasInfomap()) throw new Error("No infomap data at " + CTUT.INFOMAP);
+    
+    InfomapResultsReader irr = new InfomapResultsReader(dir + CTUT.INFOMAP);
     structure = new CommunityStructure(irr.run(), c.getTheta());
   }
   
   private void viewCharts() {
     if (structure == null) runLouvainDetector();
-    ThetaPlotter thp = new ThetaPlotter(structure);
+    GUI gui = new GUI(structure);
     // DocumentSimilaritySpace simSpace = new DocumentSimilaritySpace(structure);
     // simSpace.run();
-  }
-  
-  private void predictCommunityTopics() {
-    if (structure == null) runLouvainDetector();
-    CommunityPredictor predictor = new CommunityPredictor(structure);
-    predictor.run();
-  }
-  
-  private void showInfo() {
-    System.out.println("In directory : " + dir);
-    System.out.println("Cleaned:   " + ft.isClean());
-    System.out.println("Processed: " + ft.isProcessed());
-    System.out.println("In DB:     " + ft.isInDB());
-  }
-  
-  private void help() {
-    showInfo();
-    System.out.println("Commands:");
-    System.out.println("  process         -- processes the clean file, removing stop words and so on");
-    System.out.println("  reload [topics] -- (re)-initialises db from processed file.");
-    System.out.println("  load [topics]   -- loads corpus from db.");
-    System.out.println("  run [cycles]    -- runs the specified no. of cycles.");
-    System.out.println("  print           -- prints [topic][word matrix] and termscore");
-    System.out.println("  help            -- shows this list");
-    System.out.println("  quit            -- exits the program");
   }
   
   private void process() {
@@ -211,6 +186,27 @@ class Interface {
     else corpus.print();
   }
   
+  private void showInfo() {
+    System.out.println("In directory : " + dir);
+    System.out.println("Cleaned:      " + ft.isClean());
+    System.out.println("Processed:    " + ft.isProcessed());
+    System.out.println("In DB:        " + ft.isInDB());
+    System.out.println("Graph data:   " + ft.hasGraph());
+    System.out.println("Infomap data: " + ft.hasInfomap());
+  }
+  
+  private void help() {
+    showInfo();
+    System.out.println("Commands:");
+    System.out.println("  process         -- processes the clean file, removing stop words and so on");
+    System.out.println("  reload [topics] -- (re)-initialises db from processed file.");
+    System.out.println("  load [topics]   -- loads corpus from db.");
+    System.out.println("  run [cycles]    -- runs the specified no. of cycles.");
+    System.out.println("  print           -- prints [topic][word matrix] and termscore");
+    System.out.println("  help            -- shows this list");
+    System.out.println("  quit            -- exits the program");
+  }
+  
   private int parse(String text) {
     int val;
     try {
@@ -221,5 +217,10 @@ class Interface {
       System.out.println("Invalid input.  This command needs a +ve number");
       return -1;
     }
+  }
+  
+  private Graph getGraph() {
+    if (!ft.hasGraph()) throw new Error("No graph data at" + dir + CTUT.GRAPH);
+    return new GraphBuilder().fromFileAndDB(dir + CTUT.GRAPH, c).build();
   }
 }
