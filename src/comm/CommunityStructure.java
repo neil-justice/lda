@@ -9,6 +9,12 @@ public class CommunityStructure {
   private final int layers;
   private final int[] bestTopicInDoc;
   
+  // doc/node attributes:
+  private final int[] followers;
+  private final int[] friends;
+  private final int[] wordCount;
+  
+  private final AttributeLoader loader;
   private final RandomCommunityAssigner rndAssigner;
   private final DocumentSimilarityMeasurer simRanker;
   
@@ -24,8 +30,10 @@ public class CommunityStructure {
   private final List<int[]> commScoreLayers = new ArrayList<int[]>();
   private final List<double[]> JSDivLayers = new ArrayList<double[]>();
   private final List<double[]> JSImpLayers = new ArrayList<double[]>();
+  private final List<double[]> entropyLayers = new ArrayList<double[]>();
   
-  public CommunityStructure(List<int[]> communityLayers, double[][] theta) {
+  public CommunityStructure(List<int[]> communityLayers, double[][] theta,
+                            AttributeLoader loader) {
     this.communityLayers = communityLayers;
     this.theta = theta;
     
@@ -38,6 +46,11 @@ public class CommunityStructure {
     rndAssigner    = new RandomCommunityAssigner(communityLayers);
     rndCommLayers  = rndAssigner.run();
     bestTopicInDoc = new int[docCount];
+    
+    this.loader = loader;
+    followers = loader.followers();
+    friends   = loader.friends();
+    wordCount = loader.wordCount();
     
     for (int i = 0; i < layers; i++) {
       initialiseLayers(i);
@@ -124,6 +137,7 @@ public class CommunityStructure {
     private final double[] JSDiv = new double[docCount];
     // improvement in JSDiv over randomly shuffled communities:
     private final double[] JSDivImprovement = new double[docCount];
+    private final double[] entropy = new double[docCount];
     
     public LayerPredictor(int layer) {
       this.layer = layer;
@@ -160,6 +174,7 @@ public class CommunityStructure {
       commScoreLayers.add(commScore);
       JSDivLayers.add(JSDiv);
       JSImpLayers.add(JSDivImprovement);
+      entropyLayers.add(entropy);
     }
     
     private void printScores() {
@@ -168,9 +183,10 @@ public class CommunityStructure {
           System.out.println("comm: " + comm +
                              " best: " + bestTopicInComm[comm] + " " +
                              commScore[comm] + "/" + commSizes[comm] +
+                             " %corr " + ((correct / (double) docCount) * 100) +
                              " JS " + JSDiv[comm] + 
                              " JSimp " + JSDivImprovement[comm] + 
-                             " Entr " + entropy(layer, comm));
+                             " Entr " + entropy[comm]);
         }
       }
     }
@@ -180,9 +196,10 @@ public class CommunityStructure {
         if (members[comm].size() > 0) {
           JSDiv[comm] = JSDiv(members[comm]);
           JSDivImprovement[comm] = JSDiv(rndMembers[comm]) - JSDiv[comm];
+          entropy[comm] = calcEntropy(layer, comm);
           avgJS += JSDiv[comm];
           avgJSImprovement += JSDivImprovement[comm];
-          avgEntropy += entropy(layer, comm);
+          avgEntropy += entropy[comm];
         }
       }
       avgJS /= numComms(layer);
@@ -228,6 +245,7 @@ public class CommunityStructure {
   
   public List<SparseDoubleMatrix> commThetaLayers() { return commThetaLayers; }
   public SparseDoubleMatrix commThetas(int layer) { return commThetaLayers.get(layer); }
+  public double commTheta(int layer, int topic, int comm) { return commThetaLayers.get(layer).get(topic, comm); }
   
   public List<int[]> communityLayers() { return communityLayers; }
   public int[] communities(int layer) { return communityLayers.get(layer); }
@@ -253,8 +271,14 @@ public class CommunityStructure {
   }
   
   public double entropy(int layer, int comm) { 
-    return simRanker.entropy(comm, commThetaLayers.get(layer));
+    return entropyLayers.get(layer)[comm];
   }
+  
+  public double[] entropy(int layer) { return entropyLayers.get(layer); }
+  
+  public double calcEntropy(int layer, int comm) { 
+    return simRanker.entropy(comm, commThetaLayers.get(layer));
+  }  
   
   public int[] bestTopicInDoc() { return bestTopicInDoc; }
   public int bestTopicInDoc(int doc) { return bestTopicInDoc[doc]; }
@@ -263,5 +287,5 @@ public class CommunityStructure {
   public int bestTopicInComm(int layer, int comm) { return bestTopicInCommLayers.get(layer)[comm]; }  
   
   public int[] commScores(int layer) { return commScoreLayers.get(layer); }
-  public int commScore(int layer, int comm) { return commScoreLayers.get(layer)[comm]; }  
+  public int commScore(int layer, int comm) { return commScoreLayers.get(layer)[comm]; }
 }

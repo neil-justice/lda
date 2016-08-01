@@ -100,8 +100,16 @@ class Graph {
     return q;
   }
   
-  // private int[] totDegrees() { return totDegrees; }
-  // private int[] intDegrees() { return intDegrees; }
+  // loads communities from provided array
+  public void loadCommunities(int[] newCommunities) {
+    if (newCommunities.length != order) {
+      throw new Error("invalid length of " + newCommunities.length);
+    }
+    for (int node = 0; node < order; node++) {
+      moveToComm(node, newCommunities[node]);
+    }
+  }
+  
   public int[] communities() { return Arrays.copyOf(communities, order); }
   public int[] communitiesBacked() { return communities; }
 

@@ -38,7 +38,8 @@ class HeatmapPanel extends JPanel {
 		DataTable data = new DataTable(Double.class, Integer.class, Double.class);
 		for (int comm = 0; comm < docCount; comm++) {
       for (int topic = 0; topic < topicCount; topic++) {
-        if (structure.commSize(layer, comm) > 10) {
+        if (structure.commSize(layer, comm) > GUI.MIN_SIZE 
+        &&  structure.commSize(layer, comm) < GUI.MAX_SIZE) {
           count++;
           data.add(structure.entropy(layer, comm), topic, commThetas.get(topic, comm));
         }

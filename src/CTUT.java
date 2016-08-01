@@ -14,6 +14,9 @@ class CTUT {
   public static final String INFOMAP = "infomap.tree";
   public static final String STOPWORDS = "lists/stopwords.txt";
   public static final String SEARCHTERMS = "lists/searchterms.txt";
+  public static final String ATTR_FRIENDS   = "friends.csv";
+  public static final String ATTR_FOLLOWERS = "followers.csv";
+  public static final String ATTR_WORDCOUNT = "wordcount.csv";
   private Interface UI;
   
   public static void main(String[] args) {

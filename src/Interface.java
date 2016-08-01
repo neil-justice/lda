@@ -7,6 +7,7 @@ class Interface {
   private final SQLConnector c;
   private CommunityStructure structure;
   private Corpus corpus;
+  private Graph g;
   private boolean quit = false;
   
   public Interface(String dir) {
@@ -94,6 +95,9 @@ class Interface {
           case "js":
             clusterUsingJSDivergence();
             break;
+          case "write":
+            writeCommInfo();
+            break;
           default:
             System.out.println("Command not recognised.");
         }
@@ -101,30 +105,37 @@ class Interface {
     }
   }
   
+  private void writeCommInfo() {
+    if (structure == null) runLouvainDetector();
+    CommunityWriter writer = new CommunityWriter(structure, dir);
+    writer.write();
+  }
+  
   private void clusterUsingJSDivergence() {
-    Graph g = getGraph();
+    g = getGraph();
     JSClusterer clusterer = new JSClusterer(g, c.getTheta());
-    structure = new CommunityStructure(clusterer.run(), c.getTheta());
+    structure = getStructure(clusterer);
   }
   
   private void compareToRandom() {
     if (structure == null) runLouvainDetector();
     RandomCommunityAssigner assigner = new RandomCommunityAssigner(structure.communityLayers());
-    
-    CommunityStructure randomStructure = new CommunityStructure(assigner.run(), c.getTheta());
+    CommunityStructure randomStructure = getStructure(assigner);
   }
   
   private void runLouvainDetector() {
-    Graph g = getGraph();
+    g = getGraph();
     LouvainDetector ld = new LouvainDetector(g);
-    structure = new CommunityStructure(ld.run(), c.getTheta());
+    structure = getStructure(ld);
+    // TopicCoocurrenceMonitor tcm = new TopicCoocurrenceMonitor(structure);
+    // tcm.run(0);
   }
   
   private void loadInfomapResults() {
     if (!ft.hasInfomap()) throw new Error("No infomap data at " + CTUT.INFOMAP);
     
     InfomapResultsReader irr = new InfomapResultsReader(dir + CTUT.INFOMAP);
-    structure = new CommunityStructure(irr.run(), c.getTheta());
+    structure = getStructure(irr);
   }
   
   private void viewCharts() {
@@ -222,5 +233,13 @@ class Interface {
   private Graph getGraph() {
     if (!ft.hasGraph()) throw new Error("No graph data at" + dir + CTUT.GRAPH);
     return new GraphBuilder().fromFileAndDB(dir + CTUT.GRAPH, c).build();
+  }
+  
+  private CommunityStructure getStructure(Clusterer clusterer) {
+    if (g == null) g = getGraph();
+    AttributeLoader loader = new AttributeLoader(c, dir, g.order());
+    CommunityStructure s = new CommunityStructure(clusterer.run(), c.getTheta(),
+                                                  loader);
+    return s;
   }
 }

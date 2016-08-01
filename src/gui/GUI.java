@@ -18,6 +18,8 @@ import de.erichseifert.gral.graphics.Location;
 
 public class GUI {
   public static final int BVAL = 40; // border around graph
+  public static final int MIN_SIZE = 10;
+  public static final int MAX_SIZE = 400;
   
   private final CommunityStructure structure;
   private static final Random rnd = new Random();
@@ -86,9 +88,16 @@ public class GUI {
     
   private JPanel listPanel() {
     DefaultListModel<Integer> listModel = new DefaultListModel<Integer>();
+    double[] entropy = structure.entropy(layer);
+    IndexComparator comp = new IndexComparator(entropy);
+    Integer[] indexes = comp.indexArray();
+    Arrays.sort(indexes, comp);    
     
-    for (int comm = 0; comm < docCount; comm++) {
-      if (commSizes[comm] > 0) listModel.addElement(comm);
+    for (int i = 0; i < docCount; i++) {
+      int comm = indexes[i];
+      if (commSizes[comm] > MIN_SIZE && commSizes[comm] < MAX_SIZE) {
+        listModel.addElement(comm);
+      }
     }
     
     list = new JList<Integer>(listModel);
