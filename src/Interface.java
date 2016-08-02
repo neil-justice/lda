@@ -193,7 +193,7 @@ class Interface {
   }
   
   private void print() {
-    if (corpus == null) System.out.println("Load a corpus first.");
+    if (corpus == null) LDAUtils.termScore(c.getPhi(), new Translator(c));
     else corpus.print();
   }
   

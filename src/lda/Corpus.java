@@ -157,8 +157,9 @@ public class Corpus {
   public void print() {
     // printWords();
     // printDocs();
-    termScore();
-    mostCommon();
+    // LDAUtils.mostCommon(phi(), translator);
+    
+    LDAUtils.termScore(phi(), translator);
   }  
   
   private void cycles() {
@@ -340,84 +341,6 @@ public class Corpus {
     
     return theta;
   }
-  
-  // as laid out in Blei and Lafferty, 2009.  sorts words in topics by
-  // prob. in topic * log (prob. in topic / geometric mean prob in all topics)
-  // and defines topics by their top 10 words.
-  private void termScore() {
-    int top = 10;
-    double[][] phi = phi();
-    double[] geometricMean = geometricMean(phi);
-    
-    Integer[][] output = new Integer[topicCount][top];
-    double[][] temp = new double[topicCount][wordCount]; //note the inverse dimensions
-    
-    for (int topic = 0; topic < topicCount; topic++) {
-      for (int word = 0; word < wordCount; word++) {
-        temp[topic][word] = phi[word][topic] 
-                          * Math.log(phi[word][topic] 
-                          / geometricMean[word]);
-      }
-      IndexComparator comp = new IndexComparator(temp[topic]);
-      Integer[] indexes = comp.indexArray();
-      Arrays.sort(indexes, comp);
-      output[topic] = Arrays.copyOf(indexes, top);
-    }
-
-    System.out.println("");
-    for (int topic = 0; topic < topicCount; topic++) {
-      System.out.printf(" %d %.03f : ", topic, topicWeight[topic]);
-      for (int i = 0; i < top; i++) {
-        System.out.print(translator.getWord(output[topic][i]) + " ");
-      }
-      System.out.println("");
-    }
-  }
-  
-  private void mostCommon() {
-    int top = 10;
-    double[][] phi = phi();
-    
-    Integer[][] output = new Integer[topicCount][top];
-    double[][] temp = new double[topicCount][wordCount]; //note the inverse dimensions
-    
-    for (int topic = 0; topic < topicCount; topic++) {
-      for (int word = 0; word < wordCount; word++) {
-        temp[topic][word] = phi[word][topic];;
-      }
-      IndexComparator comp = new IndexComparator(temp[topic]);
-      Integer[] indexes = comp.indexArray();
-      Arrays.sort(indexes, comp);
-      output[topic] = Arrays.copyOf(indexes, top);
-    }    
-    
-    System.out.println("");
-    for (int topic = 0; topic < topicCount; topic++) {
-      System.out.printf(" %d %.03f : ", topic, topicWeight[topic]);
-      for (int i = 0; i < top; i++) {
-        System.out.print(translator.getWord(output[topic][i]) + " ");
-      }
-      System.out.println("");
-    }
-  }
-  
-  // finds the geometric mean of a matrix
-  private double[] geometricMean(double[][] matrix) {
-    int height = matrix.length;
-    int width = matrix[0].length;
-    
-    double[] geometricMean = new double[height];
-    
-    for (int i = 0; i < height; i++) {
-      double sumlog = 0d;
-      for (int j = 0; j < width; j++) {
-        sumlog += Math.log(matrix[i][j]);
-      }
-      geometricMean[i] = Math.exp(sumlog/width);
-    }
-    
-    return geometricMean;
-  }  
 
   // public void printWords() {
   //   System.out.println("");
@@ -429,7 +352,7 @@ public class Corpus {
   //     System.out.println("");
   //   }
   // }
-  // 
+  
   // public void printDocs() {
   //   System.out.println("");
   //   for (int doc = 0; doc < docCount; doc++) {

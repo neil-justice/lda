@@ -202,6 +202,28 @@ public class SQLConnector implements AutoCloseable {
     }
   }
   
+  public double[][] getPhi() {
+    if (c == null) { throw new IllegalStateException(); }
+    final String cmd = "SELECT * FROM Phi";
+    int wordCount = getCount("Word");
+    int topicCount = getTopics();
+    double[][] phi = new double[wordCount][topicCount];
+    
+    try (PreparedStatement s = c.prepareStatement(cmd)) {
+      try (ResultSet r = s.executeQuery()) {
+        while (r.next()) {
+          int word = r.getInt("word");
+          int topic = r.getInt("topic");
+          phi[word][topic] = r.getDouble("val");
+        }
+        return phi;
+      }
+    } catch (SQLException e) {
+      System.out.println(e.getMessage());
+      throw new RuntimeException(e);
+    }
+  }  
+  
   public Tokens getTokens() {
     if (c == null) { throw new IllegalStateException(); }
     final String cmd = "SELECT * FROM Token";
