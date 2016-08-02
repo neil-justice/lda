@@ -5,6 +5,7 @@ public class Corpus {
   
   private final Tokens tokens;
   private final Translator translator; // used to translate from ID to word/doc
+  private final Random random = new Random();
   private final int wordCount;         // no. of unique words
   private final int docCount;          // no. of docs
   private final int tokenCount;        // total no. of tokens
@@ -22,6 +23,7 @@ public class Corpus {
   // low beta: each topic may contain a mixture of just a few of the words.
   private final double alpha; // hyperparameters
   private final double beta;  // hyperparameters
+  private final double betaSum;  // hyperparameters
   private int cycles;
   private int samples; // no. of times the phi and theta sums have been added to
   private int burnLength; // length of burn-in phase to allow markov chain 
@@ -36,7 +38,7 @@ public class Corpus {
   private int prevTopics; // no. of topics from last session
   
   // multithreading stuff:
-  private final int P = 4; // no. of processors.
+  private final int P = 3; // no. of processors.
   private final ExecutorService exec = Executors.newFixedThreadPool(P);
   private final List<GibbsSampler> gibbsSamplers = new ArrayList<>(P);
   private final CyclicBarrier barrier = new CyclicBarrier(P);
@@ -62,8 +64,10 @@ public class Corpus {
     thetaSum      = new double[topicCount][docCount];
     topicWeight   = new double[topicCount];
     
-    alpha = 0.0001; //50 / (double) topicCount;
-    beta  = 0.1; // 200 / (double) wordCount;
+    alpha = 0.1; // 50 / (double) topicCount;
+    beta  = 0.2; // 200 / (double) wordCount;
+    betaSum = beta * wordCount;
+    
     samples = 0;
     
     c = builder.connector();
@@ -105,9 +109,8 @@ public class Corpus {
   
   // Initialises all tokens with a randomly selected topic.
   private void randomiseTopics() {
-    Random rand = new Random();
     for (int i = 0; i < tokenCount; i++) {
-      int topic = rand.nextInt(topicCount);
+      int topic = random.nextInt(topicCount);
       tokens.setTopic(i, topic);
     }
   }
@@ -155,6 +158,7 @@ public class Corpus {
     // printWords();
     // printDocs();
     termScore();
+    mostCommon();
   }  
   
   private void cycles() {
@@ -239,14 +243,14 @@ public class Corpus {
       double sum = 0;
 
       for (int topic = 0; topic < topicCount; topic++) {
-        probabilities[topic] = (wordsInTopic[word][topic] + beta)
-                             * (topicsInDoc[topic][doc] + alpha)
-                             / (localTokensInTopic[topic] + docCount);
+        probabilities[topic] = (topicsInDoc[topic][doc] + alpha)
+                             * ((wordsInTopic[word][topic] + beta)
+                             /  (localTokensInTopic[topic] + betaSum));
         sum += probabilities[topic];
       }
       
       int newTopic = -1;
-      double sample = Math.random() * sum; // between 0 and sum of all probs
+      double sample = random.nextDouble() * sum; // between 0 and sum of all probs
       
       while (sample > 0.0) {
         newTopic++;
@@ -364,7 +368,34 @@ public class Corpus {
     for (int topic = 0; topic < topicCount; topic++) {
       System.out.printf(" %d %.03f : ", topic, topicWeight[topic]);
       for (int i = 0; i < top; i++) {
-        System.out.printf("%10s", translator.getWord(output[topic][i]));
+        System.out.print(translator.getWord(output[topic][i]) + " ");
+      }
+      System.out.println("");
+    }
+  }
+  
+  private void mostCommon() {
+    int top = 10;
+    double[][] phi = phi();
+    
+    Integer[][] output = new Integer[topicCount][top];
+    double[][] temp = new double[topicCount][wordCount]; //note the inverse dimensions
+    
+    for (int topic = 0; topic < topicCount; topic++) {
+      for (int word = 0; word < wordCount; word++) {
+        temp[topic][word] = phi[word][topic];;
+      }
+      IndexComparator comp = new IndexComparator(temp[topic]);
+      Integer[] indexes = comp.indexArray();
+      Arrays.sort(indexes, comp);
+      output[topic] = Arrays.copyOf(indexes, top);
+    }    
+    
+    System.out.println("");
+    for (int topic = 0; topic < topicCount; topic++) {
+      System.out.printf(" %d %.03f : ", topic, topicWeight[topic]);
+      for (int i = 0; i < top; i++) {
+        System.out.print(translator.getWord(output[topic][i]) + " ");
       }
       System.out.println("");
     }

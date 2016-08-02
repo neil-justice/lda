@@ -40,6 +40,23 @@ public class FileLoader {
     }      
   }
   
+  public static List<String> readFile(String in, LineOperator op) {
+    try {
+      List<String> list = new ArrayList<String>();
+      BufferedReader reader = new BufferedReader(new FileReader(new File(in)));
+      String line;
+      while ((line = reader.readLine()) != null) {
+        String outString = op.operate(line);
+        list.add(outString);
+      }
+      return list;
+    } catch (FileNotFoundException e) {
+      throw new Error("input file not found at " + in);
+    } catch (IOException e) {
+      throw new Error("IO error");
+    }      
+  }  
+  
   public interface LineOperator {
     public String operate(String in);
   }

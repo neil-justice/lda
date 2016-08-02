@@ -5,8 +5,9 @@ import java.io.*;
 
 class WordFrequencyList {
   
+  // number of times the word ocurrs:
   private final Map<String, Integer> wordfreqs = new HashMap<String, Integer>();
-  
+
   public void load(String dir) {
     try {
       BufferedReader reader = new BufferedReader(new FileReader(new File(dir + CTUT.FREQFILE)));

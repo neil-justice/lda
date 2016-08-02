@@ -5,23 +5,23 @@ class Preprocessor {
   private final WordFrequencyList wordfreqs = new WordFrequencyList();
   private final Set<String> toRemove = new HashSet<String>();
   private final Set<String> doNotRemove = new HashSet<String>();
-  private final int minFreq = 1;
+  private final int minFreq = 10;
   private final int maxFreq = 10000000;
   private long tokenCount = 0;
   private long totalCount = 0;
+  private int docCount = 0;
   
   public void process(String dir) {
     wordfreqs.load(dir);
     buildRemovalList();
     System.out.println(toRemove.size() + " / " + wordfreqs.size() + " words to be removed");
     wordfreqs.removeAll(toRemove);
-    wordfreqs.write(dir);
+    // wordfreqs.write(dir);
     FileLoader.processFile(dir + CTUT.CLEANEDFILE, dir + CTUT.PROCESSEDFILE, this::removeWords);
     System.out.println(tokenCount + " tokens kept out of " + totalCount);
   }
   
   private void buildRemovalList() {
-    
     FileLoader.loadList(CTUT.STOPWORDS, toRemove);
     FileLoader.loadList(CTUT.SEARCHTERMS, doNotRemove);
     
@@ -39,9 +39,11 @@ class Preprocessor {
   private String removeWords(String in){
     String[] sections = in.split("\t");
     String tags = "";
+    
     if (sections.length != 5) {
       throw new Error("length " + sections.length + " at " + sections[0]);
     }
+    
     String processed = processLine(sections[1]);
     return sections[0] + "\t" + processed;// + "\t" + sections[2] + "\t" + sections[3] + "\t" + sections[4];
   }
@@ -53,12 +55,16 @@ class Preprocessor {
     for (String s: splitText) {
       if (wordfreqs.contains(s)) out.add(s);
     }
+    
     tokenCount += out.size();
     totalCount += splitText.length;
+    docCount++;
+    
     if (out.isEmpty()) {
       out.add(" ");
       System.out.println("empty line");
     }
+    
     return String.join(" ", out);
   }
 }
