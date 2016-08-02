@@ -18,7 +18,7 @@ import de.erichseifert.gral.graphics.Location;
 
 public class GUI {
   public static final int BVAL = 40; // border around graph
-  public static final int MIN_SIZE = 10;
+  public static final int MIN_SIZE = 8;
   public static final int MAX_SIZE = 400;
   
   private final CommunityStructure structure;

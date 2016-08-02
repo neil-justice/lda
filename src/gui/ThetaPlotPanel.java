@@ -11,6 +11,7 @@ import de.erichseifert.gral.plots.points.PointRenderer;
 import de.erichseifert.gral.graphics.Insets2D;
 import de.erichseifert.gral.graphics.Drawable;
 import de.erichseifert.gral.util.GraphicsUtils;
+import de.erichseifert.gral.graphics.Label;
 
 public class ThetaPlotPanel extends JPanel {
   
@@ -37,12 +38,20 @@ public class ThetaPlotPanel extends JPanel {
     data.add(0, 0d);
     
     thetaPlot = new XYPlot(data);
+
+    Label l = new Label("Theta(topic, doc)");
+    l.setRotation(90d);
+    thetaPlot.getAxisRenderer(XYPlot.AXIS_Y).setLabel(l);
+    thetaPlot.getAxisRenderer(XYPlot.AXIS_Y).setLabelDistance(1d);
+    thetaPlot.getAxisRenderer(XYPlot.AXIS_X).setLabelDistance(0d);
     
+    thetaPlot.getAxisRenderer(XYPlot.AXIS_X).setLabel(new Label("Topic"));
+    thetaPlot.getAxisRenderer(XYPlot.AXIS_Y).setLabel(l);
     thetaPlot.getAxis(XYPlot.AXIS_X).setRange(0, topicCount - 1);
     thetaPlot.getAxis(XYPlot.AXIS_Y).setRange(0d, 1d);
     thetaPlot.getAxis(XYPlot.AXIS_Y).setAutoscaled(false);
     thetaPlot.getAxis(XYPlot.AXIS_X).setAutoscaled(false);
-    thetaPlot.setInsets(new Insets2D.Double(GUI.BVAL, GUI.BVAL, GUI.BVAL, GUI.BVAL));
+    thetaPlot.setInsets(new Insets2D.Double(GUI.BVAL, GUI.BVAL * 1.5, GUI.BVAL, 0d));
     thetaPanel = new DrawablePanel(thetaPlot);
     
     this.add(thetaPanel, BorderLayout.CENTER);

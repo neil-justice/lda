@@ -5,7 +5,7 @@ class Preprocessor {
   private final WordFrequencyList wordfreqs = new WordFrequencyList();
   private final Set<String> toRemove = new HashSet<String>();
   private final Set<String> doNotRemove = new HashSet<String>();
-  private final int minFreq = 64;
+  private final int minFreq = 1;
   private final int maxFreq = 10000000;
   private long tokenCount = 0;
   private long totalCount = 0;

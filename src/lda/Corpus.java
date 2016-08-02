@@ -15,6 +15,7 @@ public class Corpus {
   private final int[][] topicsInDoc;
   private final double[][] phiSum;     // multinomial dist. of words in topics
   private final double[][] thetaSum;   // multinomial dist. of topics in docs.
+  private final double[] topicWeight;
   // high alpha: each document is likely to contain a mixture of most topics.
   // low alpha:  more likely that a document may contain just a few topics. 
   // high beta: each topic is likely to contain a mixture of most of words
@@ -59,9 +60,10 @@ public class Corpus {
     
     phiSum        = new double[wordCount][topicCount];
     thetaSum      = new double[topicCount][docCount];
+    topicWeight   = new double[topicCount];
     
-    alpha = 30 / (double) topicCount;
-    beta  = 200 / (double) wordCount;
+    alpha = 0.0001; //50 / (double) topicCount;
+    beta  = 0.1; // 200 / (double) wordCount;
     samples = 0;
     
     c = builder.connector();
@@ -77,15 +79,8 @@ public class Corpus {
                        " N : " + tokenCount);
                        
     System.out.println("" + prevCycles + " run so far, with Z = " + prevTopics);
-    
-    if (prevTopics != topicCount || prevCycles == 0) {
-      System.out.print("Uninitialised data or different Z-count detected.");
-      System.out.println(" (Re)-initialising...");
-      randomiseTopics();
-      prevCycles = 0;
-      c.setCycles(0);
-    }
-    
+
+    randomiseTopics();
     initialiseMatrices();
     initMulti();
   }
@@ -147,7 +142,7 @@ public class Corpus {
     c.writeTheta(theta());
     c.writePhi(phi());
     c.setTopics(topicCount);
-    c.setCycles(prevCycles + cycles);
+    c.setCycles(cycles);
   }
   
   //close DB connection and shutdown thread pool
@@ -157,7 +152,7 @@ public class Corpus {
   }
   
   public void print() {
-    printWords();
+    // printWords();
     // printDocs();
     termScore();
   }  
@@ -334,7 +329,9 @@ public class Corpus {
     for (int topic = 0; topic < topicCount; topic++) {
       for (int doc = 0; doc < docCount; doc++) {
         theta[topic][doc] = thetaSum[topic][doc] / samples;
+        topicWeight[topic] += theta[topic][doc];
       }
+      topicWeight[topic] /= docCount;
     }
     
     return theta;
@@ -365,28 +362,13 @@ public class Corpus {
 
     System.out.println("");
     for (int topic = 0; topic < topicCount; topic++) {
-      System.out.print("" + topic + " : ");
+      System.out.printf(" %d %.03f : ", topic, topicWeight[topic]);
       for (int i = 0; i < top; i++) {
         System.out.printf("%10s", translator.getWord(output[topic][i]));
       }
       System.out.println("");
     }
   }
-  
-  // for each (no. of times word W appears in topic T), divide by the total 
-  // number of words in that topic.
-  // private double[][] probabilityMatrix() {
-  //   double[][] matrix = new double[wordCount][topicCount];
-  //   
-  //   for (int word = 0; word < wordCount; word++) {
-  //     for (int topic = 0; topic < topicCount; topic++) {
-  //       matrix[word][topic] = wordsInTopic[word][topic] + 1
-  //                             / (double) tokensInTopic[topic] + 1d;
-  //     }
-  //   }
-  // 
-  //   return matrix;
-  // }
   
   // finds the geometric mean of a matrix
   private double[] geometricMean(double[][] matrix) {
@@ -406,30 +388,30 @@ public class Corpus {
     return geometricMean;
   }  
 
-  public void printWords() {
-    System.out.println("");
-    for (int word = 0; word < wordCount; word++) {
-      System.out.printf("%15s", translator.getWord(word));
-      for (int topic = 0; topic < topicCount; topic++) {
-        System.out.printf("%4d", wordsInTopic[word][topic]);
-      }
-      System.out.println("");
-    }
-  }
-  
-  public void printDocs() {
-    System.out.println("");
-    for (int doc = 0; doc < docCount; doc++) {
-      System.out.printf("%-10s", translator.getDoc(doc));
-      double docTotal = 0;
-      for (int topic = 0; topic < topicCount; topic++) {
-        docTotal += topicsInDoc[topic][doc];
-      }
-      System.out.printf("tot: %5d", (int) docTotal);
-      for (int topic = 0; topic < topicCount; topic++) {
-        System.out.printf(" %.01f%%", (topicsInDoc[topic][doc] / docTotal) * 100d);
-      }
-      System.out.println("");
-    }
-  }
+  // public void printWords() {
+  //   System.out.println("");
+  //   for (int word = 0; word < wordCount; word++) {
+  //     System.out.printf("%15s", translator.getWord(word));
+  //     for (int topic = 0; topic < topicCount; topic++) {
+  //       System.out.printf("%4d", wordsInTopic[word][topic]);
+  //     }
+  //     System.out.println("");
+  //   }
+  // }
+  // 
+  // public void printDocs() {
+  //   System.out.println("");
+  //   for (int doc = 0; doc < docCount; doc++) {
+  //     System.out.printf("%-10s", translator.getDoc(doc));
+  //     double docTotal = 0;
+  //     for (int topic = 0; topic < topicCount; topic++) {
+  //       docTotal += topicsInDoc[topic][doc];
+  //     }
+  //     System.out.printf("tot: %5d", (int) docTotal);
+  //     for (int topic = 0; topic < topicCount; topic++) {
+  //       System.out.printf(" %.01f%%", (topicsInDoc[topic][doc] / docTotal) * 100d);
+  //     }
+  //     System.out.println("");
+  //   }
+  // }
 }

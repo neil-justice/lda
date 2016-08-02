@@ -9,6 +9,7 @@ import de.erichseifert.gral.plots.BarPlot.BarRenderer;
 import de.erichseifert.gral.ui.DrawablePanel;
 import de.erichseifert.gral.graphics.Insets2D;
 import de.erichseifert.gral.util.GraphicsUtils;
+import de.erichseifert.gral.graphics.Label;
 
 public class JSDivergencePanel extends JPanel {
 
@@ -29,8 +30,16 @@ public class JSDivergencePanel extends JPanel {
     DataTable data = new DataTable(2, Double.class);
     data.add(1d, 1d);
     JSPlot = new BarPlot(data);
-    JSPlot.setInsets(new Insets2D.Double(GUI.BVAL, GUI.BVAL, GUI.BVAL, GUI.BVAL));
-
+    JSPlot.setInsets(new Insets2D.Double(GUI.BVAL, GUI.BVAL * 1.5, GUI.BVAL, GUI.BVAL));
+    
+    Label l = new Label("JS divergence from mean");
+    l.setRotation(90d);
+    JSPlot.getAxisRenderer(XYPlot.AXIS_Y).setLabel(l);
+    JSPlot.getAxisRenderer(XYPlot.AXIS_Y).setLabelDistance(1d);
+    
+    JSPlot.getAxisRenderer(XYPlot.AXIS_X).setLabel(new Label("Document"));
+    JSPlot.getAxisRenderer(XYPlot.AXIS_X).setLabelDistance(0d);
+    
     JSPlot.getAxis(XYPlot.AXIS_Y).setRange(0d, 1d);
     JSPlot.getAxis(XYPlot.AXIS_Y).setAutoscaled(false);
     JSPanel = new DrawablePanel(JSPlot);
