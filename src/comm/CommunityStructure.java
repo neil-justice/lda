@@ -9,12 +9,11 @@ public class CommunityStructure {
   private final int layers;
   private final int[] bestTopicInDoc;
   
-  // doc/node attributes:
-  private final int[] followers;
-  private final int[] friends;
-  private final int[] wordCount;
+  private final NodeAttributes attributes;
+  private final List<int[]> commWordCount = new ArrayList<int[]>();
+  private final List<int[]> commFollowers = new ArrayList<int[]>();
+  private final List<int[]> commFriends = new ArrayList<int[]>();
   
-  private final AttributeLoader loader;
   private final RandomCommunityAssigner rndAssigner;
   private final DocumentSimilarityMeasurer simRanker;
   
@@ -33,7 +32,7 @@ public class CommunityStructure {
   private final List<double[]> entropyLayers = new ArrayList<double[]>();
   
   public CommunityStructure(List<int[]> communityLayers, double[][] theta,
-                            AttributeLoader loader) {
+                            NodeAttributes attributes) {
     this.communityLayers = communityLayers;
     this.theta = theta;
     
@@ -47,10 +46,7 @@ public class CommunityStructure {
     rndCommLayers  = rndAssigner.run();
     bestTopicInDoc = new int[docCount];
     
-    this.loader = loader;
-    followers = loader.followers();
-    friends   = loader.friends();
-    wordCount = loader.wordCount();
+    this.attributes = attributes;
     
     for (int i = 0; i < layers; i++) {
       initialiseLayers(i);
@@ -86,14 +82,24 @@ public class CommunityStructure {
   private void initialiseLayers(int layer) {
     int[] communities = communities(layer);
     int[] commSizes = new int[docCount];
+    int[] wordCount = new int[docCount];
+    int[] friends   = new int[docCount];
+    int[] followers = new int[docCount];
+    
     SparseDoubleMatrix commThetas = new SparseDoubleMatrix(topicCount, docCount);
     commSizesLayers.add(commSizes);
     commThetaLayers.add(commThetas);
+    commWordCount.add(wordCount);
+    commFollowers.add(followers);
+    commFriends.add(friends);
     int commCnt = 0;
     
     for (int doc = 0; doc < docCount; doc++) {
       int comm = communities[doc];
       commSizes[comm]++;
+      wordCount[comm] += attributes.wordCount(doc);
+      followers[comm] += attributes.followers(doc);
+      friends[comm]   += attributes.friends(doc);
       double max = 0d;      
       for (int topic = 0; topic < topicCount; topic++) {
         commThetas.add(topic, comm, theta[topic][doc]);
@@ -107,6 +113,9 @@ public class CommunityStructure {
     
     for (int comm = 0; comm < docCount; comm++) {
       if (commSizes[comm] != 0) {
+        wordCount[comm] /= commSizes[comm];
+        followers[comm] /= commSizes[comm];
+        friends[comm]   /= commSizes[comm];
         for (int topic = 0; topic < topicCount; topic++) {
           commThetas.div(topic, comm, commSizes[comm]);
         }
@@ -266,6 +275,10 @@ public class CommunityStructure {
     return JSDivLayers.get(layer)[comm];
   }
   
+  public double[] JSDiv(int layer) { 
+    return JSDivLayers.get(layer);
+  }
+  
   public double JSImp(int layer, int comm) {
     return JSImpLayers.get(layer)[comm];
   }
@@ -277,7 +290,7 @@ public class CommunityStructure {
   public double[] entropy(int layer) { return entropyLayers.get(layer); }
   
   public double calcEntropy(int layer, int comm) { 
-    return simRanker.entropy(comm, commThetaLayers.get(layer));
+    return simRanker.entropy(comm, commThetaLayers.get(layer), topicCount);
   }  
   
   public int[] bestTopicInDoc() { return bestTopicInDoc; }
@@ -288,4 +301,12 @@ public class CommunityStructure {
   
   public int[] commScores(int layer) { return commScoreLayers.get(layer); }
   public int commScore(int layer, int comm) { return commScoreLayers.get(layer)[comm]; }
+  
+  public int[] wordCount(int layer) { return commWordCount.get(layer); }
+  public int[] followers(int layer) { return commFollowers.get(layer); }
+  public int[] friends(int layer) { return commFriends.get(layer); }
+  
+  public int wordCount(int layer, int comm) { return commWordCount.get(layer)[comm]; }
+  public int followers(int layer, int comm) { return commFollowers.get(layer)[comm]; }
+  public int friends(int layer, int comm) { return commFriends.get(layer)[comm]; }
 }

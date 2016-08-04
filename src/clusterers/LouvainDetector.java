@@ -10,9 +10,29 @@ public class LouvainDetector implements Clusterer {
   private final List<TIntIntHashMap> layerMaps = new ArrayList<>();
   private final List<int[]> communities = new ArrayList<int[]>();
   private final Maximiser m = new Maximiser();
+  private final Random rnd;
+  
+  private LouvainDetector() {
+    rnd = new Random();
+  }
+  
+  public LouvainDetector(Graph g, long seed) {
+    this();
+    graphs.add(g);
+    rnd.setSeed(seed);
+    System.out.println("Using seed " + seed);
+  }
   
   public LouvainDetector(Graph g) {
+    this();
     graphs.add(g);
+    long seed = rnd.nextLong();
+    rnd.setSeed(seed);
+    System.out.println("Using seed " + seed);
+  }
+  
+  public double modularity() {
+    return graphs.get(layer).modularity();
   }
   
   @Override
@@ -108,7 +128,6 @@ public class LouvainDetector implements Clusterer {
   }
   
   class Maximiser {
-    private final Random rnd = new Random();
     private final double precision = 0.000001;
     private Graph g;
     private int[] shuffledNodes;

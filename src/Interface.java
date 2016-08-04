@@ -86,6 +86,9 @@ class Interface {
           case "louvain":
             runLouvainDetector();
             break;
+          case "louvain-seed":
+            genLouvainSeed();
+            break;
           case "infomap":
             loadInfomapResults();
             break;
@@ -94,6 +97,9 @@ class Interface {
             break;
           case "js":
             clusterUsingJSDivergence();
+            break;
+          case "trivial":
+            minimiseTrivially();
             break;
           case "write":
             writeCommInfo();
@@ -111,6 +117,12 @@ class Interface {
     writer.write();
   }
   
+  private void minimiseTrivially() {
+    g = getGraph();
+    TrivialEntropyMinimiser clusterer = new TrivialEntropyMinimiser(g.order(), c.getTheta());
+    structure = getStructure(clusterer);
+  }
+  
   private void clusterUsingJSDivergence() {
     g = getGraph();
     JSClusterer clusterer = new JSClusterer(g, c.getTheta());
@@ -123,12 +135,23 @@ class Interface {
     CommunityStructure randomStructure = getStructure(assigner);
   }
   
+  private void genLouvainSeed() {
+    g = getGraph();
+    LouvainSelector selector = new LouvainSelector(dir, c);
+    selector.run(10);
+  }
+  
   private void runLouvainDetector() {
     g = getGraph();
-    LouvainDetector ld = new LouvainDetector(g);
+    LouvainDetector ld;
+    if (!ft.hasLouvainSeed()) ld = new LouvainDetector(g);
+    else ld = new LouvainDetector(g, loadLouvainSeed());
     structure = getStructure(ld);
-    // TopicCoocurrenceMonitor tcm = new TopicCoocurrenceMonitor(structure);
-    // tcm.run(0);
+  }
+  
+  private long loadLouvainSeed() {
+    List<String> l = FileLoader.readFile(dir + CTUT.LOUVAIN_SEED);
+    return Long.parseLong(l.get(0));
   }
   
   private void loadInfomapResults() {
@@ -198,12 +221,13 @@ class Interface {
   }
   
   private void showInfo() {
-    System.out.println("In directory : " + dir);
+    System.out.println("In directory: " + dir);
     System.out.println("Cleaned:      " + ft.isClean());
     System.out.println("Processed:    " + ft.isProcessed());
     System.out.println("In DB:        " + ft.isInDB());
     System.out.println("Graph data:   " + ft.hasGraph());
     System.out.println("Infomap data: " + ft.hasInfomap());
+    System.out.println("Louvain seed: " + ft.hasLouvainSeed());
   }
   
   private void help() {
@@ -237,9 +261,9 @@ class Interface {
   
   private CommunityStructure getStructure(Clusterer clusterer) {
     if (g == null) g = getGraph();
-    AttributeLoader loader = new AttributeLoader(c, dir, g.order());
+    NodeAttributes attributes = new NodeAttributes(c, dir, g.order());
     CommunityStructure s = new CommunityStructure(clusterer.run(), c.getTheta(),
-                                                  loader);
+                                                  attributes);
     return s;
   }
 }

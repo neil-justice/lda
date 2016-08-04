@@ -60,7 +60,7 @@ public class GUI {
   public void run() {
     frame = new JFrame();
     frame.setSize(800, 400);
-    frame.setDefaultCloseOperation(frame.EXIT_ON_CLOSE);
+    frame.setDefaultCloseOperation(frame.DISPOSE_ON_CLOSE);
     frame.setTitle("CTUT - Community Topic Usage Tracker");
     frame.setLayout(new BorderLayout());
     frame.add(chartPanel(), BorderLayout.CENTER);

@@ -2,6 +2,7 @@ import java.nio.file.*;
 import java.nio.charset.Charset;
 import java.io.IOException;
 import java.util.*;
+import java.time.Instant;
 
 public class CommunityWriter {
   private final CommunityStructure structure;
@@ -9,8 +10,9 @@ public class CommunityWriter {
   private final int topicCount;
   private final int docCount;
   private final int layers;
-  private final double ID;
+  private final long ID;
   private final String del = ",";
+  private final String ext = ".csv";
   
   public CommunityWriter(CommunityStructure structure, String dir) {
     this.structure = structure;
@@ -18,7 +20,7 @@ public class CommunityWriter {
     this.topicCount = structure.topicCount();
     this.docCount = structure.docCount();
     this.layers = structure.layers();
-    this.ID = Math.random();
+    this.ID = Instant.now().getEpochSecond();
   }
   
   public void write() {
@@ -30,7 +32,7 @@ public class CommunityWriter {
   public void write(int layer) {
     if (layer >= layers) throw new Error("layer doesn't exist");
     
-    Path filepath = Paths.get(dir + "L" + layer + "cinfo" + ID + ".csv");
+    Path filepath = Paths.get(dir + "L" + layer + "-cinfo-" + ID + ext);
     List<String> data = prepareData(layer);
     
     try {
@@ -67,7 +69,13 @@ public class CommunityWriter {
     builder.append(del);
     builder.append("JSi");
     builder.append(del);
-    builder.append("E");
+    builder.append("E");    
+    builder.append(del);
+    builder.append("avfoll");    
+    builder.append(del);
+    builder.append("avfriends");
+    builder.append(del);
+    builder.append("avwords");
     for (int topic = 0; topic < topicCount; topic++) {
       builder.append(del);
       builder.append(topic);
@@ -89,6 +97,12 @@ public class CommunityWriter {
     builder.append(structure.JSImp(layer, comm));
     builder.append(del);
     builder.append(structure.entropy(layer, comm));
+    builder.append(del);
+    builder.append(structure.followers(layer, comm));
+    builder.append(del);
+    builder.append(structure.friends(layer, comm));
+    builder.append(del);
+    builder.append(structure.wordCount(layer, comm));
     
     for (int topic = 0; topic < topicCount; topic++) {
       builder.append(del);

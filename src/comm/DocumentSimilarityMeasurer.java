@@ -81,20 +81,28 @@ public class DocumentSimilarityMeasurer {
   
   // measures the shannon entropy H of a prob. dist.
   public static double entropy(double[] dist) {
+    return entropy(dist, 2);
+  }
+  
+  public static double entropy(double[] dist, int base) {
     double H = 0d;
     for (int i = 0; i < dist.length; i++) {
       if (dist[i] != 0d) H -= dist[i] * Math.log(dist[i]);
     }
-    return H / Math.log(2);
+    return H / Math.log(base);
   }
   
   public static double entropy(int comm, SparseDoubleMatrix commThetas) {
+    return entropy(comm, commThetas, 2);
+  }
+  
+  public static double entropy(int comm, SparseDoubleMatrix commThetas, int base) {
     double H = 0d;
     for (int i = 0; i < commThetas.xmax(); i++) {
       double d = commThetas.get(i, comm);
       if (d != 0d) H -= d * Math.log(d);
     }
-    return H / Math.log(2);
+    return H / Math.log(base);
   }
   
   // Jenson-Shannon distance is a smoothed symmetric version of Kullback-Leiber

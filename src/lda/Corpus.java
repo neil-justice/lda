@@ -64,8 +64,8 @@ public class Corpus {
     thetaSum      = new double[topicCount][docCount];
     topicWeight   = new double[topicCount];
     
-    alpha = 0.1; // 50 / (double) topicCount;
-    beta  = 0.2; // 200 / (double) wordCount;
+    alpha = 0.1;
+    beta  = 0.2;
     betaSum = beta * wordCount;
     
     samples = 0;
