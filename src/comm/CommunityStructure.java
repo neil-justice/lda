@@ -244,6 +244,7 @@ public class CommunityStructure {
     }
   }
   
+  public double theta(int topic, int doc) { return theta[topic][doc]; }
   public double[][] theta() { return theta; }
   public double[][] inverseTheta() { return inverseTheta;}
   
@@ -252,7 +253,6 @@ public class CommunityStructure {
   public int layers() { return layers; }
   public int numComms(int layer) { return numComms[layer]; }
   
-  public List<SparseDoubleMatrix> commThetaLayers() { return commThetaLayers; }
   public SparseDoubleMatrix commThetas(int layer) { return commThetaLayers.get(layer); }
   public double commTheta(int layer, int topic, int comm) { return commThetaLayers.get(layer).get(topic, comm); }
   
@@ -260,7 +260,6 @@ public class CommunityStructure {
   public int[] communities(int layer) { return communityLayers.get(layer); }
   public int community(int layer, int doc) { return communityLayers.get(layer)[doc]; }
   
-  public List<int[]> commSizesLayers() { return commSizesLayers; }
   public int[] commSizes(int layer) { return commSizesLayers.get(layer); }
   public int commSize(int layer, int comm) { return commSizesLayers.get(layer)[comm]; }
   
@@ -279,6 +278,10 @@ public class CommunityStructure {
     return JSDivLayers.get(layer);
   }
   
+  public double JSDiv(int layer, int doc, int comm) {
+    return simRanker.JSDivergence(comm, doc, commThetaLayers.get(layer)); 
+  }
+  
   public double JSImp(int layer, int comm) {
     return JSImpLayers.get(layer)[comm];
   }
@@ -291,7 +294,11 @@ public class CommunityStructure {
   
   public double calcEntropy(int layer, int comm) { 
     return simRanker.entropy(comm, commThetaLayers.get(layer), topicCount);
-  }  
+  }
+  
+  public double docEntropy(int doc) {
+    return simRanker.entropy(inverseTheta[doc], topicCount);
+  }
   
   public int[] bestTopicInDoc() { return bestTopicInDoc; }
   public int bestTopicInDoc(int doc) { return bestTopicInDoc[doc]; }
@@ -309,4 +316,5 @@ public class CommunityStructure {
   public int wordCount(int layer, int comm) { return commWordCount.get(layer)[comm]; }
   public int followers(int layer, int comm) { return commFollowers.get(layer)[comm]; }
   public int friends(int layer, int comm) { return commFriends.get(layer)[comm]; }
+  public NodeAttributes nodeAttributes() { return attributes; }
 }

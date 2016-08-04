@@ -113,8 +113,11 @@ class Interface {
   
   private void writeCommInfo() {
     if (structure == null) runLouvainDetector();
-    CommunityWriter writer = new CommunityWriter(structure, dir);
-    writer.write();
+    g = getGraph();
+    CommunityWriter cWriter = new CommunityWriter(structure, dir);
+    DocumentWriter dWriter = new DocumentWriter(structure, dir, g);
+    cWriter.write();
+    dWriter.write();
   }
   
   private void minimiseTrivially() {
@@ -237,11 +240,21 @@ class Interface {
     System.out.println("  reload [topics] -- (re)-initialises db from processed file.");
     System.out.println("  load [topics]   -- loads corpus from db.");
     System.out.println("  run [cycles]    -- runs the specified no. of cycles.");
-    System.out.println("  print           -- prints [topic][word matrix] and termscore");
+    System.out.println("  print           -- prints topic termscores");
+    System.out.println("  louvain         -- clusters graph using the Louvain method");
+    System.out.println("  infomap         -- reads in an infomap .tree file");
+    System.out.println("  js              -- clusters using Jensen-Shannon Divergence");
+    System.out.println("  trivial         -- trivially minimises average entropy of partition set");
+    System.out.println("  chart           -- display charts");
+    System.out.println("  write           -- write out community and document info");
+    System.out.println("  random          -- compare the current partition set to a random one ");
+    System.out.println("                     where the size of each partition is the same");
+    System.out.println("  louvain-seed    -- generate and store the best random seed out of 10 for");
+    System.out.println("                     the Louvain method");
     System.out.println("  help            -- shows this list");
     System.out.println("  quit            -- exits the program");
   }
-  
+          
   private int parse(String text) {
     int val;
     try {
@@ -255,6 +268,7 @@ class Interface {
   }
   
   private Graph getGraph() {
+    if (g != null) return g;
     if (!ft.hasGraph()) throw new Error("No graph data at" + dir + CTUT.GRAPH);
     return new GraphBuilder().fromFileAndDB(dir + CTUT.GRAPH, c).build();
   }

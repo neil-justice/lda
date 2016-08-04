@@ -1,5 +1,6 @@
 /* implements algorithm 2.2 / eq. 2.58 from Wallach's phd thesis
  * https://people.cs.umass.edu/~wallach/theses/wallach_phd_thesis.pdf */
+import java.util.*;
 
 public class HyperparameterOptimiser {
   private final int topicCount;
@@ -8,7 +9,10 @@ public class HyperparameterOptimiser {
   private final int[] docLengthHist; // dLH[l] == no. of docs of length [l]
   private int[][] docTopicCountHist; // dTCH[k][cnt] = no. of docs with
                                      // [cnt] no. of topic [k] tokens
-                                     // these are N|d and Nk|d respectively in the paper
+                                     // these are C(n) and Ck(n) respectively in the paper
+                                     // where n is length or count
+  private final double s = 1d;       // gamma hyperprior
+  private final double c = 1.001;    // gamma hyperprior - see see sect. 2.5 in paper
                                  
   public HyperparameterOptimiser(int[] tokensInDoc, int topicCount, int maxLength) {
     this.maxLength = maxLength;
@@ -35,8 +39,8 @@ public class HyperparameterOptimiser {
 		int[] highestCountForTopic = new int[topicCount];
 		Arrays.fill(highestCountForTopic, -1);
 
-		for (topic = 0; topic < topicCount; topic++) {
-			for (length = 0; length < maxLength; length++) {
+		for (int topic = 0; topic < topicCount; topic++) {
+			for (int length = 0; length < maxLength; length++) {
 				if (docTopicCountHist[topic][length] > 0) {
 					highestCountForTopic[topic] = length;
 				}
@@ -46,22 +50,21 @@ public class HyperparameterOptimiser {
 		for (int it = 0; it < iterations; it++) {
 			double S = 0;
 			double D = 0;
-			for (length  = 1; length < maxLength; length++) {
+			for (int length  = 1; length < maxLength; length++) {
 				D += 1 / (length - 1 + alphaSum); 
 				S += docLengthHist[length] * D;
 			}
-			S--;
+			S -= 1 / s; // s is a component of the hyperprior
       
 			alphaSum = 0;
-			for (topic = 0; topic < topicCount; topic++) {
-				double oldAlpha = alpha[topic];
-				alpha[topic] = 0; // alpha[topic] temporarily plays the role of S[k]         
+			for (int topic = 0; topic < topicCount; topic++) {
+				double[] Sk = new double[topicCount];         
 				D = 0;
-				for (count = 1; count <= highestCountForTopic[topic]; i++) {
-					D += 1 / (count - 1 + oldAlpha);
-					alpha[topic] += docTopicCountHist[topic][count] * D;
+				for (int count = 1; count <= highestCountForTopic[topic]; count++) {
+					D += 1 / (count - 1 + alpha[topic]);
+					Sk[topic] += docTopicCountHist[topic][count] * D;
 				}
-				alpha[topic] = oldAlpha * (alpha[topic] + 1.001) / S; 
+				alpha[topic] *= (Sk[topic] + c) / S; // c is a component of the hyperprior
 				alphaSum += alpha[topic];
 			}
 		}
