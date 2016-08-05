@@ -3,33 +3,37 @@ import gnu.trove.list.array.TIntArrayList;
 
 public class CommunityStructure {
   private final double[][] theta;
-  private final double[][] inverseTheta;
+  private final double[][] inverseTheta; // transposed version of theta
   private final int topicCount;
   private final int docCount;
   private final int layers;
-  private final int[] bestTopicInDoc;
-  
-  private final NodeAttributes attributes;
-  private final List<int[]> commWordCount = new ArrayList<int[]>();
-  private final List<int[]> commFollowers = new ArrayList<int[]>();
-  private final List<int[]> commFriends = new ArrayList<int[]>();
+  private final int[] bestTopicInDoc; // topic w/ highest theta per doc
   
   private final RandomCommunityAssigner rndAssigner;
-  private final DocumentSimilarityMeasurer simRanker;
+  private final DocumentSimilarityMeasurer simRanker;  
+  private final NodeAttributes attributes;
   
+  private final List<int[]> commWordCount = new ArrayList<int[]>(); // average
+  private final List<int[]> commFollowers = new ArrayList<int[]>(); // average
+  private final List<int[]> commFriends   = new ArrayList<int[]>(); // average
   private final List<int[]> communityLayers;
+  // shuffled community assignments
   private final List<int[]> rndCommLayers;
+  // size of each comm
   private final List<int[]> commSizesLayers = new ArrayList<int[]>();
-  private final List<SparseDoubleMatrix> commThetaLayers = new ArrayList<>();
-  private final int[] numComms;
-  
+  // commIndexes.get(layer)[i] = ID of ith community.
+  private final List<int[]> commIndexes     = new ArrayList<int[]>();
   // JS distance between doc and its comm:
-  private final List<double[]> docCommCloseness = new ArrayList<double[]>();
+  private final List<int[]> commScoreLayers       = new ArrayList<int[]>();
   private final List<int[]> bestTopicInCommLayers = new ArrayList<int[]>();
-  private final List<int[]> commScoreLayers = new ArrayList<int[]>();
-  private final List<double[]> JSDivLayers = new ArrayList<double[]>();
-  private final List<double[]> JSImpLayers = new ArrayList<double[]>();
-  private final List<double[]> entropyLayers = new ArrayList<double[]>();
+  private final List<double[]> docCommCloseness = new ArrayList<double[]>();
+  private final List<double[]> JSDivLayers      = new ArrayList<double[]>();
+  private final List<double[]> JSImpLayers      = new ArrayList<double[]>();
+  private final List<double[]> entropyLayers    = new ArrayList<double[]>();
+  // these lists keep track of the members of each comm:
+  private final List<TIntArrayList[]> memberLayers       = new ArrayList<>();
+  private final List<SparseDoubleMatrix> commThetaLayers = new ArrayList<>();  
+  private final int[] numComms;
   
   public CommunityStructure(List<int[]> communityLayers, double[][] theta,
                             NodeAttributes attributes) {
@@ -60,15 +64,6 @@ public class CommunityStructure {
     
     predict();
   }
-  
-  public void predict() {
-    for (int i = 0; i < layers; i++) {
-      LayerPredictor lp = new LayerPredictor(i);
-      lp.run();
-    }    
-    System.out.println();
-  }
-  
   private void initialiseDists(int layer) {
     double[] dc = new double[docCount];
     docCommCloseness.add(dc);
@@ -85,14 +80,9 @@ public class CommunityStructure {
     int[] wordCount = new int[docCount];
     int[] friends   = new int[docCount];
     int[] followers = new int[docCount];
+    int[] indexes   = new int[docCount];
     
     SparseDoubleMatrix commThetas = new SparseDoubleMatrix(topicCount, docCount);
-    commSizesLayers.add(commSizes);
-    commThetaLayers.add(commThetas);
-    commWordCount.add(wordCount);
-    commFollowers.add(followers);
-    commFriends.add(friends);
-    int commCnt = 0;
     
     for (int doc = 0; doc < docCount; doc++) {
       int comm = communities[doc];
@@ -111,6 +101,7 @@ public class CommunityStructure {
       }
     }
     
+    int commCnt = 0;
     for (int comm = 0; comm < docCount; comm++) {
       if (commSizes[comm] != 0) {
         wordCount[comm] /= commSizes[comm];
@@ -119,27 +110,33 @@ public class CommunityStructure {
         for (int topic = 0; topic < topicCount; topic++) {
           commThetas.div(topic, comm, commSizes[comm]);
         }
+        indexes[commCnt] = comm;
         commCnt++;
       }
     }
     numComms[layer] = commCnt;
+    commSizesLayers.add(commSizes);
+    commThetaLayers.add(commThetas);
+    commWordCount.add(wordCount);
+    commFollowers.add(followers);
+    commFriends.add(friends);
+    commIndexes.add(indexes);
+  }
+  
+  public void predict() {
+    System.out.println("L  corr           % corr JS    JSi   E");
+    for (int i = 0; i < layers; i++) {
+      LayerPredictor lp = new LayerPredictor(i);
+      lp.run();
+    }    
+    System.out.println();
   }
   
   class LayerPredictor {
     private final int[] communities;     // communities[doc] == comm of that doc
     private final int[] rcommunities;    // randomly genned
     
-    private final SparseDoubleMatrix commThetas; //aggregated theta vals
-    private final int[] bestTopicInComm; // most commonly ocurring topic
-    private final int[] commScore;       // number of correct predictions
-    private final int[] commSizes;       // size of each community
-    private final int layer;
-    private int correct = 0; // no. of correct predictions
-    private double avgJSImprovement;
-    private double avgJS;
-    private double avgEntropy;
-    
-    // community member lists:
+    // community member list:
     private final TIntArrayList[] members = new TIntArrayList[docCount];
     private final TIntArrayList[] rndMembers = new TIntArrayList[docCount];
     
@@ -147,6 +144,17 @@ public class CommunityStructure {
     // improvement in JSDiv over randomly shuffled communities:
     private final double[] JSDivImprovement = new double[docCount];
     private final double[] entropy = new double[docCount];
+    
+    private final SparseDoubleMatrix commThetas; //aggregated theta vals
+    private final int[] bestTopicInComm; // most commonly ocurring topic
+    private final int[] commScore;       // number of correct predictions
+    private final int[] commSizes;       // size of each community
+    private final int layer;
+    
+    private int correct = 0; // no. of correct predictions
+    private double avgJSImprovement;
+    private double avgJS;
+    private double avgEntropy;
     
     public LayerPredictor(int layer) {
       this.layer = layer;
@@ -173,7 +181,7 @@ public class CommunityStructure {
       calculateJSDists();
       getBestCommTopics();
       getBestFit();
-      System.out.printf("L%d: %d/%d = %.01f%% JS: %.03f JSi: %.03f E: %.03f%n", 
+      System.out.printf("%d %6d/%6d = %.01f%%  %.03f %.03f %.03f%n", 
                         layer, correct, docCount, 
                         (correct / (double) docCount) * 100, avgJS, 
                         avgJSImprovement, avgEntropy);
@@ -184,6 +192,7 @@ public class CommunityStructure {
       JSDivLayers.add(JSDiv);
       JSImpLayers.add(JSDivImprovement);
       entropyLayers.add(entropy);
+      memberLayers.add(members);
     }
     
     private void printScores() {
@@ -313,8 +322,14 @@ public class CommunityStructure {
   public int[] followers(int layer) { return commFollowers.get(layer); }
   public int[] friends(int layer) { return commFriends.get(layer); }
   
+  public int commIndex(int layer, int index) { return commIndexes.get(layer)[index]; }
+  
   public int wordCount(int layer, int comm) { return commWordCount.get(layer)[comm]; }
   public int followers(int layer, int comm) { return commFollowers.get(layer)[comm]; }
   public int friends(int layer, int comm) { return commFriends.get(layer)[comm]; }
   public NodeAttributes nodeAttributes() { return attributes; }
+  
+  public TIntArrayList members(int layer, int comm) {
+    return memberLayers.get(layer)[comm]; 
+  }
 }

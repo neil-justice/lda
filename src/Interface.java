@@ -5,28 +5,63 @@ class Interface {
   private final Scanner input = new Scanner(System.in);
   private final FileTracker ft;
   private final SQLConnector c;
+  private final Map<String, Runnable> commands = new HashMap<>();
+  private final Map<String, Structurable> clusterers = new HashMap<>();
   private CommunityStructure structure;
   private Corpus corpus;
   private Graph g;
+  private String[] cmd;
   private boolean quit = false;
   
   public Interface(String dir) {
     this.dir = dir;
     ft = new FileTracker(dir);
     c = new SQLConnector(dir);
-    showInfo();
+    init();
   }
   
   public Interface() {
+    dir = chooseDir();
+    ft = new FileTracker(dir);
+    c = new SQLConnector(dir);
+    init();    
+  }
+  
+  private void init() {
+    c.open();
+    showInfo();
+    
+    commands.put("p", this::process);
+    commands.put("process", this::process);
+    commands.put("reload", this::reload);
+    commands.put("write-db", this::reload);
+    commands.put("load", this::load);
+    commands.put("r", this::run);
+    commands.put("run", this::run);
+    commands.put("print", this::print);
+    commands.put("help", this::help);
+    commands.put("q", this::quit);
+    commands.put("quit", this::quit);
+    commands.put("chart", this::viewCharts);
+    commands.put("louvain-seed", this::genLouvainSeed);
+    commands.put("write", this::write);
+    commands.put("compare", this::compare);
+    commands.put("random", this::compareToRandom);
+    
+    clusterers.put("louvain", this::louvain);
+    clusterers.put("infomap", this::infomapResults);
+    clusterers.put("js", this::clusterUsingJSDivergence);
+    clusterers.put("trivial", this::minimiseTrivially);
+  }
+  
+  private String chooseDir() {
     System.out.println("Open which directory?");
     DirectoryLoader dl = new DirectoryLoader();
     String[] dirs = dl.directories();
     boolean chosen = false;
     int choice = -1;
     
-    for (int i = 0; i < dirs.length; i++) {
-      System.out.println(i + " : " + dirs[i]);
-    }
+    dl.printDirectories();
     
     while(!chosen) {
       try {
@@ -41,179 +76,148 @@ class Interface {
     }
     dl.setDirectory(choice);
     
-    dir = dl.dir();
-    ft = new FileTracker(dir);
-    c = new SQLConnector(dir);
-    c.open();
-    showInfo();
+    return dl.dir();
   }
 
   public void loop() {
     while(!quit) {
       System.out.println("Enter a command: ");
       String line = input.nextLine();
-      String[] cmd = line.split(" ");
+      cmd = line.split(" ");
       if (cmd.length > 0) {
-        switch(cmd[0]) {
-          case "p":
-          case "process":
-            process();
-            break;
-          case "reload":
-            reload(cmd);
-            break;
-          case "load":
-            load(cmd);
-            break;
-          case "r":
-          case "run":
-            run(cmd);
-            break;
-          case "print":
-            print();
-            break;
-          case "help":
-            help();
-            break;
-          case "q":
-          case "quit":
-            quit = true;
-            if (corpus != null) corpus.quit();
-            break;
-          case "chart":
-            viewCharts();
-            break;
-          case "louvain":
-            runLouvainDetector();
-            break;
-          case "louvain-seed":
-            genLouvainSeed();
-            break;
-          case "infomap":
-            loadInfomapResults();
-            break;
-          case "random":
-            compareToRandom();
-            break;
-          case "js":
-            clusterUsingJSDivergence();
-            break;
-          case "trivial":
-            minimiseTrivially();
-            break;
-          case "write":
-            writeCommInfo();
-            break;
-          default:
-            System.out.println("Command not recognised.");
-        }
+        if (clusterers.containsKey(cmd[0])) structure = clusterers.get(cmd[0]).run();
+        else if (commands.containsKey(cmd[0])) commands.get(cmd[0]).run();
+        else System.out.println("Command not recognised.  Try 'help'.");
       } 
     }
   }
   
-  private void writeCommInfo() {
-    if (structure == null) runLouvainDetector();
+  private void compare() {
+    g = getGraph();
+    MutualInformation NMI = new MutualInformation(g.order());
+    if (cmd.length == 5) {
+      CommunityStructure s1 = clusterers.get(cmd[1]).run();
+      int layer1 = parse(cmd[2], "Layer must be a non-negative number.");
+      CommunityStructure s2 = clusterers.get(cmd[3]).run();
+      int layer2 = parse(cmd[4], "Layer must be a non-negative number.");
+      if (s1 == null || s2 == null) System.out.println("No such clusterer.");
+      else if (layer1 >= s1.layers()) System.out.println("No such layer.");
+      else if (layer2 >= s2.layers()) System.out.println("No such layer.");
+      else NMI.compare(s1, layer1, s2, layer2);
+    }
+    else System.out.println("Invalid usage.  Type 'help' for usage info.");
+  }
+  
+  private CommunityStructure minimiseTrivially() {
+    g = getGraph();
+    TrivialEntropyMinimiser clusterer = new TrivialEntropyMinimiser(g.order(), c.getTheta());
+    return getStructure(clusterer);
+  }
+  
+  private CommunityStructure clusterUsingJSDivergence() {
+    g = getGraph();
+    JSClusterer clusterer = new JSClusterer(g, c.getTheta());
+    return getStructure(clusterer);
+  }
+  
+  private CommunityStructure louvain() {
+    g = getGraph();
+    LouvainDetector ld;
+    if (!ft.hasLouvainSeed()) ld = new LouvainDetector(g);
+    else ld = new LouvainDetector(g, loadLouvainSeed());
+    return getStructure(ld);
+  }
+  
+  private CommunityStructure infomapResults() {
+    if (!ft.hasInfomap()) throw new Error("No infomap data at " + CTUT.INFOMAP);
+    
+    InfomapResultsReader irr = new InfomapResultsReader(dir + CTUT.INFOMAP);
+    return getStructure(irr);
+  }  
+  
+  private void compareToRandom() {
+    if (structure == null) structure = louvain();
+    RandomCommunityAssigner assigner = new RandomCommunityAssigner(structure.communityLayers());
+    CommunityStructure rndStructure = getStructure(assigner);
+  }
+  
+  private void genLouvainSeed() {
+    g = getGraph();
+    int it = 10;
+    if (cmd.length == 2) {
+      it = parse(cmd[1], "num. iterations must be a non-negative number.");      
+    }
+    LouvainSelector selector = new LouvainSelector(dir, c);
+    selector.run(it);
+  }
+  
+  private void write() {
+    if (structure == null) structure = louvain();
     g = getGraph();
     CommunityWriter cWriter = new CommunityWriter(structure, dir);
     DocumentWriter dWriter = new DocumentWriter(structure, dir, g);
     cWriter.write();
     dWriter.write();
-  }
-  
-  private void minimiseTrivially() {
-    g = getGraph();
-    TrivialEntropyMinimiser clusterer = new TrivialEntropyMinimiser(g.order(), c.getTheta());
-    structure = getStructure(clusterer);
-  }
-  
-  private void clusterUsingJSDivergence() {
-    g = getGraph();
-    JSClusterer clusterer = new JSClusterer(g, c.getTheta());
-    structure = getStructure(clusterer);
-  }
-  
-  private void compareToRandom() {
-    if (structure == null) runLouvainDetector();
-    RandomCommunityAssigner assigner = new RandomCommunityAssigner(structure.communityLayers());
-    CommunityStructure randomStructure = getStructure(assigner);
-  }
-  
-  private void genLouvainSeed() {
-    g = getGraph();
-    LouvainSelector selector = new LouvainSelector(dir, c);
-    selector.run(10);
-  }
-  
-  private void runLouvainDetector() {
-    g = getGraph();
-    LouvainDetector ld;
-    if (!ft.hasLouvainSeed()) ld = new LouvainDetector(g);
-    else ld = new LouvainDetector(g, loadLouvainSeed());
-    structure = getStructure(ld);
-  }
-  
-  private long loadLouvainSeed() {
-    List<String> l = FileLoader.readFile(dir + CTUT.LOUVAIN_SEED);
-    return Long.parseLong(l.get(0));
-  }
-  
-  private void loadInfomapResults() {
-    if (!ft.hasInfomap()) throw new Error("No infomap data at " + CTUT.INFOMAP);
-    
-    InfomapResultsReader irr = new InfomapResultsReader(dir + CTUT.INFOMAP);
-    structure = getStructure(irr);
-  }
+  }  
   
   private void viewCharts() {
-    if (structure == null) runLouvainDetector();
+    if (structure == null) structure = louvain();
     GUI gui = new GUI(structure);
     // DocumentSimilaritySpace simSpace = new DocumentSimilaritySpace(structure);
     // simSpace.run();
   }
   
   private void process() {
-    Preprocessor p = new Preprocessor();
+    Preprocessor p;
+    if (cmd.length == 1) p = new Preprocessor();
+    else if (cmd.length == 3) {
+      int min = parse(cmd[1], "Min word freq. must be a non-negative number.");
+      int max = parse(cmd[2], "Max word freq. must be a non-negative number.");
+      p = new Preprocessor(min, max);
+    }
+    else {
+      System.out.println("Invalid usage.  Type 'help' for usage info.");
+      return;
+    }
     p.process(dir);
     System.out.println("Text processed.");
   }
   
-  private void reload(String[] cmd) {
+  private void reload() {
     if (corpus != null) corpus.quit();
     
     if (cmd.length == 2) {
-      int topics = parse(cmd[1]);   
+      int topics = parse(cmd[1], "Topic count must be a non-negative number.");   
       if (topics > 0) {
         corpus = new CorpusBuilder(topics, c).fromFile(dir).build();
         System.out.println("Corpus reloaded.");
       }
     }
-    else System.out.println("Choose a topic count.");
   }
   
-  private void load(String[] cmd) {
+  private void load() {
     if (!ft.isInDB()) {
       System.out.println("load to DB first.");
       return;
     }
     
     if (cmd.length == 2) {
-      int topics = parse(cmd[1]);   
+      int topics = parse(cmd[1], "Topic count must be a non-negative number.");   
       if (topics > 0) {
         corpus = new CorpusBuilder(topics, c).fromDatabase(dir).build();
         System.out.println("Corpus loaded.");
       }
     }
-    else System.out.println("Choose a topic count.");
   }
   
-  private void run(String[] cmd) {
+  private void run() {
     if (corpus == null) {
       System.out.println("Load a corpus first.");
       return;
     }
     
     if (cmd.length == 2) {
-      int cycles = parse(cmd[1]);
+      int cycles = parse(cmd[1], "Number of cycles must be a positive number.");
       if (cycles > 0) corpus.run(cycles);
     }
   }
@@ -221,6 +225,40 @@ class Interface {
   private void print() {
     if (corpus == null) LDAUtils.termScore(c.getPhi(), new Translator(c));
     else corpus.print();
+  }
+  
+  private void quit() {
+    quit = true;
+    if (corpus != null) corpus.quit();
+  }
+  
+  private void help() {
+    showInfo();
+    System.out.println("LDA commands:");
+    System.out.println("  process<[min][max]> -- processes the clean file, removing stop words");
+    System.out.println("                         and so on. Defaults are 10, 1000000");
+    System.out.println("  write-db [topics] -- initialise db from processed file.");
+    System.out.println("  reload [topics]   -- (re)-initialises db from processed file.");
+    System.out.println("  load [topics]     -- loads corpus from db.");
+    System.out.println("  run [cycles]      -- runs the specified no. of cycles.");
+    System.out.println("  print             -- prints topic termscores.");
+    System.out.println("");
+    System.out.println("Clustering commands:");
+    System.out.println("  louvain           -- clusters graph using the Louvain method.");
+    System.out.println("  louvain-seed [itr]-- generate and store the best random seed out of [itr] for");
+    System.out.println("                       the Louvain method.  Default is 10.");
+    System.out.println("  infomap           -- reads in an infomap .tree file.");
+    System.out.println("  js                -- clusters using Jensen-Shannon Divergence.");
+    System.out.println("  random            -- compare the current partition set to a random one");
+    System.out.println("                       where the size of each partition is the same.");
+    System.out.println("  trivial           -- trivially minimises average entropy of partition set.");
+    System.out.println("  chart             -- display charts.");
+    System.out.println("  write             -- write out community and document info.");
+    System.out.println("  compare [cls][layer][cls2][layer2] -- compare the 2 partitions.");
+    System.out.println("");
+    System.out.println("Meta-commands:");
+    System.out.println("  help              -- shows this list.");
+    System.out.println("  quit              -- exits the program.");
   }
   
   private void showInfo() {
@@ -233,36 +271,19 @@ class Interface {
     System.out.println("Louvain seed: " + ft.hasLouvainSeed());
   }
   
-  private void help() {
-    showInfo();
-    System.out.println("Commands:");
-    System.out.println("  process         -- processes the clean file, removing stop words and so on");
-    System.out.println("  reload [topics] -- (re)-initialises db from processed file.");
-    System.out.println("  load [topics]   -- loads corpus from db.");
-    System.out.println("  run [cycles]    -- runs the specified no. of cycles.");
-    System.out.println("  print           -- prints topic termscores");
-    System.out.println("  louvain         -- clusters graph using the Louvain method");
-    System.out.println("  infomap         -- reads in an infomap .tree file");
-    System.out.println("  js              -- clusters using Jensen-Shannon Divergence");
-    System.out.println("  trivial         -- trivially minimises average entropy of partition set");
-    System.out.println("  chart           -- display charts");
-    System.out.println("  write           -- write out community and document info");
-    System.out.println("  random          -- compare the current partition set to a random one ");
-    System.out.println("                     where the size of each partition is the same");
-    System.out.println("  louvain-seed    -- generate and store the best random seed out of 10 for");
-    System.out.println("                     the Louvain method");
-    System.out.println("  help            -- shows this list");
-    System.out.println("  quit            -- exits the program");
-  }
+  private long loadLouvainSeed() {
+    List<String> l = FileLoader.readFile(dir + CTUT.LOUVAIN_SEED);
+    return Long.parseLong(l.get(0));
+  }  
           
-  private int parse(String text) {
+  private int parse(String text, String err) {
     int val;
     try {
       val = Integer.parseInt(text);
       if (val < 0) throw new Exception();
       return val;
     } catch (Exception e) {
-      System.out.println("Invalid input.  This command needs a +ve number");
+      System.out.println("Invalid input. " + err);
       return -1;
     }
   }
@@ -279,5 +300,9 @@ class Interface {
     CommunityStructure s = new CommunityStructure(clusterer.run(), c.getTheta(),
                                                   attributes);
     return s;
+  }
+  
+  public interface Structurable {
+    public CommunityStructure run();
   }
 }

@@ -5,11 +5,20 @@ class Preprocessor {
   private final WordFrequencyList wordfreqs = new WordFrequencyList();
   private final Set<String> toRemove = new HashSet<String>();
   private final Set<String> doNotRemove = new HashSet<String>();
-  private final int minFreq = 10;
-  private final int maxFreq = 10000000;
+  private final int minFreq;
+  private final int maxFreq;
   private long tokenCount = 0;
   private long totalCount = 0;
   private int docCount = 0;
+  
+  public Preprocessor() {
+    this(10, 1000000);
+  }
+  
+  public Preprocessor(int min, int max) {
+    minFreq = min;
+    maxFreq = max;
+  }
   
   public void process(String dir) {
     wordfreqs.load(dir);
@@ -62,7 +71,7 @@ class Preprocessor {
     
     if (out.isEmpty()) {
       out.add(" ");
-      System.out.println("empty line");
+      // System.out.println("empty line");
     }
     
     return String.join(" ", out);

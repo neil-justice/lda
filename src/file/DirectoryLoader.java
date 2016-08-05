@@ -28,6 +28,12 @@ public class DirectoryLoader {
     }
   }
   
+  public void printDirectories() {
+    for (int i = 0; i < directoryNames.length; i++) {
+      System.out.println(i + " : " + directoryNames[i]);
+    }    
+  }
+  
   public void setDirectory(int i) {
     dir = directories[i];
   }
@@ -39,8 +45,6 @@ public class DirectoryLoader {
     DirectoryLoader dl = new DirectoryLoader();
     System.out.println("Directories found in output dir:");
     
-    for (String s: dl.directories()) {
-      System.out.println("  " + s);
-    }
+    dl.printDirectories();
   }
 }
