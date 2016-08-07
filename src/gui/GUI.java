@@ -34,15 +34,15 @@ public class GUI {
   private final CommInfoPanel infoPanel;
   private final HeatmapPanel heatmap;
   
-  public GUI(CommunityStructure structure) {
+  public GUI(CommunityStructure structure, int layer) {
     this.structure = structure;
     
     thetaPanel = new ThetaPlotPanel(structure);
     JSPanel = new JSDivergencePanel(structure);
     infoPanel = new CommInfoPanel(structure);
-    heatmap = new HeatmapPanel(structure, 0);
+    heatmap = new HeatmapPanel(structure, layer);
     docCount = structure.docCount();
-    setLayer(0);
+    setLayer(layer);
 
     SwingUtilities.invokeLater(this::run);
   }

@@ -3,7 +3,7 @@ import java.io.*;
 import java.nio.file.*;
 
 public class DirectoryLoader {
-  private final String root = "out/";
+  private final String root = "out" + File.separator;
   private final File[] directories;
   private final String[] directoryNames;
   private File dir;
@@ -39,7 +39,7 @@ public class DirectoryLoader {
   }
   
   public String[] directories() { return directoryNames; }
-  public String dir() { return dir.toString() + "/"; }
+  public String dir() { return dir.toString() + File.separator; }
   
   public static void main(String[] args) {
     DirectoryLoader dl = new DirectoryLoader();

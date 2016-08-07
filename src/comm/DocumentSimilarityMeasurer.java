@@ -76,7 +76,7 @@ public class DocumentSimilarityMeasurer {
       }
       entropy += entropy(inverseTheta[doc]) * weight;
     }
-    return (entropy(sum) - entropy);// / (Math.log(size) / Math.log(2));
+    return (entropy(sum) - entropy);
   }
   
   // measures the shannon entropy H of a prob. dist.

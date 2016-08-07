@@ -104,12 +104,13 @@ public class CommunityStructure {
     int commCnt = 0;
     for (int comm = 0; comm < docCount; comm++) {
       if (commSizes[comm] != 0) {
-        wordCount[comm] /= commSizes[comm];
-        followers[comm] /= commSizes[comm];
-        friends[comm]   /= commSizes[comm];
         for (int topic = 0; topic < topicCount; topic++) {
-          commThetas.div(topic, comm, commSizes[comm]);
+          // div by total wordcount for that comm to get weighted avr:
+          commThetas.div(topic, comm, commSizes[comm]); 
         }
+        wordCount[comm] /= commSizes[comm]; // get averages
+        followers[comm] /= commSizes[comm]; // get averages
+        friends[comm]   /= commSizes[comm]; // get averages
         indexes[commCnt] = comm;
         commCnt++;
       }
@@ -124,7 +125,8 @@ public class CommunityStructure {
   }
   
   public void predict() {
-    System.out.println("L  corr           % corr JS    JSi   E");
+    System.out.println("(averages)");
+    System.out.println("L  corr           % corr JS    JSi   E     size");
     for (int i = 0; i < layers; i++) {
       LayerPredictor lp = new LayerPredictor(i);
       lp.run();
@@ -155,6 +157,7 @@ public class CommunityStructure {
     private double avgJSImprovement;
     private double avgJS;
     private double avgEntropy;
+    private double avgSize;
     
     public LayerPredictor(int layer) {
       this.layer = layer;
@@ -181,10 +184,10 @@ public class CommunityStructure {
       calculateJSDists();
       getBestCommTopics();
       getBestFit();
-      System.out.printf("%d %6d/%6d = %.01f%%  %.03f %.03f %.03f%n", 
+      System.out.printf("%d %6d/%6d = %.01f%%  %.03f %.03f %.03f %5f%n", 
                         layer, correct, docCount, 
                         (correct / (double) docCount) * 100, avgJS, 
-                        avgJSImprovement, avgEntropy);
+                        avgJSImprovement, avgEntropy, avgSize);
       // printScores();
       
       bestTopicInCommLayers.add(bestTopicInComm);
@@ -218,11 +221,13 @@ public class CommunityStructure {
           avgJS += JSDiv[comm];
           avgJSImprovement += JSDivImprovement[comm];
           avgEntropy += entropy[comm];
+          avgSize += commSizes[comm];
         }
       }
       avgJS /= numComms(layer);
       avgJSImprovement /= numComms(layer);
       avgEntropy /= numComms(layer);
+      avgSize /= numComms(layer);
     }
     
     private void getBestCommTopics() {

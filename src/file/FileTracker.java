@@ -10,6 +10,7 @@ public class FileTracker {
   private final File graph;
   private final File infomap;
   private final File lseed;
+  private final File jspart;
   
   public FileTracker(String dir) {
     this.dir = new File(dir);
@@ -21,6 +22,7 @@ public class FileTracker {
     graph = new File(dir + CTUT.GRAPH);
     infomap = new File(dir + CTUT.INFOMAP);
     lseed = new File(dir + CTUT.LOUVAIN_SEED);
+    jspart = new File(dir + CTUT.JS_PARTITION_SET);
   }
   
   public boolean isClean() { return clean.exists(); }
@@ -29,4 +31,5 @@ public class FileTracker {
   public boolean hasGraph() { return graph.exists(); }
   public boolean hasInfomap() { return infomap.exists(); }
   public boolean hasLouvainSeed() { return lseed.exists(); }
+  public boolean hasJSPartInfo() { return jspart.exists(); }
 }
