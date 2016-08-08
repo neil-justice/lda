@@ -216,6 +216,8 @@ public class HybridClusterer implements Clusterer {
       a[j] = temp;
     }    
     
+    // todo also check the comms with the lowest entropy - possibly in a second
+    // miniround per round?
     private boolean makeBestMove(int node) {
       double max = 0d;
       
