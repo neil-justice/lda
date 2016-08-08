@@ -9,16 +9,16 @@ public class HierarchicalClusterer implements Clusterer {
   // maps between communities on L and nodes on L + 1:
   private final List<TIntIntHashMap> layerMaps = new ArrayList<>();
   private final List<int[]> communities = new ArrayList<int[]>();
-  private final Maximiser maximiser;
+  private final ClustererComponent clusterer;
   private final Random rnd;
   
   private HierarchicalClusterer() {
     rnd = new Random();
   }
 
-  public HierarchicalClusterer(Graph g, Maximiser maximiser) {
+  public HierarchicalClusterer(Graph g, ClustererComponent clusterer) {
     this();
-    this.maximiser = maximiser;
+    this.clusterer = clusterer;
     graphs.add(g);
     long seed = rnd.nextLong();
     rnd.setSeed(seed);
@@ -38,7 +38,8 @@ public class HierarchicalClusterer implements Clusterer {
     
     do {
       System.out.printf("Round %d:%n", layer);
-      totalMoves = maximiser.run(graphs.get(layer));
+      clusterer.reset(graphs.get(layer));
+      totalMoves = clusterer.run();
       if (totalMoves > 0 && maxLayers >= layer) addNewLayer();
     }
     while (totalMoves > 0 && maxLayers >= layer);
