@@ -31,7 +31,7 @@ public class HybridClusterer implements Clusterer {
       totalMoves = 0;
       System.out.printf("Round %d:%n", layer);
       Maximiser m = new Maximiser(graphs.get(layer), inverseThetas.get(layer));
-      SparseDoubleMatrix newTheta = m.run();
+      double[][] newTheta = m.run();
       if (totalMoves > 0 && maxLayers >= layer) addNewLayer(newTheta);
     }
     while (totalMoves > 0 && maxLayers >= layer);
@@ -39,27 +39,33 @@ public class HybridClusterer implements Clusterer {
     return mapper.mapAll();
   }
 
-  private void addNewLayer(SparseDoubleMatrix newTheta) {
+  private void addNewLayer(double[][] newTheta) {
     Graph last = graphs.get(layer);
     TIntIntHashMap map = mapper.map(last);
     layer++;
     Graph coarse = new GraphBuilder().coarseGrain(last, map).build();
     graphs.add(coarse);
-    inverseThetas.add(mapTheta(newTheta, coarse.order(), map));
+    inverseThetas.add(mapTheta(newTheta, map));
   }
   
   // maps the commTheta from L-1 to the inv. theta on L.
-  private double[][] mapTheta(SparseDoubleMatrix newTheta, int order,
-                              TIntIntHashMap map) {
-    double[][] inverseTheta = new double[order][topicCount];
+  private double[][] mapTheta(double[][] newTheta, TIntIntHashMap map) {
+    double[][] inverseTheta = new double[graphs.get(layer).order()][topicCount];
     
-    for ( SparseDoubleMatrix.Iterator it = newTheta.iterator(); it.hasNext(); ) {
-      it.advance();
-      int topic = it.x();
-      int comm = it.y();
+    
+    for (int comm = 0; comm < graphs.get(layer - 1).order(); comm++) {
       int node = map.get(comm);
-      inverseTheta[node][topic] = it.value();
+      for (int topic = 0; topic < topicCount; topic++) {
+        inverseTheta[node][topic] = newTheta[comm][topic];
+      }
     }
+    // for ( SparseDoubleMatrix.Iterator it = newTheta.iterator(); it.hasNext(); ) {
+    //   it.advance();
+    //   int topic = it.x();
+    //   int comm = it.y();
+    //   int node = map.get(comm);
+    //   inverseTheta[node][topic] = it.value();
+    // }
 
     return inverseTheta;
   }
@@ -79,8 +85,8 @@ public class HybridClusterer implements Clusterer {
       if (inverseTheta.length != g.order()) throw new Error("graph-theta size mismatch");
       
       communityProbSum = new double[g.order()][topicCount];
-      commSize = new int[g.order()];
       commEntropySum = new double[g.order()];
+      commSize = new int[g.order()];
       isWeak = new boolean[g.order()];
       check();
       
@@ -109,7 +115,7 @@ public class HybridClusterer implements Clusterer {
       }
     }
     
-    public SparseDoubleMatrix run() {
+    public double[][] run() {
       buildShuffledList();
       
       long s1 = System.nanoTime();
@@ -289,13 +295,13 @@ public class HybridClusterer implements Clusterer {
       return sum / g.numComms();
     }
     
-    private SparseDoubleMatrix getCommThetas() {
-      SparseDoubleMatrix commThetas = new SparseDoubleMatrix(topicCount, g.order());
+    private double[][] getCommThetas() {
+      double[][] commThetas = new double[g.order()][topicCount];
       
       for (int node = 0; node < g.order(); node++) {
         int comm = g.community(node);
         for (int topic = 0; topic < topicCount; topic++) {
-          commThetas.add(topic, comm, inverseTheta[node][topic]);       
+          commThetas[comm][topic] += inverseTheta[node][topic];
         }
       }
       
@@ -303,7 +309,7 @@ public class HybridClusterer implements Clusterer {
       for (int comm = 0; comm < g.order(); comm++) {
         if (commSize[comm] != 0) {
           for (int topic = 0; topic < topicCount; topic++) {
-            commThetas.div(topic, comm, commSize[comm]); 
+            commThetas[comm][topic] /= commSize[comm];
           }
         }
       }
