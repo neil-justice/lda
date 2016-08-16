@@ -41,8 +41,8 @@ public class SparseDoubleMatrix {
     public void advance() { iterator.advance(); }
     public boolean hasNext() { return iterator.hasNext(); }
     public double value() { return iterator.value(); }
-    public int x() { return (int) (iterator.key() % ymax); }
-    public int y() { return (int) (iterator.key() / ymax); }
+    public int x() { return (int) (iterator.key() % xmax); }
+    public int y() { return (int) (iterator.key() / xmax); }
   }  
   
   public static void main(String[] args) {

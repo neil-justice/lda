@@ -19,12 +19,13 @@ public class LayerMapper {
     int[] communities = g.communities();
     boolean[] isFound = new boolean[g.order()];
     TIntIntHashMap map = new TIntIntHashMap();
-    Arrays.sort(communities);
+    // Arrays.sort(communities);
     
     for (int i = 0; i < g.order(); i++) {
-      if (!isFound[communities[i]]) {
-        map.put(communities[i], count);
-        isFound[communities[i]] = true;
+      int comm = communities[i];
+      if (!isFound[comm]) {
+        map.put(comm, count);
+        isFound[comm] = true;
         count++;
       }
     }

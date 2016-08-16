@@ -5,6 +5,7 @@ import gnu.trove.map.hash.TIntIntHashMap;
 
 public class HybridClusterer implements Clusterer {
   private final double precision = 0.000001;
+  private final double threshold = 0.96;
   private final Random rnd = new Random();
   private final List<Graph> graphs = new ArrayList<Graph>();
   private final List<double[][]> inverseThetas = new ArrayList<>();
@@ -47,45 +48,66 @@ public class HybridClusterer implements Clusterer {
     inverseThetas.add(mapTheta(newTheta, coarse.order(), map));
   }
   
-  // maps the commTheta from L to the inv. theta on L + 1
+  // maps the commTheta from L-1 to the inv. theta on L.
   private double[][] mapTheta(SparseDoubleMatrix newTheta, int order,
                               TIntIntHashMap map) {
     double[][] inverseTheta = new double[order][topicCount];
     
-    for (int comm = 0; comm < order; comm++) {
-      for (int topic = 0; topic < topicCount; topic++) {
-        int node = map.get(comm);
-        inverseTheta[node][topic] = newTheta.get(topic, comm);
-      }
+    for ( SparseDoubleMatrix.Iterator it = newTheta.iterator(); it.hasNext(); ) {
+      it.advance();
+      int topic = it.x();
+      int comm = it.y();
+      int node = map.get(comm);
+      inverseTheta[node][topic] = it.value();
     }
+
     return inverseTheta;
   }
   
   public class Maximiser {
     private final Graph g;
-    private final double[][] subTheta;
+    private final double[][] inverseTheta;
     private final double[][] communityProbSum; // sum of theta of all comm members
     private final double[] commEntropySum; // sum of entropy of all members
     private final int[] commSize;
     private int[] shuffledNodes;
+    private final boolean[] isWeak; // marks high-entropy communities.
     
-    public Maximiser(Graph g, double[][] subTheta) {
+    public Maximiser(Graph g, double[][] inverseTheta) {
       this.g = g;
-      this.subTheta = subTheta;
+      this.inverseTheta = inverseTheta;
+      if (inverseTheta.length != g.order()) throw new Error("graph-theta size mismatch");
+      
       communityProbSum = new double[g.order()][topicCount];
       commSize = new int[g.order()];
       commEntropySum = new double[g.order()];
+      isWeak = new boolean[g.order()];
+      check();
       
       for (int node = 0; node < g.order(); node++) {
         int comm = g.community(node);
         if (comm != node) throw new Error("Needs a fresh graph.");
         commSize[comm] = 1;
-        commEntropySum[comm] = entropy(subTheta[comm]);
+        commEntropySum[comm] = entropy(inverseTheta[comm]);
         for (int topic = 0; topic < topicCount; topic++) {
-          communityProbSum[comm][topic] = subTheta[comm][topic];
+          communityProbSum[comm][topic] = inverseTheta[comm][topic];
         }
       }
-    }  
+    }
+    
+    // checks integrity of inverseTheta
+    private void check() {
+      for (int node = 0; node < g.order(); node++) {
+        double sum = 0d;
+        for (int topic = 0; topic < topicCount; topic++) {
+          sum += inverseTheta[node][topic];
+        }
+        System.out.println(sum);
+        // if (sum > 1.001 || sum < 0.99) {
+        //   throw new Error("theta integrity fail: " + sum);
+        // }
+      }
+    }
     
     public SparseDoubleMatrix run() {
       buildShuffledList();
@@ -133,20 +155,32 @@ public class HybridClusterer implements Clusterer {
       System.out.println("tempering... ");
       int success = 0;
       int total = 0;
+      double avgH = avgEntropy();
       
       for (int i = 0; i < g.order(); i++) {
         int node = shuffledNodes[i];
         int comm = g.community(node);
-        double jsd = JSD(comm);
-        // System.out.println(jsd);
-        if (jsd > 1.5) {
-          if (temperNode(node, jsd)) success++;
+        double H = commEntropy(communityProbSum[comm], commSize[comm]);
+        if (H > threshold) {
+          isWeak[comm] = true;
+        }
+      }
+      
+      for (int i = 0; i < g.order(); i++) {
+        int node = shuffledNodes[i];
+        int comm = g.community(node);
+        double H = commEntropy(communityProbSum[comm], commSize[comm]);
+        // System.out.println(H);
+        if (H > threshold) {
+          if (temperNode(node, H)) success++;
           total++;
         }
       }
+      
       System.out.printf("Mod: %5f  Comms: %d Moves:  %d%n", 
                         g.modularity() , g.numComms(), success);        
       System.out.println(success + "/" + total + " moved");
+      System.out.println("delta H: " + avgH + " -> " + avgEntropy());
     }
     
     private boolean temperNode(int node, double min) {
@@ -154,10 +188,11 @@ public class HybridClusterer implements Clusterer {
       int newComm = -1;
     
       for (int comm = 0; comm < g.order(); comm++) {
-        if (commSize[comm] != 0 && comm != oldComm) {
-          double dist = JSD(node, comm);
-          if (dist < min) {
-            min = dist;
+        if (isWeak[comm] && commSize[comm] != 0 && comm != oldComm) {
+          double H = newEntropy(communityProbSum[comm], inverseTheta[node], 
+                                commSize[comm] + 1);
+          if (H < min) {
+            min = H;
             newComm = comm;
           }
         }
@@ -180,11 +215,10 @@ public class HybridClusterer implements Clusterer {
       for (int i = 0; i < g.neighbours(node).size(); i++) {
         int comm = g.community(g.neighbours(node).get(i));
         double mod = deltaModularity(node, comm);
-        // double jsd = JSD(node, comm,);
-        // double ent = newEntropy(communityProbSum[comm], subTheta[node], 
-        //                         commSize[comm] + 1);
+        double ent = newEntropy(communityProbSum[comm], inverseTheta[node], 
+                                commSize[comm] + 1);
         // maximise mod, minimise ent:
-        double inc = mod; // * (1d - ent);
+        double inc = mod * (1d - ent);
         // System.out.println(inc + " " + mod + " " + jsd + " " + ent);
         if (inc > max) {
           max = inc;
@@ -200,7 +234,7 @@ public class HybridClusterer implements Clusterer {
     }
     
     private void move(int node, int newComm, int oldComm) {
-      double entropy = entropy(subTheta[node]);
+      double entropy = entropy(inverseTheta[node]);
       
       commSize[newComm]++;
       commSize[oldComm]--;
@@ -208,8 +242,8 @@ public class HybridClusterer implements Clusterer {
       commEntropySum[newComm] += entropy;
       
       for (int topic = 0; topic < topicCount; topic++) {
-        communityProbSum[oldComm][topic] -= subTheta[node][topic];
-        communityProbSum[newComm][topic] += subTheta[node][topic];
+        communityProbSum[oldComm][topic] -= inverseTheta[node][topic];
+        communityProbSum[newComm][topic] += inverseTheta[node][topic];
       }
       
       g.moveToComm(node, newComm);
@@ -231,37 +265,28 @@ public class HybridClusterer implements Clusterer {
       }
       return entropy(e);
     }
+    
+    private double commEntropy(double[] commDist, int size) {
+      double[] e = new double[topicCount];
+      for (int topic = 0; topic < topicCount; topic++) {
+        e[topic] = commDist[topic] / size;
+      }
+      return entropy(e);
+    }
 
     private double entropy(double[] dist) {
-      return DocumentSimilarityMeasurer.entropy(dist);
+      return DocumentSimilarityMeasurer.entropy(dist, topicCount);
     }
     
-    private double JSD(int node, int newComm) {
-      double weight = 1d / (commSize[newComm] + 1);
-      
-      double[] sum = new double[topicCount];
-      for (int topic = 0; topic < topicCount; topic++) {
-        sum[topic] = (communityProbSum[newComm][topic] + subTheta[node][topic])
-                   * weight;
-      }
-
-      double esum = (commEntropySum[newComm] + entropy(subTheta[node])) * weight;
-      // System.out.println("e(sum)" + entropy(sum) + " esum: " + esum);
-      return entropy(sum) - esum;
-    }
-    
-    // JSD of all nodes in a comm
-    private double JSD(int comm) {
-      double weight = 1d / commSize[comm];
-      
-      double[] sum = new double[topicCount];
-      for (int topic = 0; topic < topicCount; topic++) {
-        sum[topic] = communityProbSum[comm][topic] * weight;
+    private double avgEntropy() {
+      double sum = 0d;
+      for (int comm = 0; comm < g.order(); comm++) {
+        if (commSize[comm] > 0) {
+          sum += commEntropy(communityProbSum[comm], commSize[comm]);
+        }
       }
       
-      double esum = commEntropySum[comm] * weight;
-      // System.out.println("e(sum)" + entropy(sum) + " esum: " + esum);
-      return entropy(sum) - esum;
+      return sum / g.numComms();
     }
     
     private SparseDoubleMatrix getCommThetas() {
@@ -269,10 +294,8 @@ public class HybridClusterer implements Clusterer {
       
       for (int node = 0; node < g.order(); node++) {
         int comm = g.community(node);
-        if (commSize[comm] != 0) {
-          for (int topic = 0; topic < topicCount; topic++) {
-            commThetas.add(topic, comm, subTheta[comm][topic]);       
-          }
+        for (int topic = 0; topic < topicCount; topic++) {
+          commThetas.add(topic, comm, inverseTheta[node][topic]);       
         }
       }
       
