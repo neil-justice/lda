@@ -6,12 +6,10 @@ import gnu.trove.map.hash.TIntIntHashMap;
 public class HybridClusterer implements Clusterer {
   private final double precision = 0.000001;
   private final Random rnd = new Random();
-  private final int topicCount;
-  private final List<double[][]> inverseThetas = new ArrayList<>();
   private final List<Graph> graphs = new ArrayList<Graph>();
-  // maps between communities on L and nodes on L + 1:
-  private final List<TIntIntHashMap> layerMaps = new ArrayList<>();
-  private final List<int[]> communities = new ArrayList<int[]>();  
+  private final List<double[][]> inverseThetas = new ArrayList<>();
+  private final LayerMapper mapper = new LayerMapper(graphs);
+  private final int topicCount;
   private int totalMoves = 0;
   private int layer = 0; // current community layer  
   
@@ -37,14 +35,12 @@ public class HybridClusterer implements Clusterer {
     }
     while (totalMoves > 0 && maxLayers >= layer);
     
-    buildCommunityList();
-    return communities;
+    return mapper.mapAll();
   }
 
   private void addNewLayer(SparseDoubleMatrix newTheta) {
     Graph last = graphs.get(layer);
-    TIntIntHashMap map = createLayerMap(last);
-    layerMaps.add(map);
+    TIntIntHashMap map = mapper.map(last);
     layer++;
     Graph coarse = new GraphBuilder().coarseGrain(last, map).build();
     graphs.add(coarse);
@@ -63,71 +59,6 @@ public class HybridClusterer implements Clusterer {
       }
     }
     return inverseTheta;
-  }
-  
-  // map from community -> node on layer above
-  private TIntIntHashMap createLayerMap(Graph g) {
-    int count = 0;
-    int[] communities = g.communities();
-    boolean[] isFound = new boolean[g.order()];
-    TIntIntHashMap map = new TIntIntHashMap();
-    Arrays.sort(communities);
-    
-    for (int i = 0; i < g.order(); i++) {
-      if (!isFound[communities[i]]) {
-        map.put(communities[i], count);
-        isFound[communities[i]] = true;
-        count++;
-      }
-    }
-    if (map.size() != g.numComms()) throw new Error("Map creation failed.");
-    
-    return map;
-  }
-  
-  // uses the layer maps to assign a community from each layer to the base layer
-  // graph.
-  private void buildCommunityList() {
-    List<int[]> rawComms = new ArrayList<int[]>();
-    communities.add(graphs.get(0).communities());
-    
-    for (int i = 0; i < layer; i++) {
-      rawComms.add(graphs.get(i).communities());
-    }
-    
-    for (int i = 0; i < layer - 1; i++) {
-      communities.add(mapToBaseLayer(i , rawComms));
-    }
-  }
-  
-  // maps layers to each other until the specified layer has been mapped to the
-  // base layer
-  private int[] mapToBaseLayer(int layer, List<int[]> rawComms) {
-    int[] a = mapToNextLayer(graphs.get(layer), layerMaps.get(layer), 
-                             rawComms.get(layer + 1));
-    layer--;
-    
-    while (layer >= 0) {
-      a = mapToNextLayer(graphs.get(layer), layerMaps.get(layer), a);
-      layer--;
-    }
-    
-    return a;
-  }
-  
-  // maps each node in a layer to its community on the layer above it
-  private int[] mapToNextLayer(Graph g, TIntIntHashMap map, int[] commsL2) {
-    int[] commsL1 = g.communities();
-    int[] NL1toCL2 = new int[g.order()];
-
-    for (int nodeL1 = 0; nodeL1 < g.order(); nodeL1++) {
-      int commL1 = commsL1[nodeL1];
-      int nodeL2 = map.get(commL1);
-      int commL2 = commsL2[nodeL2];
-      NL1toCL2[nodeL1] = commL2;
-    }
-    
-    return NL1toCL2;
   }
   
   public class Maximiser {
@@ -167,7 +98,7 @@ public class HybridClusterer implements Clusterer {
       return getCommThetas();
     }
     
-    // todo add avg entropy
+    // TODO add avg entropy
     private void reassignCommunities() {
       double mod = g.modularity();
       double oldMod;
@@ -185,6 +116,8 @@ public class HybridClusterer implements Clusterer {
         System.out.printf("Mod: %5f  Comms: %d Moves:  %d%n", 
                             mod , g.numComms(), moves);
       } while (hasChanged);
+      
+      temper();
     } 
     
     private int maximise() {
@@ -194,6 +127,164 @@ public class HybridClusterer implements Clusterer {
         if (makeBestMove(node)) moves++;
       }
       return moves;
+    }
+    
+    private void temper() {
+      System.out.println("tempering... ");
+      int success = 0;
+      int total = 0;
+      
+      for (int i = 0; i < g.order(); i++) {
+        int node = shuffledNodes[i];
+        int comm = g.community(node);
+        double jsd = JSD(comm);
+        // System.out.println(jsd);
+        if (jsd > 1.5) {
+          if (temperNode(node, jsd)) success++;
+          total++;
+        }
+      }
+      System.out.printf("Mod: %5f  Comms: %d Moves:  %d%n", 
+                        g.modularity() , g.numComms(), success);        
+      System.out.println(success + "/" + total + " moved");
+    }
+    
+    private boolean temperNode(int node, double min) {
+      int oldComm = g.community(node);
+      int newComm = -1;
+    
+      for (int comm = 0; comm < g.order(); comm++) {
+        if (commSize[comm] != 0 && comm != oldComm) {
+          double dist = JSD(node, comm);
+          if (dist < min) {
+            min = dist;
+            newComm = comm;
+          }
+        }
+      }
+      
+      if (newComm != -1) {
+        move(node, newComm, oldComm);
+        return true;
+      }
+      else return false;
+      
+    }
+    
+    private boolean makeBestMove(int node) {
+      double max = 0d;
+      
+      int bestComm = -1;
+      int oldComm = g.community(node);
+      
+      for (int i = 0; i < g.neighbours(node).size(); i++) {
+        int comm = g.community(g.neighbours(node).get(i));
+        double mod = deltaModularity(node, comm);
+        // double jsd = JSD(node, comm,);
+        // double ent = newEntropy(communityProbSum[comm], subTheta[node], 
+        //                         commSize[comm] + 1);
+        // maximise mod, minimise ent:
+        double inc = mod; // * (1d - ent);
+        // System.out.println(inc + " " + mod + " " + jsd + " " + ent);
+        if (inc > max) {
+          max = inc;
+          bestComm = comm;
+        }
+      }
+      
+      if (bestComm > 0 && bestComm != oldComm) {
+        move(node, bestComm, oldComm);
+        return true;
+      }
+      else return false;
+    }
+    
+    private void move(int node, int newComm, int oldComm) {
+      double entropy = entropy(subTheta[node]);
+      
+      commSize[newComm]++;
+      commSize[oldComm]--;
+      commEntropySum[oldComm] -= entropy;
+      commEntropySum[newComm] += entropy;
+      
+      for (int topic = 0; topic < topicCount; topic++) {
+        communityProbSum[oldComm][topic] -= subTheta[node][topic];
+        communityProbSum[newComm][topic] += subTheta[node][topic];
+      }
+      
+      g.moveToComm(node, newComm);
+    }
+
+    // change in modularity if node is moved to community
+    private double deltaModularity(int node, int community) {
+      double dnodecomm = (double) g.dnodecomm(node, community);
+      double ctot      = (double) g.totDegree(community);
+      double wdeg      = (double) g.degree(node);
+      return dnodecomm - ((ctot * wdeg) / g.m2());
+    }
+
+    // new entropy if node were to be moved to comm
+    private double newEntropy(double[] commDist, double[] nodeDist, int size) {
+      double[] e = new double[topicCount];
+      for (int topic = 0; topic < topicCount; topic++) {
+        e[topic] = (commDist[topic] + nodeDist[topic]) / size;
+      }
+      return entropy(e);
+    }
+
+    private double entropy(double[] dist) {
+      return DocumentSimilarityMeasurer.entropy(dist);
+    }
+    
+    private double JSD(int node, int newComm) {
+      double weight = 1d / (commSize[newComm] + 1);
+      
+      double[] sum = new double[topicCount];
+      for (int topic = 0; topic < topicCount; topic++) {
+        sum[topic] = (communityProbSum[newComm][topic] + subTheta[node][topic])
+                   * weight;
+      }
+
+      double esum = (commEntropySum[newComm] + entropy(subTheta[node])) * weight;
+      // System.out.println("e(sum)" + entropy(sum) + " esum: " + esum);
+      return entropy(sum) - esum;
+    }
+    
+    // JSD of all nodes in a comm
+    private double JSD(int comm) {
+      double weight = 1d / commSize[comm];
+      
+      double[] sum = new double[topicCount];
+      for (int topic = 0; topic < topicCount; topic++) {
+        sum[topic] = communityProbSum[comm][topic] * weight;
+      }
+      
+      double esum = commEntropySum[comm] * weight;
+      // System.out.println("e(sum)" + entropy(sum) + " esum: " + esum);
+      return entropy(sum) - esum;
+    }
+    
+    private SparseDoubleMatrix getCommThetas() {
+      SparseDoubleMatrix commThetas = new SparseDoubleMatrix(topicCount, g.order());
+      
+      for (int node = 0; node < g.order(); node++) {
+        int comm = g.community(node);
+        if (commSize[comm] != 0) {
+          for (int topic = 0; topic < topicCount; topic++) {
+            commThetas.add(topic, comm, subTheta[comm][topic]);       
+          }
+        }
+      }
+      
+      int commCnt = 0;
+      for (int comm = 0; comm < g.order(); comm++) {
+        if (commSize[comm] != 0) {
+          for (int topic = 0; topic < topicCount; topic++) {
+            commThetas.div(topic, comm, commSize[comm]); 
+          }
+        }
+      }
+      return commThetas;
     }
     
     public void buildShuffledList() {
@@ -214,108 +305,6 @@ public class HybridClusterer implements Clusterer {
       int temp = a[i];
       a[i] = a[j];
       a[j] = temp;
-    }    
-    
-    // todo also check the comms with the lowest entropy - possibly in a second
-    // miniround per round?
-    private boolean makeBestMove(int node) {
-      double max = 0d;
-      
-      int bestComm = -1;
-      int oldComm = g.community(node);
-      
-      for (int i = 0; i < g.neighbours(node).size(); i++) {
-        int comm = g.community(g.neighbours(node).get(i));
-        double mod = deltaModularity(node, comm);
-        // double jsd = JSD(node, comm, commSize[comm] + 1);
-        double ent = newEntropy(communityProbSum[comm], subTheta[node], 
-                                commSize[comm] + 1);
-        // maximise mod, minimise ent:
-        double inc = mod * (1d - ent);
-        // System.out.println(inc + " " + mod + " " + jsd + " " + ent);
-        if (inc > max) {
-          max = inc;
-          bestComm = comm;
-        }
-      }
-      
-      if (bestComm > 0 && bestComm != oldComm) {
-        move(node, bestComm, oldComm);
-        return true;
-      }
-      else return false;
-    }
-    
-    private void move(int doc, int newComm, int oldComm) {
-      double entropy = entropy(subTheta[doc]);
-      
-      commSize[newComm]++;
-      commSize[oldComm]--;
-      commEntropySum[oldComm] -= entropy;
-      commEntropySum[newComm] += entropy;
-      
-      for (int topic = 0; topic < topicCount; topic++) {
-        communityProbSum[oldComm][topic] -= subTheta[doc][topic];
-        communityProbSum[newComm][topic] += subTheta[doc][topic];
-      }
-      
-      g.moveToComm(doc, newComm);
-    }
-
-    // change in modularity if node is moved to community
-    private double deltaModularity(int node, int community) {
-      double dnodecomm = (double) g.dnodecomm(node, community);
-      double ctot      = (double) g.totDegree(community);
-      double wdeg      = (double) g.degree(node);
-      return dnodecomm - ((ctot * wdeg) / g.m2());
-    }
-
-    private double newEntropy(double[] commDist, double[] docDist, int size) {
-      double[] e = new double[topicCount];
-      for (int topic = 0; topic < topicCount; topic++) {
-        e[topic] = (commDist[topic] + docDist[topic]) / size;
-      }
-      return entropy(e);
-    }
-    
-    private double entropy(double[] dist) {
-      return DocumentSimilarityMeasurer.entropy(dist, topicCount);
-    }
-    
-    private double JSD(int node, int newComm, int size) {
-      double weight = 1d / size;
-      double entropy = entropy(subTheta[node]);
-      
-      double[] sum = new double[topicCount];
-      for (int topic = 0; topic < topicCount; topic++) {
-        sum[topic] = (communityProbSum[newComm][topic] + subTheta[node][topic])
-                   * weight;
-      }
-
-      double esum = (commEntropySum[newComm] + entropy) * weight;
-
-      return entropy(sum) - esum;
-    }
-    
-    private SparseDoubleMatrix getCommThetas() {
-      SparseDoubleMatrix commThetas = new SparseDoubleMatrix(topicCount, g.order());
-      
-      for (int node = 0; node < g.order(); node++) {
-        int comm = g.community(node);    
-        for (int topic = 0; topic < topicCount; topic++) {
-          commThetas.add(topic, comm, subTheta[node][topic]);       
-        }
-      }
-      
-      int commCnt = 0;
-      for (int comm = 0; comm < g.order(); comm++) {
-        if (commSize[comm] != 0) {
-          for (int topic = 0; topic < topicCount; topic++) {
-            commThetas.div(topic, comm, commSize[comm]); 
-          }
-        }
-      }
-      return commThetas;
-    }
+    }     
   }
 }

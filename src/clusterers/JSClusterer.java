@@ -128,6 +128,6 @@ public class JSClusterer implements Clusterer {
   }
   
   private double entropy(double[] dist) {
-    return DocumentSimilarityMeasurer.entropy(dist, topicCount);
+    return DocumentSimilarityMeasurer.entropy(dist);
   }
 }
