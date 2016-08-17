@@ -22,6 +22,7 @@ public class GUI {
   public static final int MAX_SIZE = 400;
   
   private final CommunityStructure structure;
+  private final double[][] phi;
   private static final Random rnd = new Random();
   private final int docCount;
   private int[] commSizes;
@@ -34,8 +35,9 @@ public class GUI {
   private final CommInfoPanel infoPanel;
   private final HeatmapPanel heatmap;
   
-  public GUI(CommunityStructure structure, int layer) {
+  public GUI(CommunityStructure structure, int layer, double[][] phi) {
     this.structure = structure;
+    this.phi = phi;
     
     thetaPanel = new ThetaPlotPanel(structure);
     JSPanel = new JSDivergencePanel(structure);
@@ -62,11 +64,19 @@ public class GUI {
     frame.setSize(800, 400);
     frame.setDefaultCloseOperation(frame.DISPOSE_ON_CLOSE);
     frame.setTitle("CTUT - Community Topic Usage Tracker");
+    frame.setExtendedState(frame.getExtendedState() | JFrame.MAXIMIZED_BOTH);
+    frame.setVisible(true);
     frame.setLayout(new BorderLayout());
     frame.add(chartPanel(), BorderLayout.CENTER);
     frame.add(listPanel(), BorderLayout.EAST);
-    frame.setExtendedState(frame.getExtendedState() | JFrame.MAXIMIZED_BOTH);
-    frame.setVisible(true);
+    // JPanel tab1 = new JPanel();
+    // tab1.setLayout(new BorderLayout());
+    // tab1.add(chartPanel(), BorderLayout.CENTER);
+    // tab1.add(listPanel(), BorderLayout.EAST);
+    // JTabbedPane tabbedPane = new JTabbedPane();
+    // tabbedPane.addTab("Community Info", tab1);
+    // tabbedPane.addTab("Topic Info", new TopicPanel(phi));
+    // frame.add(tabbedPane);
   }
   
   private JPanel chartPanel() {
@@ -91,7 +101,7 @@ public class GUI {
     double[] entropy = structure.entropy(layer);
     IndexComparator comp = new IndexComparator(entropy);
     Integer[] indexes = comp.indexArray();
-    Arrays.sort(indexes, comp);    
+    Arrays.sort(indexes, comp);  
     
     for (int i = 0; i < docCount; i++) {
       int comm = indexes[i];

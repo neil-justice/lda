@@ -231,8 +231,10 @@ class Interface {
     g = getGraph();
     CommunityWriter cWriter = new CommunityWriter(structure, dir);
     DocumentWriter dWriter = new DocumentWriter(structure, dir, g);
+    PhiWriter pWriter = new PhiWriter(c.getPhi(), new Translator(c), dir);
     cWriter.write();
     dWriter.write();
+    pWriter.write();
   }  
   
   private void viewCharts() {
@@ -240,16 +242,12 @@ class Interface {
       GUI gui;
       if (structure == null) structure = louvain();
       int layer = parse(cmd[1], "Layer must be a non-negative number.");   
-      if (layer >= 0 && layer < structure.layers()) gui = new GUI(structure, layer);
+      if (layer >= 0 && layer < structure.layers()) gui = new GUI(structure, layer, c.getPhi());
       else System.out.println("Layer does not exist.");
     }
     else System.out.println(usageErrorMsg);    
     // DocumentSimilaritySpace simSpace = new DocumentSimilaritySpace(structure);
     // simSpace.run();
-  }
-  
-  private void batch() {
-    
   }
   
   private void topicCoocurrence() {

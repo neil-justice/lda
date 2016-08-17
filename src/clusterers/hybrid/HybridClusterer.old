@@ -5,7 +5,7 @@ import gnu.trove.map.hash.TIntIntHashMap;
 
 public class HybridClusterer implements Clusterer {
   private final double precision = 0.000001;
-  private final double threshold = 0.96;
+  private final double threshold = 0.7;
   private final Random rnd = new Random();
   private final List<Graph> graphs = new ArrayList<Graph>();
   private final List<double[][]> inverseThetas = new ArrayList<>();
@@ -31,7 +31,7 @@ public class HybridClusterer implements Clusterer {
       totalMoves = 0;
       System.out.printf("Round %d:%n", layer);
       Maximiser m = new Maximiser(graphs.get(layer), inverseThetas.get(layer));
-      double[][] newTheta = m.run();
+      SparseDoubleMatrix newTheta = m.run();
       if (totalMoves > 0 && maxLayers >= layer) addNewLayer(newTheta);
     }
     while (totalMoves > 0 && maxLayers >= layer);
@@ -39,33 +39,27 @@ public class HybridClusterer implements Clusterer {
     return mapper.mapAll();
   }
 
-  private void addNewLayer(double[][] newTheta) {
+  private void addNewLayer(SparseDoubleMatrix newTheta) {
     Graph last = graphs.get(layer);
     TIntIntHashMap map = mapper.map(last);
     layer++;
     Graph coarse = new GraphBuilder().coarseGrain(last, map).build();
     graphs.add(coarse);
-    inverseThetas.add(mapTheta(newTheta, map));
+    inverseThetas.add(mapTheta(newTheta, coarse.order(), map));
   }
   
   // maps the commTheta from L-1 to the inv. theta on L.
-  private double[][] mapTheta(double[][] newTheta, TIntIntHashMap map) {
-    double[][] inverseTheta = new double[graphs.get(layer).order()][topicCount];
+  private double[][] mapTheta(SparseDoubleMatrix newTheta, int order,
+                              TIntIntHashMap map) {
+    double[][] inverseTheta = new double[order][topicCount];
     
-    
-    for (int comm = 0; comm < graphs.get(layer - 1).order(); comm++) {
+    for ( SparseDoubleMatrix.Iterator it = newTheta.iterator(); it.hasNext(); ) {
+      it.advance();
+      int topic = it.x();
+      int comm = it.y();
       int node = map.get(comm);
-      for (int topic = 0; topic < topicCount; topic++) {
-        inverseTheta[node][topic] = newTheta[comm][topic];
-      }
+      inverseTheta[node][topic] = it.value();
     }
-    // for ( SparseDoubleMatrix.Iterator it = newTheta.iterator(); it.hasNext(); ) {
-    //   it.advance();
-    //   int topic = it.x();
-    //   int comm = it.y();
-    //   int node = map.get(comm);
-    //   inverseTheta[node][topic] = it.value();
-    // }
 
     return inverseTheta;
   }
@@ -85,8 +79,8 @@ public class HybridClusterer implements Clusterer {
       if (inverseTheta.length != g.order()) throw new Error("graph-theta size mismatch");
       
       communityProbSum = new double[g.order()][topicCount];
-      commEntropySum = new double[g.order()];
       commSize = new int[g.order()];
+      commEntropySum = new double[g.order()];
       isWeak = new boolean[g.order()];
       check();
       
@@ -108,14 +102,14 @@ public class HybridClusterer implements Clusterer {
         for (int topic = 0; topic < topicCount; topic++) {
           sum += inverseTheta[node][topic];
         }
-        System.out.println(sum);
-        // if (sum > 1.001 || sum < 0.99) {
-        //   throw new Error("theta integrity fail: " + sum);
-        // }
+        // System.out.println(sum);
+        if (sum > 1.001 || sum < 0.99) {
+          throw new Error("theta integrity fail: " + sum);
+        }
       }
     }
     
-    public double[][] run() {
+    public SparseDoubleMatrix run() {
       buildShuffledList();
       
       long s1 = System.nanoTime();
@@ -295,21 +289,20 @@ public class HybridClusterer implements Clusterer {
       return sum / g.numComms();
     }
     
-    private double[][] getCommThetas() {
-      double[][] commThetas = new double[g.order()][topicCount];
+    private SparseDoubleMatrix getCommThetas() {
+      SparseDoubleMatrix commThetas = new SparseDoubleMatrix(topicCount, g.order());
       
       for (int node = 0; node < g.order(); node++) {
         int comm = g.community(node);
         for (int topic = 0; topic < topicCount; topic++) {
-          commThetas[comm][topic] += inverseTheta[node][topic];
+          commThetas.add(topic, comm, inverseTheta[node][topic]);       
         }
       }
       
-      int commCnt = 0;
       for (int comm = 0; comm < g.order(); comm++) {
         if (commSize[comm] != 0) {
           for (int topic = 0; topic < topicCount; topic++) {
-            commThetas[comm][topic] /= commSize[comm];
+            commThetas.div(topic, comm, commSize[comm]); 
           }
         }
       }

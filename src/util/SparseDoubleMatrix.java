@@ -14,11 +14,13 @@ public class SparseDoubleMatrix {
   }
   
   public double get (int x, int y) { 
-    return map.get((long) x * ymax + (long) y); 
+    return map.get((long) x + xmax * (long) y); 
   }
   
-  public void set (int x, int y, double val) { 
-    map.put((long) x * ymax + (long) y, val); 
+  public void set (int x, int y, double val) {
+    if (x > xmax) throw new Error("x overflow");
+    if (y > ymax) throw new Error("y overflow");
+    map.put((long) x + xmax * (long) y, val); 
   }
   
   public void add (int x, int y, double val) {

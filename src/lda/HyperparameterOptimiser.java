@@ -15,18 +15,24 @@ public class HyperparameterOptimiser {
   private final double c = 1.001;    // gamma hyperprior - see see sect. 2.5 in paper
                                  
   public HyperparameterOptimiser(int[] tokensInDoc, int topicCount, int maxLength) {
-    this.maxLength = maxLength;
     this.docCount = tokensInDoc.length;
+    this.topicCount = topicCount;
+    this.maxLength = maxLength;
     docLengthHist = new int[maxLength];
+    
     for (int doc = 0; doc < docCount; doc++) {
       int length = tokensInDoc[doc];
       docLengthHist[length]++;
     }
-    this.topicCount = topicCount;
+  }
+  
+	public double optimiseAlpha(double[] alpha, int[][] docTopicCountHist) {
+    return optimiseAlpha(alpha, docTopicCountHist, 10);
   }
   
   // alpha is modified in-place.
-	public double optimiseAlpha(double[] alpha,int[][] docTopicCountHist, int iterations) {
+	public double optimiseAlpha(double[] alpha, int[][] docTopicCountHist, 
+                              int iterations) {
     this.docTopicCountHist = docTopicCountHist;
 		double alphaSum = 0d;
 		
@@ -34,18 +40,7 @@ public class HyperparameterOptimiser {
 			alphaSum += alpha[topic];
 		}
 
-    // highestCountForTopic[topic] = the no. of times that topic appears in the
-    // doc in which it appears most.
-		int[] highestCountForTopic = new int[topicCount];
-		Arrays.fill(highestCountForTopic, -1);
-
-		for (int topic = 0; topic < topicCount; topic++) {
-			for (int length = 0; length < maxLength; length++) {
-				if (docTopicCountHist[topic][length] > 0) {
-					highestCountForTopic[topic] = length;
-				}
-			}
-		}
+		int[] highestCountForTopic = setHighestCountForTopic();
 
 		for (int it = 0; it < iterations; it++) {
 			double S = 0;
@@ -57,14 +52,15 @@ public class HyperparameterOptimiser {
 			S -= 1 / s; // s is a component of the hyperprior
       
 			alphaSum = 0;
+      double Sk;
 			for (int topic = 0; topic < topicCount; topic++) {
-				double[] Sk = new double[topicCount];         
+        Sk = 0d;
 				D = 0;
 				for (int count = 1; count <= highestCountForTopic[topic]; count++) {
 					D += 1 / (count - 1 + alpha[topic]);
-					Sk[topic] += docTopicCountHist[topic][count] * D;
+					Sk += docTopicCountHist[topic][count] * D;
 				}
-				alpha[topic] *= (Sk[topic] + c) / S; // c is a component of the hyperprior
+				alpha[topic] *= (Sk + c) / S; // c is a component of the hyperprior
 				alphaSum += alpha[topic];
 			}
 		}
@@ -72,5 +68,21 @@ public class HyperparameterOptimiser {
 		if (alphaSum < 0) { throw new RuntimeException("alphaSum: " + alphaSum); }
 
 		return alphaSum;
-	}  
+	}
+  
+  // highestCountForTopic[topic] = the no. of times that topic appears in the
+  // doc in which it appears most.  
+  private int[] setHighestCountForTopic() {
+		int[] highestCountForTopic = new int[topicCount];
+		Arrays.fill(highestCountForTopic, -1);
+
+		for (int topic = 0; topic < topicCount; topic++) {
+			for (int length = 0; length < maxLength; length++) {
+				if (docTopicCountHist[topic][length] > 0) {
+					highestCountForTopic[topic] = length;
+				}
+			}
+		}
+    return highestCountForTopic;
+  }
 }

@@ -16,14 +16,15 @@ public class Corpus {
   private final int[][] topicsInDoc;
   private final double[][] phiSum;     // multinomial dist. of words in topics
   private final double[][] thetaSum;   // multinomial dist. of topics in docs.
-  private final double[] topicWeight;
-  // high alpha: each document is likely to contain a mixture of most topics.
-  // low alpha:  more likely that a document may contain just a few topics. 
-  // high beta: each topic is likely to contain a mixture of most of words
-  // low beta: each topic may contain a mixture of just a few of the words.
-  private final double alpha; // hyperparameters
+  private final double[] topicWeight;  // how frequent each topic is
+  
+  private HyperparameterOptimiser optimiser;
+  private final double[] alpha; // hyperparameters
   private final double beta;  // hyperparameters
   private final double betaSum;  // hyperparameters
+  private int maxLength; // length of longest doc
+  private int optimiseInterval;
+  
   private int cycles;
   private int samples; // no. of times the phi and theta sums have been added to
   private int burnLength; // length of burn-in phase to allow markov chain 
@@ -64,7 +65,7 @@ public class Corpus {
     thetaSum      = new double[topicCount][docCount];
     topicWeight   = new double[topicCount];
     
-    alpha = 0.1;
+    alpha = new double[topicCount];
     beta  = 0.2;
     betaSum = beta * wordCount;
     
@@ -87,6 +88,7 @@ public class Corpus {
     randomiseTopics();
     initialiseMatrices();
     initMulti();
+    initHyper();
   }
   
   private void initMulti() {
@@ -129,10 +131,26 @@ public class Corpus {
     }
   }  
   
+  private void initHyper() {
+    int max = 0;
+    for (int doc = 0; doc < docCount; doc++) {
+      int length = tokensInDoc[doc];
+      if (length > max) max = length;
+    }
+    maxLength = max + 1;
+    System.out.println(max);
+    
+    optimiser = new HyperparameterOptimiser(tokensInDoc, topicCount, maxLength);
+    for (int topic = 0; topic < topicCount; topic++) {
+      alpha[topic] = 0.1;
+    }
+  }
+  
   public void run(int cycles) {
     this.cycles = cycles;
     burnLength = cycles / 10;
     sampleLag = cycles / 50;
+    optimiseInterval = cycles / 52;
     cycles();
     write();
   }
@@ -168,6 +186,7 @@ public class Corpus {
     for (int i = 0; i < cycles; i++) {
       long s = System.nanoTime();
       cycle();
+      if (i >= burnLength && i % optimiseInterval == 0) optimiseAlpha();
       if (i >= burnLength && i % sampleLag == 0) updateParameters();
       long e = System.nanoTime();
       double time = (e - s) / 1000000000d;
@@ -177,6 +196,7 @@ public class Corpus {
       System.out.print(", moves made: " + moves );
       if (i < burnLength) System.out.print(" (burn-in)");
       else if (i % sampleLag != 0) System.out.print(" (sample-lagging)");
+      else if (i % optimiseInterval == 0) System.out.print(" (optimising)");
       System.out.println();
       moves = 0;
     }
@@ -244,7 +264,7 @@ public class Corpus {
       double sum = 0;
 
       for (int topic = 0; topic < topicCount; topic++) {
-        probabilities[topic] = (topicsInDoc[topic][doc] + alpha)
+        probabilities[topic] = (topicsInDoc[topic][doc] + alpha[topic])
                              * ((wordsInTopic[word][topic] + beta)
                              /  (localTokensInTopic[topic] + betaSum));
         sum += probabilities[topic];
@@ -297,14 +317,29 @@ public class Corpus {
     }
   }
   
+  private void optimiseAlpha() {
+    int[][] docTopicCountHist = new int[topicCount][maxLength];
+    for (int topic = 0; topic < topicCount; topic++) {
+      for (int doc = 0; doc < docCount; doc++) {
+        int count = topicsInDoc[topic][doc];
+        docTopicCountHist[topic][count]++;
+      }
+    }    
+    optimiser.optimiseAlpha(alpha, docTopicCountHist);
+    for (int topic = 0; topic < topicCount; topic++) {
+      System.out.println("t " + topic + " alpha " + alpha[topic]);
+    }
+    
+  }
+  
   // if the markov chain is out of burn-in phase, and the thinning interval
   // has passed (the thinning interval allows us to obtain decorrelated states
   // of the markov chain), then this round of sampling is added to the -sums.
   private void updateParameters() {
     for (int topic = 0; topic < topicCount; topic++) {
       for (int doc = 0; doc < docCount; doc++) {
-        thetaSum[topic][doc] += (topicsInDoc[topic][doc] + alpha)
-                             /  (double)(tokensInDoc[doc] + topicCount * alpha);
+        thetaSum[topic][doc] += (topicsInDoc[topic][doc] + alpha[topic])
+                             /  (double)(tokensInDoc[doc] + topicCount * alpha[topic]);
       }
     }
     for (int word = 0; word < wordCount; word++) {
