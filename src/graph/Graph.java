@@ -76,6 +76,7 @@ class Graph {
     intDegrees[newComm] += selfWeight;
     
     if (totDegree(oldComm) == 0) numComms--;
+    if (totDegree(oldComm) < 0) throw new Error("-ve total degree");
   }
   
   // weight between a community and a node

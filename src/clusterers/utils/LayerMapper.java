@@ -16,20 +16,21 @@ public class LayerMapper {
   public TIntIntHashMap map(Graph g) {
     int count = 0;
     layer++;
-    int[] communities = g.communities();
     boolean[] isFound = new boolean[g.order()];
     TIntIntHashMap map = new TIntIntHashMap();
     // Arrays.sort(communities);
     
-    for (int i = 0; i < g.order(); i++) {
-      int comm = communities[i];
+    for (int node = 0; node < g.order(); node++) {
+      int comm = g.community(node);
       if (!isFound[comm]) {
         map.put(comm, count);
         isFound[comm] = true;
         count++;
       }
     }
-    if (map.size() != g.numComms()) throw new Error("Map creation failed.");
+    if (map.size() != g.numComms()) throw new Error("Map creation failed: " + 
+                                                    g.numComms() + " != " + 
+                                                    map.size());
     layerMaps.add(map);
     return map;
   }

@@ -62,6 +62,7 @@ public class GraphBuilder
       if (matrix.get(n1, n2) == 0 && matrix.get(n2, n1) == 0) insertEdgeSym(n1, n2, weight);
     }
     reader.close();
+    if (!matrix.isSymmetric()) throw new Error("constructed asymmetric matrix");
   }
   
   // gets the no. of nodes from the file
@@ -89,32 +90,41 @@ public class GraphBuilder
     BufferedReader reader = new BufferedReader(new FileReader(file));
     // BufferedWriter writer = new BufferedWriter(new FileWriter(new File("newNodes.txt")));
     // int cnt = 0;
+    int err = 0;
     String line;
     order = c.getCount("Doc");
     initialise();
     
     while ((line = reader.readLine()) != null) {
-      String[] splitLine = line.split(delimiter);
-      long srcId = Long.parseLong(splitLine[0]);
-      long dstId = Long.parseLong(splitLine[1]);
-      int weight = Integer.parseInt(splitLine[2]);
-      int n1 = translator.getDocIndex(srcId);
-      int n2 = translator.getDocIndex(dstId);
-     
+      if (!processLine(line, delimiter)) err++;
       // cnt++;
       // String outString = n1 + " " + n2 + " " + weight;
       // writer.write(outString);
       // writer.newLine();
       // if (cnt % 100 == 0) writer.flush();
       
-      if (matrix.get(n1, n2) != 0 || matrix.get(n2, n1) != 0) {
-        throw new Error("duplicate val at " + srcId + " " + dstId);
-      }
-      insertEdgeSym(n1, n2, weight);
     }
     // writer.flush();
+    if (err > 0) throw new Error(err + " nodes not in DB.");
     if (!matrix.isSymmetric()) throw new Error("constructed asymmetric matrix");
     reader.close();
+  }
+  
+  private boolean processLine(String line, String delimiter) {
+    String[] splitLine = line.split(delimiter);
+    long srcId = Long.parseLong(splitLine[0]);
+    long dstId = Long.parseLong(splitLine[1]);
+    int weight = Integer.parseInt(splitLine[2]);
+    int n1 = translator.getDocIndex(srcId);
+    int n2 = translator.getDocIndex(dstId);
+    if (n1 == -1) return false;
+    if (n2 == -1) return false;
+    
+    if (matrix.get(n1, n2) != 0 || matrix.get(n2, n1) != 0) {
+      throw new Error("duplicate val at " + srcId + " " + dstId);
+    }
+    insertEdgeSym(n1, n2, weight);
+    return true;
   }
   
   private void initialise() {
@@ -129,7 +139,7 @@ public class GraphBuilder
   //inserts symmetrical edge
   private void insertEdgeSym(int n1, int n2, int weight) {
     insertEdge(n1, n2, weight);
-    insertEdge(n2, n1, weight);
+    if (n1 != n2) insertEdge(n2, n1, weight);
   }
   
   private void insertEdge(int n1, int n2, int weight) {
@@ -172,7 +182,7 @@ public class GraphBuilder
     }
     
     if (!matrix.isSymmetric()) throw new Error("asymmetric matrix");
-    if (sum != g.size() * 2) throw new Error("builder recieved wrong weights");
+    if (sum != g.size() * 2) throw new Error("builder recieved wrong weights: " + sum + " " + (g.size() * 2));
     if (sum != sizeDbl) throw new Error("Coarse-grain error: " + sum + " != " + sizeDbl);
     return this;
   }

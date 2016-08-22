@@ -1,47 +1,64 @@
+/* Handles one layer of modularity maximisation / entropy minimisation as part
+ * of the hierarchical hybrid cluster */
 import java.util.*;
 import gnu.trove.list.array.TIntArrayList;
 import gnu.trove.map.hash.TIntIntHashMap;
 
 public class LocalMaximiser {
-  private final Graph g;
   private final double precision = 0.000001;
-  private final double threshold = 0.6;
+  private double threshold = 0.55; // comm with entropy over this == weak
+  private double nodesToTemper = 0.2; // fraction of nodes in weak comms to move
+  
+  private final Graph g;
   private final Random rnd = new Random();
   private final double[][] inverseTheta;
   private final double[][] communityProbSum; // sum of theta of all comm members
   private final double[] commEntropySum; // sum of entropy of all members
-  private final int[] commSize;
-  private int[] shuffledNodes;
+  private final double[] nodeEntropy; // entropy of each node
   private final boolean[] isWeak; // marks high-entropy communities.
+  private final int[] commSize;
   private final int topicCount;
-  private final boolean shouldTemper;
+  private final boolean minimiseEnt; // turns on entropy minimisation
+  private final boolean maximiseMod; // turns on modularity maximisation
+  private int[] shuffledNodes;
+  private int weakComms; // no. of comms with entropy over threshold
   private int totalMoves = 0;
   
-  public LocalMaximiser(Graph g, double[][] inverseTheta, boolean shouldTemper) {
+  public LocalMaximiser(Graph g, double[][] inverseTheta, 
+                        boolean minimiseEnt, boolean maximiseMod) {
     this.g = g;
     this.inverseTheta = inverseTheta;
+    this.minimiseEnt = minimiseEnt;
+    this.maximiseMod = maximiseMod;
     topicCount = inverseTheta[0].length;
-    this.shouldTemper = shouldTemper;
     if (inverseTheta.length != g.order()) throw new Error("graph-theta size mismatch");
     
     communityProbSum = new double[g.order()][topicCount];
-    commSize = new int[g.order()];
     commEntropySum = new double[g.order()];
+    nodeEntropy = new double[g.order()];
+    commSize = new int[g.order()];
     isWeak = new boolean[g.order()];
-    check();
-    
+    // check();
+    fillArrays();
+  }
+  
+  // initial values for various arrays
+  private void fillArrays() {
     for (int node = 0; node < g.order(); node++) {
+      if (g.degree(node) == 0) throw new Error("0-deg node at " + node);
       int comm = g.community(node);
       if (comm != node) throw new Error("Needs a fresh graph.");
       commSize[comm] = 1;
       commEntropySum[comm] = entropy(inverseTheta[comm]);
+      nodeEntropy[node] = entropy(inverseTheta[node]);
       for (int topic = 0; topic < topicCount; topic++) {
         communityProbSum[comm][topic] = inverseTheta[comm][topic];
       }
     }
   }
   
-  // checks integrity of inverseTheta
+  // checks integrity of inverseTheta.  will not work if hyperparameters have
+  // been optimised, since theta won't sum to 1.
   private void check() {
     for (int node = 0; node < g.order(); node++) {
       double sum = 0d;
@@ -66,7 +83,18 @@ public class LocalMaximiser {
   }
   
   public int totalMoves() { return totalMoves; }
+  
   public SparseDoubleMatrix inverseTheta() { return getCommThetas(); }
+  
+  public double threshold() { return threshold; }
+  
+  public void setThreshold(double threshold) {this.threshold = threshold; }
+  
+  public double nodesToTemper() { return nodesToTemper; }
+  
+  public void setNodesToTemper(double nodesToTemper) { 
+    this.nodesToTemper = nodesToTemper;
+  }
   
   private void reassignCommunities() {
     double mod = g.modularity();
@@ -74,22 +102,25 @@ public class LocalMaximiser {
     int moves;
     boolean hasChanged;
     
-    do {
-      hasChanged = true;
-      oldMod = mod;
-      moves = maximise();
-      totalMoves += moves;      
-      mod = g.modularity();
-      if (mod - oldMod <= precision) hasChanged = false;
-      if (moves == 0) hasChanged = false;
-      System.out.printf("Mod: %5f  Comms: %d Moves:  %d%n", 
-                          mod , g.numComms(), moves);
-    } while (hasChanged);
+    if (maximiseMod) {
+      do {
+        hasChanged = true;
+        oldMod = mod;
+        moves = maximiseModularity();
+        totalMoves += moves;      
+        mod = g.modularity();
+        if (mod - oldMod <= precision) hasChanged = false;
+        if (moves == 0) hasChanged = false;
+        System.out.printf("Mod: %5f  Comms: %d Moves:  %d%n", 
+                            mod , g.numComms(), moves);
+      } while (hasChanged);
+    }
+    else totalMoves = 1; // stops the hybridclusterer ending prematurely
     
-    if (shouldTemper) temper();
+    if (minimiseEnt) minimiseEntropy();
   } 
   
-  private int maximise() {
+  private int maximiseModularity() {
     int moves = 0;
     for (int i = 0; i < g.order(); i++) {
       int node = shuffledNodes[i];
@@ -98,28 +129,27 @@ public class LocalMaximiser {
     return moves;
   }
   
-  private void temper() {
-    System.out.println("tempering... ");
+  // moves a randomly selected (nodesToTemper * 100)% of the nodes in comms
+  // of entropy > threshold to the communities where their presence lowers the
+  // most.
+  private void minimiseEntropy() {
+    System.out.println("% of nodes in weak comms to move : " + (nodesToTemper * 100) + "%");
+    System.out.println("Entropy threshold for a weak comm: " + threshold);
     int success = 0;
     int total = 0;
     double avgH = avgEntropy();
+    buildShuffledList(); // reshuffle nodes
+    findWeakComms();
+    int max = (int) (weakComms * nodesToTemper);
     
-    for (int i = 0; i < g.order(); i++) {
-      int node = shuffledNodes[i];
-      int comm = g.community(node);
-      double H = commEntropy(communityProbSum[comm], commSize[comm]);
-      if (H > threshold) {
-        isWeak[comm] = true;
-      }
-    }
-    
-    for (int i = 0; i < g.order(); i++) {
+    for (int i = 0; i < g.order() && total < max; i++) {
       int node = shuffledNodes[i];
       int comm = g.community(node);
       if (isWeak[comm]) {
-        if (temperNode(node)) success++;
+        if (minimiseNodeJSD(node)) success++;
         total++;
       }
+      if (i % 500 == 0) System.out.println(total + "/" + max + " moved");
     }
     
     System.out.printf("Mod: %5f  Comms: %d Moves:  %d%n", 
@@ -128,7 +158,23 @@ public class LocalMaximiser {
     System.out.println("delta H: " + avgH + " -> " + avgEntropy());
   }
   
-  private boolean temperNode(int node) {
+  // marks communities as weak if their entropy exceeds the threshold value.
+  private void findWeakComms() {
+    for (int i = 0; i < g.order(); i++) {
+      int node = shuffledNodes[i];
+      int comm = g.community(node);
+      double H = commEntropy(communityProbSum[comm], commSize[comm]);
+      if (H > threshold) {
+        isWeak[comm] = true;
+        weakComms++;
+      }
+    }
+  }
+  
+  // finds the community where moving the node there would lower JSD the
+  // most.  Is not restricted only to neighbouring communities, but it can only
+  // move nodes to other weak communities (to avoid diluting strong ones)
+  private boolean minimiseNodeJSD(int node) {
     int oldComm = g.community(node);
     int newComm = -1;
     double min = threshold;
@@ -151,6 +197,8 @@ public class LocalMaximiser {
     
   }
   
+  // finds the best neighbouring community to move the node to.  The increase
+  // in modularity is tempered by the decrease in entropy.
   private boolean makeBestMove(int node) {
     double max = 0d;
     
@@ -164,7 +212,6 @@ public class LocalMaximiser {
                               commSize[comm] + 1);
       // maximise mod, minimise ent:
       double inc = mod * (1d - ent);
-      // System.out.println(inc + " " + mod + " " + jsd + " " + ent);
       if (inc > max) {
         max = inc;
         bestComm = comm;
@@ -178,8 +225,9 @@ public class LocalMaximiser {
     else return false;
   }
   
+  // moves the node and updates the relevant arrays.
   private void move(int node, int newComm, int oldComm) {
-    double entropy = entropy(inverseTheta[node]);
+    double entropy = nodeEntropy[node];
     
     commSize[newComm]++;
     commSize[oldComm]--;
@@ -211,6 +259,7 @@ public class LocalMaximiser {
     return entropy(e);
   }
   
+  // finds entropy of comm
   private double commEntropy(double[] commDist, int size) {
     double[] e = new double[topicCount];
     for (int topic = 0; topic < topicCount; topic++) {
@@ -242,8 +291,8 @@ public class LocalMaximiser {
       sum[topic] = (communityProbSum[newComm][topic] + inverseTheta[node][topic])
                  * weight;
     }
-
-    double esum = (commEntropySum[newComm] + entropy(inverseTheta[node])) * weight;
+  
+    double esum = (commEntropySum[newComm] + nodeEntropy[node]) * weight;
     return entropy(sum) - esum;
   }
 

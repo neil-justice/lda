@@ -17,7 +17,7 @@ class CTUT {
   public static final String ATTR_FRIENDS   = "friends.csv";
   public static final String ATTR_FOLLOWERS = "followers.csv";
   public static final String ATTR_WORDCOUNT = "wordcount.csv";
-  public static final String LOUVAIN_SEED = "louvain-seed.txt";
+  public static final String LOUVAIN_PARTITION_SET = "louvain-part.txt";
   public static final String JS_PARTITION_SET = "js-part.txt";
   
   private Interface UI;

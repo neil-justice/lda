@@ -2,7 +2,7 @@
 import java.util.*;
 
 public class LDAUtils {
-  private static final int top = 10;
+  private static final int TOP = 20;
   
   // finds the geometric mean of a matrix
   public static double[] geometricMean(double[][] matrix) {
@@ -30,7 +30,7 @@ public class LDAUtils {
     int topicCount = phi[0].length;
     double[] geometricMean = geometricMean(phi);
     
-    Integer[][] output = new Integer[topicCount][top];
+    Integer[][] output = new Integer[topicCount][TOP];
     double[][] temp = new double[topicCount][wordCount]; //note the inverse dimensions
     
     for (int topic = 0; topic < topicCount; topic++) {
@@ -42,13 +42,13 @@ public class LDAUtils {
       IndexComparator comp = new IndexComparator(temp[topic]);
       Integer[] indexes = comp.indexArray();
       Arrays.sort(indexes, comp.reversed());
-      output[topic] = Arrays.copyOf(indexes, top);
+      output[topic] = Arrays.copyOf(indexes, TOP);
     }
 
     System.out.println("");
     for (int topic = 0; topic < topicCount; topic++) {
       System.out.printf(" %d : ", topic);
-      for (int i = 0; i < top; i++) {
+      for (int i = 0; i < TOP; i++) {
         System.out.print(translator.getWord(output[topic][i]) + " ");
       }
       System.out.println("");
@@ -59,7 +59,7 @@ public class LDAUtils {
     int wordCount = phi.length;
     int topicCount = phi[0].length;
     
-    Integer[][] output = new Integer[topicCount][top];
+    Integer[][] output = new Integer[topicCount][TOP];
     double[][] temp = new double[topicCount][wordCount]; //note the inverse dimensions
     
     for (int topic = 0; topic < topicCount; topic++) {
@@ -69,13 +69,13 @@ public class LDAUtils {
       IndexComparator comp = new IndexComparator(temp[topic]);
       Integer[] indexes = comp.indexArray();
       Arrays.sort(indexes, comp.reversed());
-      output[topic] = Arrays.copyOf(indexes, top);
+      output[topic] = Arrays.copyOf(indexes, TOP);
     }    
     
     System.out.println("");
     for (int topic = 0; topic < topicCount; topic++) {
       System.out.printf(" %d : ", topic);
-      for (int i = 0; i < top; i++) {
+      for (int i = 0; i < TOP; i++) {
         System.out.print(translator.getWord(output[topic][i]) + " ");
       }
       System.out.println("");

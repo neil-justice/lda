@@ -147,6 +147,7 @@ class Interface {
   private CommunityStructure clusterUsingJSDivergence() {
     g = getGraph();
     Clusterer clusterer;
+    
     if (!ft.hasJSPartInfo()) {
       clusterer = new JSClusterer(g, c.getTheta());
       return getStructure(clusterer, CTUT.JS_PARTITION_SET);
@@ -159,10 +160,16 @@ class Interface {
   
   private CommunityStructure louvain() {
     g = reloadGraph();
-    LouvainDetector ld;
-    if (!ft.hasLouvainSeed()) ld = new LouvainDetector(g);
-    else ld = new LouvainDetector(g, loadLouvainSeed());
-    return getStructure(ld);
+    Clusterer clusterer;
+    
+    if (!ft.hasLouvainPartInfo()) {
+      clusterer = new LouvainDetector(g);
+      return getStructure(clusterer);
+    }
+    else {
+      clusterer = new PartitionReader(dir + CTUT.LOUVAIN_PARTITION_SET);
+      return getStructure(clusterer);
+    }    
   }
   
   private CommunityStructure infomapResults() {
@@ -378,13 +385,9 @@ class Interface {
     System.out.println("In DB:        " + ft.isInDB());
     System.out.println("Graph data:   " + ft.hasGraph());
     System.out.println("Infomap data: " + ft.hasInfomap());
-    System.out.println("Louvain seed: " + ft.hasLouvainSeed());
-  }
-  
-  private long loadLouvainSeed() {
-    List<String> l = FileLoader.readFile(dir + CTUT.LOUVAIN_SEED);
-    return Long.parseLong(l.get(0));
-  }  
+    System.out.println("Louvain data: " + ft.hasLouvainPartInfo());
+    System.out.println("JSDclus data: " + ft.hasJSPartInfo());
+  } 
           
   private int parse(String text, String err) {
     int val;

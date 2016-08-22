@@ -9,7 +9,7 @@ import de.erichseifert.gral.data.DataSeries;
 import de.erichseifert.gral.data.DataTable;
 import de.erichseifert.gral.plots.XYPlot;
 import de.erichseifert.gral.plots.points.SizeablePointRenderer;
-import de.erichseifert.gral.ui.DrawablePanel;
+import de.erichseifert.gral.ui.InteractivePanel;
 import de.erichseifert.gral.util.GraphicsUtils;
 import de.erichseifert.gral.graphics.Insets2D;
 import de.erichseifert.gral.graphics.Drawable;
@@ -25,9 +25,10 @@ class HeatmapPanel extends JPanel {
   private SparseDoubleMatrix commThetas;
   private int numComms;
   private int layer;
+  private int minSize = 20;
   
   private final XYPlot plot;
-  private final DrawablePanel panel;
+  private final InteractivePanel panel;
   
   @SuppressWarnings("unchecked")
   public HeatmapPanel(CommunityStructure structure, int layer) {
@@ -40,16 +41,15 @@ class HeatmapPanel extends JPanel {
 		int count = -1;
     double[] entropy = structure.entropy(layer);
     IndexComparator comp = new IndexComparator(entropy);
-    Integer[] indexes = comp.indexArray();
-    Arrays.sort(indexes, comp); 
+    Integer[] sortedByEntropy = comp.indexArray();
+    Arrays.sort(sortedByEntropy, comp); 
     
 		DataTable data = new DataTable(Integer.class, Integer.class, Double.class);
 		for (int i = 0; i < docCount; i++) {
-      for (int topic = 0; topic < topicCount; topic++) {
-        int comm = indexes[i];
-        if (structure.commSize(layer, comm) > GUI.MIN_SIZE 
-        &&  structure.commSize(layer, comm) < GUI.MAX_SIZE) {
-          count++;
+      int comm = sortedByEntropy[i];
+      if (structure.commSize(layer, comm) > minSize) {
+        count++;
+        for (int topic = 0; topic < topicCount; topic++) {
           data.add(count, topic, commThetas.get(topic, comm));
         }
       }
@@ -59,7 +59,8 @@ class HeatmapPanel extends JPanel {
     plot.setInsets(new Insets2D.Double(GUI.BVAL / 2d, GUI.BVAL * 1.5, GUI.BVAL * 1.5, GUI.BVAL));
     
     plot.getAxisRenderer(XYPlot.AXIS_X).setLabelDistance(0d);
-    plot.getAxisRenderer(XYPlot.AXIS_X).setLabel(new Label("Entropy"));
+    plot.getAxisRenderer(XYPlot.AXIS_X).setLabel(new Label("Communities over size " + 
+                                                           minSize + ", sorted by entropy"));
     
     Label l = new Label("Topic");
     l.setRotation(90d);
@@ -68,18 +69,20 @@ class HeatmapPanel extends JPanel {
     
     // plot.getAxisRenderer(XYPlot.AXIS_X).setTickSpacing(10);
     plot.getAxisRenderer(XYPlot.AXIS_X).setIntersection(-Double.MAX_VALUE);
+    plot.getAxisRenderer(XYPlot.AXIS_X).isTickLabelsVisible();
     
     plot.getAxisRenderer(XYPlot.AXIS_Y).setTickSpacing(2);
-		plot.getAxis(XYPlot.AXIS_Y).setRange(-1, topicCount); 
+		plot.getAxis(XYPlot.AXIS_Y).setRange(-1, topicCount);
 
 		SizeablePointRenderer pointRenderer = new SizeablePointRenderer();
 		pointRenderer.setShape(new Ellipse2D.Double(-25d, -25d, 50d, 50d));
-		pointRenderer.setColor(GUI.randomAlphaColour());
+		pointRenderer.setColor(new Color(0.7f, 0.2f, 0.2f, 0.75f));
 		pointRenderer.setColumn(2); // set size based on column 2
 		plot.setPointRenderers(data, pointRenderer);
     
-    panel = new DrawablePanel(plot);
-    
+    panel = new InteractivePanel(plot);
+    panel.setZoomable(false);
+    panel.setPannable(true);
     this.add(panel, BorderLayout.CENTER);
   }
   

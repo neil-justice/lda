@@ -9,6 +9,7 @@ import gnu.trove.map.hash.*;
 import gnu.trove.list.array.TLongArrayList;
 import gnu.trove.list.array.TIntArrayList;
 import gnu.trove.iterator.*;
+import gnu.trove.impl.Constants;
 
 public class SQLConnector implements AutoCloseable {
   private final String connection;
@@ -286,7 +287,9 @@ public class SQLConnector implements AutoCloseable {
   public TLongIntHashMap getDocIndexes() {
     if (c == null) { throw new IllegalStateException(); }
     final String cmd = "SELECT * FROM Doc";
-    TLongIntHashMap docs = new TLongIntHashMap();
+    TLongIntHashMap docs = new TLongIntHashMap(Constants.DEFAULT_CAPACITY, 
+                                               Constants.DEFAULT_LOAD_FACTOR, 
+                                               -1L, -1);
 
     try (PreparedStatement s = c.prepareStatement(cmd)) {
       try (ResultSet r = s.executeQuery()) {

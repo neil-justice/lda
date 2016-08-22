@@ -9,7 +9,9 @@ public class HybridClusterer implements Clusterer {
   private final LayerMapper mapper = new LayerMapper(graphs);
   private final int topicCount;
   private Integer totalMoves = 0;
-  private int layer = 0; // current community layer  
+  private int layer = 0; // current community layer
+  private boolean minimiseEnt = true;
+  private boolean maximiseMod = true;
   
   public HybridClusterer(Graph g, double[][] inverseTheta) {
     graphs.add(g);
@@ -27,12 +29,10 @@ public class HybridClusterer implements Clusterer {
     do {
       totalMoves = 0;
       System.out.printf("Round %d:%n", layer);
-      boolean tempering = false; // controls whether the layer is tempered
-      if (layer == 0) tempering = true;
-      if (layer == 1) tempering = true;
+
       LocalMaximiser m = new LocalMaximiser(graphs.get(layer), 
                                             inverseThetas.get(layer),
-                                            tempering);
+                                            minimiseEnt, maximiseMod);
       m.run();
       totalMoves = m.totalMoves();
       if (totalMoves > 0 && maxLayers >= layer) addNewLayer(m.inverseTheta());

@@ -29,10 +29,6 @@ public class LouvainDetector implements Clusterer {
     System.out.println("Using seed " + seed);
   }
   
-  public double modularity() {
-    return graphs.get(layer).modularity();
-  }
-  
   @Override
   public List<int[]> run() { return run(9999); }
   
@@ -49,6 +45,9 @@ public class LouvainDetector implements Clusterer {
     
     return mapper.mapAll();
   }
+  
+  public double modularity() { return graphs.get(layer).modularity(); }
+  public List<int[]> communities() { return mapper.mapAll(); }
 
   private void addNewLayer() {
     Graph last = graphs.get(layer);
