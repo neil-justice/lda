@@ -215,12 +215,12 @@ public class LocalMaximiser {
       int comm = g.community(g.neighbours(node).get(i));
       double mod = deltaModularity(node, comm);
       double H = newEntropy(communityProbSum[comm], inverseTheta[node], 
-                            commSize[comm] + 1) * commSize[comm];
+                            commSize[comm] + 1);
       // double deltaH = oldH - H;
       // maximise mod, minimise ent:
       double inc = mod * (1d - H);
       if (inc > max) {
-        max = mod;
+        max = inc;
         bestComm = comm;
       }
     }

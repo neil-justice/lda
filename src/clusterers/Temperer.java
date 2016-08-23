@@ -5,8 +5,8 @@ import gnu.trove.list.array.TIntArrayList;
 import gnu.trove.map.hash.TIntIntHashMap;
 
 public class Temperer implements Clusterer {
-  private double threshold = 0.85; // comm with entropy over this == weak
-  private double nodesToTemper = 0.5; // fraction of nodes in weak comms to move
+  private double threshold = 0.55; // comm with entropy over this == weak
+  private double nodesToTemper = 0.2; // fraction of nodes in weak comms to move
   
   private final Graph g;
   private final Random rnd = new Random();

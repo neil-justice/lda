@@ -1,5 +1,5 @@
-/* makes one cluster per topic, and assigns all nodes to that cluster if the 
- * corresponding topic is the highest for that node. */ 
+/* makes one cluster per part, and assigns all nodes to that cluster if the 
+ * corresponding part is the highest for that node. */ 
 import java.util.*;
 import gnu.trove.list.array.TIntArrayList;
 
@@ -7,28 +7,27 @@ public class PurityClusterer implements Clusterer {
   private final Graph g;
   private final int order;
   private final int topicCount;
-  private final int comms;
+  private final int partCount;
   private final int[] community;
   private final double[][] inverseTheta;
   private final TIntArrayList[] members;
-  private final Graph[] subgraphs; // one for each topic
-  private final List<int[]> subComms; // one for each topic
+  private final Graph[] subgraphs; // one for each topic + 1 for high entropy nodes
+  private final List<int[]> subComms;
   
   public PurityClusterer(Graph g, double[][] theta) {
     this.g = g;
     this.order = g.order();
-    
     inverseTheta = MatrixTransposer.transpose(theta);
     topicCount = theta.length;
-    comms = topicCount * topicCount;
+    partCount = theta.length + 1;
     
     community = new int[order];
-    members = new TIntArrayList[comms];
-    subgraphs = new Graph[comms];
+    members = new TIntArrayList[partCount];
+    subgraphs = new Graph[partCount];
     subComms = new ArrayList<int[]>();
     
-    for (int topic = 0; topic < comms; topic++) {
-      members[topic] = new TIntArrayList();
+    for (int part = 0; part < partCount; part++) {
+      members[part] = new TIntArrayList();
     }
   }
   
@@ -47,52 +46,51 @@ public class PurityClusterer implements Clusterer {
   
   public void initialiseComms() {
     for (int node = 0; node < order; node++) {
-      int bestTopic = -1;
-      int secondBestTopic = -1;
-      double maxTheta = 0d;
-      double secondTheta = 0d;
-      for (int topic = 0; topic < topicCount; topic++) {
-        double theta = inverseTheta[node][topic];
-        if (theta > maxTheta) {
-          maxTheta = theta;
-          bestTopic = topic;
-        }
+      int bestPart = 0;
+      if (DocumentSimilarityMeasurer.entropy(inverseTheta[node], topicCount) > 0.9) {
+        bestPart = partCount - 1;
       }
-      for (int topic = 0; topic < topicCount; topic++) {
-        double theta = inverseTheta[node][topic];
-        if (theta > secondTheta && theta < maxTheta) {
-          secondTheta = theta;
-          secondBestTopic = topic;
-        }
-      }
-      // x + xmax * y
-      members[bestTopic + topicCount * secondBestTopic].add(node);
-      // community[node] = bestTopic;
+      else bestPart = getStrongestTopic(node);
+      members[bestPart].add(node);
+      // community[node] = bestPart;
     }
+  }
+  
+  private int getStrongestTopic(int node) {
+    int bestPart = 0;
+    double maxTheta = 0d;    
+    for (int topic = 0; topic < topicCount; topic++) {
+      double theta = inverseTheta[node][topic];
+      if (theta > maxTheta) {
+        maxTheta = theta;
+        bestPart = topic;
+      }
+    }
+    return bestPart;
   }
   
   private void checkMemberLists() {
     int sum = 0;
-    for (int topic = 0; topic < comms; topic++) {
-      sum += members[topic].size();
+    for (int part = 0; part < partCount; part++) {
+      sum += members[part].size();
     }    
     if (sum != g.order()) throw new Error("Order / member list size mismatch");
   }
   
-  // for each topic, creates a subgraph of only those nodes where that topic is
+  // for each part, creates a subgraph of only those nodes where that part is
   // the strongest.
   private void createSubgraphs() {
-    for (int topic = 0; topic < comms; topic++) {
-      subgraphs[topic] = new GraphBuilder().fromCommunity(g, members[topic]).build();
+    for (int part = 0; part < partCount; part++) {
+      subgraphs[part] = new GraphBuilder().fromCommunity(g, members[part]).build();
     }
   }
   
   // each subgraph is partitioned using the specified clusterer
   private void partitionSubgraphs() {
     Clusterer clusterer;
-    for (int topic = 0; topic < comms; topic++) {
-      Graph sub = subgraphs[topic];
-      // double[][] subTheta = getSubTheta(sub, topic);
+    for (int part = 0; part < partCount; part++) {
+      Graph sub = subgraphs[part];
+      // double[][] subTheta = getSubTheta(sub, part);
       clusterer = new LouvainDetector(sub);
       List<int[]> list = clusterer.run();
       subComms.add(list.get(list.size() - 1));
@@ -100,10 +98,10 @@ public class PurityClusterer implements Clusterer {
   }
   
   private double[][] getSubTheta(Graph sub, int part) {
-    double[][] subTheta = new double[sub.order()][topicCount];
+    double[][] subTheta = new double[sub.order()][partCount];
     for (int subnode = 0; subnode < sub.order(); subnode++) {
       int node = members[part].get(subnode);
-      for (int topic = 0; topic < topicCount; topic++) {
+      for (int topic = 0; topic < partCount - 1; topic++) {
         subTheta[subnode][topic] = inverseTheta[node][topic];
       }
     }
@@ -113,11 +111,11 @@ public class PurityClusterer implements Clusterer {
   // takes the communities from the subgraphs and applies them to the nodes of
   // the main graph
   private void translateCommunities() {
-    for (int topic = 0; topic < comms; topic++) {
-      Graph sub = subgraphs[topic];
+    for (int part = 0; part < partCount; part++) {
+      Graph sub = subgraphs[part];
       for (int subnode = 0; subnode < sub.order(); subnode++) {
-        int node = members[topic].get(subnode);
-        community[node] = subComms.get(topic)[subnode];
+        int node = members[part].get(subnode);
+        community[node] = subComms.get(part)[subnode];
       }
     }
   }
