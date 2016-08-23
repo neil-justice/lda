@@ -19,9 +19,9 @@ public class Corpus {
   private final double[] topicWeight;  // how frequent each topic is
   
   private HyperparameterOptimiser optimiser;
-  private final double[] alpha; // hyperparameters
-  private final double beta;  // hyperparameters
-  private final double betaSum;  // hyperparameters
+  private final double[] alpha; // hyperparameter
+  private final double beta;  // hyperparameter
+  private final double betaSum;
   private int maxLength; // length of longest doc
   private int optimiseInterval;
   

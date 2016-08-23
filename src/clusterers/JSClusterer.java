@@ -3,7 +3,6 @@ import java.util.*;
 
 public class JSClusterer implements Clusterer {
   private final Graph g;
-  private final double[][] theta;
   private final double[][] inverseTheta;
   private final double[][] communityProbSum; // sum of theta of all comm members
   private final double[] commEntropy; // sum of entropy of all comm members
@@ -13,13 +12,12 @@ public class JSClusterer implements Clusterer {
   private int moves = 0;
   private int comms;
   
-  public JSClusterer(Graph g, double[][] theta) {
+  public JSClusterer(Graph g, double[][] inverseTheta) {
     this.g = g;
-    this.theta = theta;
-    topicCount = theta.length;
+    this.inverseTheta = inverseTheta;
+    topicCount = inverseTheta[0].length;
     comms = g.order();
     
-    inverseTheta = new double[g.order()][topicCount];
     communityProbSum = new double[g.order()][topicCount];
     commEntropy = new double[g.order()];
     commSize = new int[g.order()];
@@ -29,8 +27,7 @@ public class JSClusterer implements Clusterer {
   private void initialise() {
     for (int doc = 0; doc < g.order(); doc++) {
       for (int topic = 0; topic < topicCount; topic++) {
-        communityProbSum[doc][topic] = theta[topic][doc];
-        inverseTheta[doc][topic] = theta[topic][doc];
+        communityProbSum[doc][topic] = inverseTheta[doc][topic];
       }
       commEntropy[doc] = entropy(inverseTheta[doc]);
       commSize[doc] = 1;
@@ -104,8 +101,8 @@ public class JSClusterer implements Clusterer {
     commEntropy[newComm] += entropy;
     
     for (int topic = 0; topic < topicCount; topic++) {
-      communityProbSum[oldComm][topic] -= theta[topic][doc];
-      communityProbSum[newComm][topic] += theta[topic][doc];
+      communityProbSum[oldComm][topic] -= inverseTheta[doc][topic];
+      communityProbSum[newComm][topic] += inverseTheta[doc][topic];
     }
     
     g.moveToComm(doc, newComm);

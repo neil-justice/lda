@@ -220,13 +220,13 @@ public class CommunityStructure {
           entropy[comm] = calcEntropy(layer, comm);
           avgJS += JSDiv[comm];
           avgJSImprovement += JSDivImprovement[comm];
-          avgEntropy += entropy[comm];
+          avgEntropy += entropy[comm] * commSizes[comm];
           avgSize += commSizes[comm];
         }
       }
       avgJS /= numComms(layer);
       avgJSImprovement /= numComms(layer);
-      avgEntropy /= numComms(layer);
+      avgEntropy /= docCount;
       avgSize /= numComms(layer);
     }
     

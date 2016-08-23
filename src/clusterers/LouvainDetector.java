@@ -138,7 +138,7 @@ public class LouvainDetector implements Clusterer {
         }
       }
       
-      if (best > 0 && best != g.community(node)) {
+      if (best >= 0 && best != g.community(node)) {
         g.moveToComm(node, best);
         return true;
       }

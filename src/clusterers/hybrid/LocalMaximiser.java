@@ -11,6 +11,7 @@ public class LocalMaximiser {
   
   private final Graph g;
   private final Random rnd = new Random();
+  private final int layer; // layer in the hierarchy this maximiser works on
   private final double[][] inverseTheta;
   private final double[][] communityProbSum; // sum of theta of all comm members
   private final double[] commEntropySum; // sum of entropy of all members
@@ -25,13 +26,15 @@ public class LocalMaximiser {
   private int totalMoves = 0;
   
   public LocalMaximiser(Graph g, double[][] inverseTheta, 
-                        boolean minimiseEnt, boolean maximiseMod) {
+                        boolean minimiseEnt, boolean maximiseMod, int layer) {
     this.g = g;
     this.inverseTheta = inverseTheta;
     this.minimiseEnt = minimiseEnt;
     this.maximiseMod = maximiseMod;
+    this.layer = layer;
     topicCount = inverseTheta[0].length;
     if (inverseTheta.length != g.order()) throw new Error("graph-theta size mismatch");
+    // nodesToTemper -= layer / 10d;
     
     communityProbSum = new double[g.order()][topicCount];
     commEntropySum = new double[g.order()];
@@ -45,7 +48,7 @@ public class LocalMaximiser {
   // initial values for various arrays
   private void fillArrays() {
     for (int node = 0; node < g.order(); node++) {
-      if (g.degree(node) == 0) throw new Error("0-deg node at " + node);
+      // if (g.degree(node) == 0) throw new Error("0-deg node at " + node);
       int comm = g.community(node);
       if (comm != node) throw new Error("Needs a fresh graph.");
       commSize[comm] = 1;
@@ -180,7 +183,9 @@ public class LocalMaximiser {
     double min = threshold;
   
     for (int comm = 0; comm < g.order(); comm++) {
-      if (isWeak[comm] && commSize[comm] != 0 && comm != oldComm) {
+      if (isWeak[comm] 
+      &&  commSize[comm] != 0
+      &&  comm != oldComm) {
         double jsd = JSD(node, comm);
         if (jsd < min) {
           min = jsd;
@@ -204,16 +209,18 @@ public class LocalMaximiser {
     
     int bestComm = -1;
     int oldComm = g.community(node);
+    // double oldH = commEntropy(communityProbSum[oldComm], commSize[oldComm]) * commSize[oldComm];
     
     for (int i = 0; i < g.neighbours(node).size(); i++) {
       int comm = g.community(g.neighbours(node).get(i));
       double mod = deltaModularity(node, comm);
-      double ent = newEntropy(communityProbSum[comm], inverseTheta[node], 
-                              commSize[comm] + 1);
+      double H = newEntropy(communityProbSum[comm], inverseTheta[node], 
+                            commSize[comm] + 1) * commSize[comm];
+      // double deltaH = oldH - H;
       // maximise mod, minimise ent:
-      double inc = mod * (1d - ent);
+      double inc = mod * (1d - H);
       if (inc > max) {
-        max = inc;
+        max = mod;
         bestComm = comm;
       }
     }

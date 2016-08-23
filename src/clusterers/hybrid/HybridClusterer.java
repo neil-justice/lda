@@ -20,7 +20,7 @@ public class HybridClusterer implements Clusterer {
   }
 
   @Override
-  public List<int[]> run() { return run(9999); }
+  public List<int[]> run() { return run(20); }
   
   public List<int[]> run(int maxLayers) {
     if (maxLayers <= 0) return null;
@@ -32,7 +32,7 @@ public class HybridClusterer implements Clusterer {
 
       LocalMaximiser m = new LocalMaximiser(graphs.get(layer), 
                                             inverseThetas.get(layer),
-                                            minimiseEnt, maximiseMod);
+                                            minimiseEnt, maximiseMod, layer);
       m.run();
       totalMoves = m.totalMoves();
       if (totalMoves > 0 && maxLayers >= layer) addNewLayer(m.inverseTheta());

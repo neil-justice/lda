@@ -16,8 +16,12 @@ public class MutualInformation {
   
   public double compare(CommunityStructure s1, int layer1, 
                         CommunityStructure s2, int layer2) {
+    this.s1 = s1;
+    this.s2 = s2;
+    this.layer1 = layer1;
+    this.layer2 = layer2;                          
     long s = System.nanoTime();
-    double MI = run(s1, layer1, s2, layer2);
+    double MI = run();
     long e = System.nanoTime();
     double time = (e - s) / 1000000000d;
     System.out.println("seconds taken: " + time );
@@ -40,12 +44,7 @@ public class MutualInformation {
     return MI / ((e1 + e2) * 0.5);
   }
   
-  private double run(CommunityStructure s1, int layer1, 
-                     CommunityStructure s2, int layer2) {
-    this.s1 = s1;
-    this.s2 = s2;
-    this.layer1 = layer1;
-    this.layer2 = layer2;
+  private double run() {
     double MI = 0;
     
     for (int i = 0; i < s1.numComms(layer1); i++) {

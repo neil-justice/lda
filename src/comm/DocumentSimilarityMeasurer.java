@@ -87,6 +87,7 @@ public class DocumentSimilarityMeasurer {
   public static double entropy(double[] dist, int base) {
     double H = 0d;
     for (int i = 0; i < dist.length; i++) {
+      // if (dist[i] < 0d) throw new Error("Negative value in prob. dist.");
       if (dist[i] != 0d) H -= dist[i] * Math.log(dist[i]);
     }
     return H / Math.log(base);

@@ -61,9 +61,9 @@ class Interface {
     clusterers.put("trivial", this::minimiseTrivially);
     clusterers.put("random", this::compareToRandom);
     clusterers.put("import", this::importClustering);
-    clusterers.put("temper-entropy", this::temperEntropy);
-    clusterers.put("temper-js", this::temperJS);
+    clusterers.put("temper", this::temper);
     clusterers.put("hybrid", this::hybrid);
+    clusterers.put("purity", this::purity);
   }
   
   private String chooseDir() {
@@ -132,6 +132,12 @@ class Interface {
     }
   }
   
+  private CommunityStructure purity() {
+    g = reloadGraph();
+    PurityClusterer clusterer = new PurityClusterer(g, c.getTheta());
+    return getStructure(clusterer);
+  }
+  
   private CommunityStructure hybrid() {
     g = reloadGraph();
     HybridClusterer clusterer = new HybridClusterer(g, MatrixTransposer.transpose(c.getTheta()));
@@ -149,7 +155,7 @@ class Interface {
     Clusterer clusterer;
     
     if (!ft.hasJSPartInfo()) {
-      clusterer = new JSClusterer(g, c.getTheta());
+      clusterer = new JSClusterer(g, MatrixTransposer.transpose(c.getTheta()));
       return getStructure(clusterer, CTUT.JS_PARTITION_SET);
     }
     else {
@@ -195,32 +201,20 @@ class Interface {
     return null;
   }
   
-  private CommunityStructure temperEntropy() {
+  private CommunityStructure temper() {
     int layer;
     if (cmd.length == 2) {
       layer = parse(cmd[1], "Layer must be a non-negative number.");
     }
     else layer = 0;
     
-    g = getGraph();
     if (structure == null) structure = louvain();
-    g.loadCommunities(structure.communities(layer));
-    EntropyTemperer temperer = new EntropyTemperer(g, structure, layer);
+    g = GraphUtils.loadPartitionSet(new GraphBuilder()
+                                    .fromFileAndDB(dir + CTUT.GRAPH, c)
+                                    .build(),
+                                    structure.communities(layer));
+    Temperer temperer = new Temperer(g, MatrixTransposer.transpose(c.getTheta()));
     return getStructure(temperer);      
-  }
-  
-  private CommunityStructure temperJS() {
-    int layer;
-    if (cmd.length == 2) {
-      layer = parse(cmd[1], "Layer must be a non-negative number.");
-    }
-    else layer = 0;
-    
-    g = getGraph();
-    if (structure == null) structure = louvain();
-    g.loadCommunities(structure.communities(layer));
-    JSTemperer temperer = new JSTemperer(g, structure, layer);
-    return getStructure(temperer);  
   }
   
   private void genLouvainSeed() {
@@ -270,10 +264,9 @@ class Interface {
   
   private void modularity() {
     if (structure == null) structure = louvain();
-    g = getGraph();
     System.out.println("L Modularity");
     for (int layer = 0; layer < structure.layers(); layer++) {
-      g.loadCommunities(structure.communities(layer));
+      g = GraphUtils.loadPartitionSet(getGraph(), structure.communities(layer));
       System.out.println(layer + " " + g.modularity());
     }
     g = null; // otherwise something seems to get messed up 

@@ -47,6 +47,7 @@ class Graph {
   
   public void moveToComm(int node, int newComm) {
     int oldComm = community(node);
+    int oldTotDegree = totDegree(oldComm);
     if (oldComm == newComm) return;
     
     communities[node] = newComm;
@@ -75,7 +76,7 @@ class Graph {
     intDegrees[oldComm] -= selfWeight;
     intDegrees[newComm] += selfWeight;
     
-    if (totDegree(oldComm) == 0) numComms--;
+    if (totDegree(oldComm) == 0 && oldTotDegree > 0) numComms--;
     if (totDegree(oldComm) < 0) throw new Error("-ve total degree");
   }
   
@@ -99,16 +100,6 @@ class Graph {
     }
 
     return q;
-  }
-  
-  // loads communities from provided array
-  public void loadCommunities(int[] newCommunities) {
-    if (newCommunities.length != order) {
-      throw new Error("invalid length of " + newCommunities.length);
-    }
-    for (int node = 0; node < order; node++) {
-      moveToComm(node, newCommunities[node]);
-    }
   }
   
   public int[] communities() { return Arrays.copyOf(communities, order); }

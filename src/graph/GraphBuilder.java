@@ -187,6 +187,24 @@ public class GraphBuilder
     return this;
   }
   
+  public GraphBuilder fromCommunity(Graph g, TIntArrayList members) {
+    this.order = members.size();
+    initialise();
+    
+    for (int newNode = 0; newNode < order; newNode++) {
+      int oldNode = members.get(newNode);
+      for (int i = 0; i < g.neighbours(oldNode).size(); i++) {
+        int oldNeigh = g.neighbours(oldNode).get(i);
+        int newNeigh = -1;
+        if ((newNeigh = members.indexOf(oldNeigh)) != -1) {
+          insertEdge(newNode, newNeigh, g.weight(oldNode, oldNeigh));
+        }
+      }
+    }
+    if (!matrix.isSymmetric()) throw new Error("asymmetric matrix");
+    return this;
+  }
+  
   public SparseIntMatrix matrix() { return matrix; }
   public TIntArrayList[] adjList() { return adjList; }
   public int[] degrees() { return degrees; }
