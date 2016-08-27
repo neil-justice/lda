@@ -29,13 +29,12 @@ public class HybridClusterer implements Clusterer {
     do {
       totalMoves = 0;
       System.out.printf("Round %d:%n", layer);
-
       LocalMaximiser m = new LocalMaximiser(graphs.get(layer), 
                                             inverseThetas.get(layer),
                                             minimiseEnt, maximiseMod, layer);
       m.run();
       totalMoves = m.totalMoves();
-      if (totalMoves > 0 && maxLayers >= layer) addNewLayer(m.inverseTheta());
+      if (totalMoves > 0 && maxLayers >= layer) addNewLayer(m.commTheta());
     }
     while (totalMoves > 0 && maxLayers >= layer);
     
@@ -62,6 +61,7 @@ public class HybridClusterer implements Clusterer {
       int comm = it.y();
       int node = map.get(comm);
       inverseTheta[node][topic] = it.value();
+      if (inverseTheta[node][topic] < 0d) throw new Error("bad prob. at" + comm);
     }
 
     return inverseTheta;

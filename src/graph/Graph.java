@@ -98,8 +98,14 @@ class Graph {
       double cint = (double)intDegree(comm);
       q += (cint/m2) - (ctot/m2)*(ctot/m2);
     }
-
     return q;
+  }
+  
+  // returns the contribution that this comm makes to the total modularity
+  public double modularityContribution(int comm) {
+    double ctot = (double)totDegree(comm);
+    double cint = (double)intDegree(comm);
+    return (cint/m2) - (ctot/m2)*(ctot/m2);
   }
   
   public int[] communities() { return Arrays.copyOf(communities, order); }

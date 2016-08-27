@@ -287,9 +287,7 @@ public class SQLConnector implements AutoCloseable {
   public TLongIntHashMap getDocIndexes() {
     if (c == null) { throw new IllegalStateException(); }
     final String cmd = "SELECT * FROM Doc";
-    TLongIntHashMap docs = new TLongIntHashMap(Constants.DEFAULT_CAPACITY, 
-                                               Constants.DEFAULT_LOAD_FACTOR, 
-                                               -1L, -1);
+    TLongIntHashMap docs = new TLongIntHashMap();
 
     try (PreparedStatement s = c.prepareStatement(cmd)) {
       try (ResultSet r = s.executeQuery()) {

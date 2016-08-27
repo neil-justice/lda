@@ -35,9 +35,9 @@ public class PurityClusterer implements Clusterer {
   public List<int[]> run() {
     initialiseComms();
     checkMemberLists();
-    createSubgraphs();
-    partitionSubgraphs();
-    translateCommunities();
+    // createSubgraphs();
+    // partitionSubgraphs();
+    // translateCommunities();
     
     List<int[]> list = new ArrayList<>();
     list.add(community);
@@ -52,7 +52,7 @@ public class PurityClusterer implements Clusterer {
       }
       else bestPart = getStrongestTopic(node);
       members[bestPart].add(node);
-      // community[node] = bestPart;
+      community[node] = bestPart;
     }
   }
   

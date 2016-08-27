@@ -37,6 +37,7 @@ public class InfomapResultsReader implements Clusterer {
   
   // reads lines of format:
   // 1:1:1 0.00244731 "83698" 83698
+  // and puts node ID and community info into <int, String> map
   private void readLines() 
   throws NumberFormatException, FileNotFoundException, IOException {
     
@@ -116,6 +117,8 @@ public class InfomapResultsReader implements Clusterer {
     }
   }
   
+  // infomap communities are ordered as: 'top:high:mid:low'  if layer == 2, this would
+  // cut off ':mid:low', returning 'top:high'
   private String truncateTag(String tag, int layer) {
     for (int i = 0; i < layer; i++) {
       int t = tag.lastIndexOf(":");

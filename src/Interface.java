@@ -54,6 +54,7 @@ class Interface {
     commands.put("modularity", this::modularity);
     commands.put("mod", this::modularity);
     commands.put("coocurrence", this::topicCoocurrence);
+    commands.put("nmi", this::NMI);
     
     clusterers.put("louvain", this::louvain);
     clusterers.put("infomap", this::infomapResults);
@@ -130,6 +131,18 @@ class Interface {
     for (int layer = 0; layer < structure.layers(); layer++) {
       NMI.compare(structure, layer, js, 0);
     }
+  }
+  
+  private void NMI() {
+    int layer;
+    if (cmd.length == 2) {
+      layer = parse(cmd[1], "Layer must be a non-negative number.");
+    }
+    else layer = 0;
+    
+    if (structure == null) structure = louvain();
+    SoftMutualInformation NMI = new SoftMutualInformation(structure, layer);
+    System.out.println(NMI.run());
   }
   
   private CommunityStructure purity() {
@@ -209,10 +222,7 @@ class Interface {
     else layer = 0;
     
     if (structure == null) structure = louvain();
-    g = GraphUtils.loadPartitionSet(new GraphBuilder()
-                                    .fromFileAndDB(dir + CTUT.GRAPH, c)
-                                    .build(),
-                                    structure.communities(layer));
+    g = GraphUtils.loadPartitionSet(getGraph(), structure.communities(layer));
     Temperer temperer = new Temperer(g, MatrixTransposer.transpose(c.getTheta()));
     return getStructure(temperer);      
   }
