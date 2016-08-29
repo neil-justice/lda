@@ -1,6 +1,5 @@
 /* calculates the mutual information of 2 partition sets, one of which is a
  * soft / fuzzy / probablistic clustering */
-import gnu.trove.list.array.TIntArrayList;
 
 public class SoftMutualInformation {
   private final int N; // no. of nodes
@@ -30,7 +29,6 @@ public class SoftMutualInformation {
     softClusteringDistribution = softClusteringDistribution();
     hardClusteringDistribution = hardClusteringDistribution();
     jointDistribution = jointDistribution();
-    System.out.println("Distributions calculated");
   }
 
   public double run() {
@@ -38,7 +36,7 @@ public class SoftMutualInformation {
     double NMI = NMI();
     long e = System.nanoTime();
     double time = (e - s) / 1000000000d;
-    System.out.println("seconds taken: " + time );
+    if (time > 1) System.out.println("seconds taken: " + time );
     return NMI;
   }
 
@@ -52,8 +50,7 @@ public class SoftMutualInformation {
         MI += joint * log(joint / (hard * soft));
       }
     }
-    // return normalise(MI / Math.log(2));
-    return MI / Math.log(2);
+    return normalise(MI / Math.log(2));
   }
 
   private double normalise(double MI) {
@@ -65,7 +62,7 @@ public class SoftMutualInformation {
   private double[][] jointDistribution() {
     double[][] dist = new double[topicCount][numComms];
 
-    for (int node = 0; node < g.order(); node++) {
+    for (int node = 0; node < N; node++) {
       int comm = structure.community(layer, node);
       int i = structure.indexFromComm(layer, comm);
       for (int topic = 0; topic < topicCount; topic++) {
