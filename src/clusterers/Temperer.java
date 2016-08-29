@@ -225,7 +225,7 @@ public class Temperer implements Clusterer {
   }
 
   private double entropy(double[] dist) {
-    return DocumentSimilarityMeasurer.entropy(dist, topicCount);
+    return Entropy.entropy(dist, topicCount);
   }
   
   private double avgEntropy() {

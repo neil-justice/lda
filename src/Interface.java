@@ -55,6 +55,7 @@ class Interface {
     commands.put("mod", this::modularity);
     commands.put("coocurrence", this::topicCoocurrence);
     commands.put("nmi", this::NMI);
+    commands.put("export", this::export);
     
     clusterers.put("louvain", this::louvain);
     clusterers.put("infomap", this::infomapResults);
@@ -159,7 +160,7 @@ class Interface {
   
   private CommunityStructure minimiseTrivially() {
     g = getGraph();
-    TrivialEntropyMinimiser clusterer = new TrivialEntropyMinimiser(g.order(), c.getTheta());
+    TrivialClusterer clusterer = new TrivialClusterer(g.order(), c.getTheta());
     return getStructure(clusterer);
   }
   
@@ -212,6 +213,11 @@ class Interface {
     }
     else System.out.println(usageErrorMsg);
     return null;
+  }
+  
+  private void export() {
+    if (structure == null) structure = louvain();
+    if (cmd.length == 2) writer.write(structure.communityLayers(), cmd[1]);
   }
   
   private CommunityStructure temper() {
@@ -368,11 +374,11 @@ class Interface {
     System.out.println("                       where the size of each partition is the same.");
     System.out.println("  trivial           -- partition set which trivially minimises average entropy.");
     System.out.println("  import [file]     -- import partition set from file");
+    System.out.println("  export [filename] -- export partition set to file");
     System.out.println("  chart [layer]     -- display charts for current partition set.");
     System.out.println("  write             -- write out community and document info.");
-    System.out.println("  compare [cls][layer][cls2][layer2] -- calculates the NMI of two partitonn sets.");
-    System.out.println("  compare-js        -- calculates the NMI between each layer of the current partition set");
-    System.out.println("                       and the JSD-based clusterer");
+    System.out.println("  compare [cls][layer][cls2][layer2] -- calculates the NMI of two partiton sets.");
+    System.out.println("  nmi [layer]       -- calculates the NMI between the set layer and LDA's soft clustering");
     System.out.println("  modularity        -- show the modularity of the current partition set");
     System.out.println("  coocurrence [layer] -- show which topics co-ocurr regularly");
     System.out.println("");

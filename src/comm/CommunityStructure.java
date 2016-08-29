@@ -11,7 +11,7 @@ public class CommunityStructure {
   private final int[] bestTopicInDoc; // topic w/ highest theta per doc
 
   private final RandomCommunityAssigner rndAssigner;
-  private final DocumentSimilarityMeasurer simRanker;
+  private final JSD JSD;
   private final NodeAttributes attributes;
 
   private final List<int[]> commWordCount = new ArrayList<int[]>(); // average
@@ -58,7 +58,7 @@ public class CommunityStructure {
       initialiseLayers(i);
     }
 
-    simRanker = new DocumentSimilarityMeasurer(theta, inverseTheta);
+    JSD = new JSD(inverseTheta);
 
     for (int i = 0; i < layers; i++) {
       initialiseDists(i);
@@ -72,7 +72,7 @@ public class CommunityStructure {
 
     for (int doc = 0; doc < docCount; doc++) {
       int comm = communities(layer)[doc];
-      dc[doc] = simRanker.JSDivergence(comm, doc, commThetas(layer));
+      dc[doc] = JSD.JSDivergence(comm, doc, commThetas(layer));
     }
   }
 
@@ -285,7 +285,7 @@ public class CommunityStructure {
   public double docCommCloseness(int layer, int comm) { return docCommCloseness.get(layer)[comm]; }
 
   public double JSDiv(TIntArrayList docs) {
-    return simRanker.JSDivergence(docs);
+    return JSD.JSDivergence(docs);
   }
 
   public double JSDiv(int layer, int comm) {
@@ -297,7 +297,7 @@ public class CommunityStructure {
   }
 
   public double JSDiv(int layer, int doc, int comm) {
-    return simRanker.JSDivergence(comm, doc, commThetaLayers.get(layer));
+    return JSD.JSDivergence(comm, doc, commThetaLayers.get(layer));
   }
 
   public double JSImp(int layer, int comm) {
@@ -311,11 +311,11 @@ public class CommunityStructure {
   public double[] entropy(int layer) { return entropyLayers.get(layer); }
 
   public double calcEntropy(int layer, int comm) {
-    return simRanker.entropy(comm, commThetaLayers.get(layer), topicCount);
+    return Entropy.entropy(comm, commThetaLayers.get(layer), topicCount);
   }
 
   public double docEntropy(int doc) {
-    return simRanker.entropy(inverseTheta[doc], topicCount);
+    return Entropy.entropy(inverseTheta[doc], topicCount);
   }
 
   public int[] bestTopicInDoc() { return bestTopicInDoc; }

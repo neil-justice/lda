@@ -189,7 +189,7 @@ public class LocalMaximiser {
   }
 
   private double entropy(double[] dist) {
-    return DocumentSimilarityMeasurer.entropy(dist, topicCount);
+    return Entropy.entropy(dist, topicCount);
   }
 
   public SparseDoubleMatrix commTheta() {

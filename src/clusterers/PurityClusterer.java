@@ -35,9 +35,6 @@ public class PurityClusterer implements Clusterer {
   public List<int[]> run() {
     initialiseComms();
     checkMemberLists();
-    // createSubgraphs();
-    // partitionSubgraphs();
-    // translateCommunities();
     
     List<int[]> list = new ArrayList<>();
     list.add(community);
@@ -47,7 +44,7 @@ public class PurityClusterer implements Clusterer {
   public void initialiseComms() {
     for (int node = 0; node < order; node++) {
       int bestPart = 0;
-      if (DocumentSimilarityMeasurer.entropy(inverseTheta[node], topicCount) > 0.9) {
+      if (Entropy.entropy(inverseTheta[node], topicCount) > 0.9) {
         bestPart = partCount - 1;
       }
       else bestPart = getStrongestTopic(node);
