@@ -107,8 +107,6 @@ class Interface {
   }
   
   private void compare() {
-    g = getGraph();
-    MutualInformation NMI = new MutualInformation(g.order());
     if (cmd.length == 5) {
       CommunityStructure s1 = clusterers.get(cmd[1]).run();
       int layer1 = parse(cmd[2], "Layer must be a non-negative number.");
@@ -118,19 +116,17 @@ class Interface {
       if (s1 == null || s2 == null) System.out.println("No such clusterer.");
       else if (layer1 >= s1.layers()) System.out.println("No such layer.");
       else if (layer2 >= s2.layers()) System.out.println("No such layer.");
-      else NMI.compare(s1, layer1, s2, layer2);
+      else NMI.NMI(s1, layer1, s2, layer2);
     }
     else System.out.println(usageErrorMsg);
   }
   
   private void batchCompare() {
-    g = getGraph();
-    MutualInformation NMI = new MutualInformation(g.order());
     if (structure == null) structure = louvain();
     CommunityStructure js = clusterUsingJSDivergence();
     
     for (int layer = 0; layer < structure.layers(); layer++) {
-      NMI.compare(structure, layer, js, 0);
+      NMI.NMI(structure, layer, js, 0);
     }
   }
   
@@ -142,8 +138,7 @@ class Interface {
     else layer = 0;
     
     if (structure == null) structure = louvain();
-    SoftMutualInformation NMI = new SoftMutualInformation(structure, layer);
-    System.out.println(NMI.run());
+    NMI.NMI(structure, layer);
   }
   
   private CommunityStructure purity() {
