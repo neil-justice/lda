@@ -9,7 +9,8 @@ public class CommunityStructure {
   private final int docCount;
   private final int layers;
   private final int[] bestTopicInDoc; // topic w/ highest theta per doc
-
+  
+  private final Graph g;
   private final RandomCommunityAssigner rndAssigner;
   private final JSD JSD;
   private final NodeAttributes attributes;
@@ -38,9 +39,10 @@ public class CommunityStructure {
   private final int[] numComms;
 
   public CommunityStructure(List<int[]> communityLayers, double[][] theta,
-                            NodeAttributes attributes) {
+                            NodeAttributes attributes, Graph g) {
     this.communityLayers = communityLayers;
     this.theta = theta;
+    this.g = g;
 
     topicCount = theta.length;
     docCount   = communityLayers.get(0).length;
@@ -66,6 +68,7 @@ public class CommunityStructure {
 
     predict();
   }
+  
   private void initialiseDists(int layer) {
     double[] dc = new double[docCount];
     docCommCloseness.add(dc);
@@ -129,8 +132,7 @@ public class CommunityStructure {
   }
 
   public void predict() {
-    System.out.println("(averages)");
-    System.out.println("L  corr           % corr JS    JSi   E     size");
+    System.out.println("L  corr           % corr av.JS JSi   av.H  mod   NMI   av.size");
     for (int i = 0; i < layers; i++) {
       LayerPredictor lp = new LayerPredictor(i);
       lp.run();
@@ -162,6 +164,8 @@ public class CommunityStructure {
     private double avgJS;
     private double avgEntropy;
     private double avgSize;
+    private double modularity;
+    private double nmi;
 
     public LayerPredictor(int layer) {
       this.layer = layer;
@@ -188,10 +192,12 @@ public class CommunityStructure {
       calculateJSDists();
       getBestCommTopics();
       getBestFit();
-      System.out.printf("%d %6d/%6d = %.01f%%  %.03f %.03f %.03f %5f%n",
+      getModularity();
+      getNMI();
+      System.out.printf("%d %6d/%6d = %.01f%%  %.03f %.03f %.03f %.03f %.03f %5f%n",
                         layer, correct, docCount,
                         (correct / (double) docCount) * 100, avgJS,
-                        avgJSImprovement, avgEntropy, avgSize);
+                        avgJSImprovement, avgEntropy, modularity, nmi, avgSize);
       // printScores();
 
       bestTopicInCommLayers.add(bestTopicInComm);
@@ -214,6 +220,15 @@ public class CommunityStructure {
                              " Entr " + entropy[comm]);
         }
       }
+    }
+    
+    private void getModularity() {
+      GraphUtils.loadPartitionSet(g, communities);
+      modularity = g.modularity();
+    }
+    
+    private void getNMI() {
+      nmi = NMI.NMI(CommunityStructure.this, layer);
     }
 
     private void calculateJSDists() {

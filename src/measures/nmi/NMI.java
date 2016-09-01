@@ -21,7 +21,6 @@ public class NMI {
                             JointDistribution joint) {
     double MI = MI(dist1, dist2, joint);
     double NMI = normalise(MI, dist1, dist2);
-    System.out.println("NMI: " + NMI);
     return NMI;    
   }
 

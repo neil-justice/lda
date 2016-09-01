@@ -10,6 +10,7 @@ class Interface {
   private final Map<String, Structurable> clusterers = new HashMap<>();
   private CommunityStructure structure;
   private Corpus corpus;
+  private GraphBuilder gb;
   private Graph g;
   private String[] cmd;
   private boolean quit = false;
@@ -116,7 +117,7 @@ class Interface {
       if (s1 == null || s2 == null) System.out.println("No such clusterer.");
       else if (layer1 >= s1.layers()) System.out.println("No such layer.");
       else if (layer2 >= s2.layers()) System.out.println("No such layer.");
-      else NMI.NMI(s1, layer1, s2, layer2);
+      else System.out.println(NMI.NMI(s1, layer1, s2, layer2));
     }
     else System.out.println(usageErrorMsg);
   }
@@ -138,7 +139,7 @@ class Interface {
     else layer = 0;
     
     if (structure == null) structure = louvain();
-    NMI.NMI(structure, layer);
+    System.out.println(NMI.NMI(structure, layer));
   }
   
   private CommunityStructure purity() {
@@ -203,7 +204,7 @@ class Interface {
   private CommunityStructure importClustering() {
     Clusterer clusterer;
     if (cmd.length == 2) {
-      clusterer = new PartitionReader(cmd[1]);
+      clusterer = new PartitionReader(dir + cmd[1]);
       return getStructure(clusterer);
     }
     else System.out.println(usageErrorMsg);
@@ -361,21 +362,24 @@ class Interface {
     System.out.println("");
     System.out.println("Clustering commands:");
     System.out.println("  louvain           -- clusters graph using the Louvain method.");
-    System.out.println("  louvain-seed <[itr]> -- generate and store the best random seed out of [itr] for");
-    System.out.println("                       the Louvain method.  Default is 10.");
+    System.out.println("  louvain-seed <[itr]> -- generate and store the best random seed out of [itr]");
+    System.out.println("                          for the Louvain method.  Default is 10.");
     System.out.println("  infomap           -- reads in an infomap .tree file.");
     System.out.println("  js                -- clusters using Jensen-Shannon Divergence.");
     System.out.println("  random            -- compare the current partition set to a random one");
     System.out.println("                       where the size of each partition is the same.");
     System.out.println("  trivial           -- partition set which trivially minimises average entropy.");
+    System.out.println("  purity            -- groups nodes based on strongest topic.");
     System.out.println("  import [file]     -- import partition set from file");
     System.out.println("  export [filename] -- export partition set to file");
     System.out.println("  chart [layer]     -- display charts for current partition set.");
     System.out.println("  write             -- write out community and document info.");
     System.out.println("  compare [cls][layer][cls2][layer2] -- calculates the NMI of two partiton sets.");
-    System.out.println("  nmi [layer]       -- calculates the NMI between the set layer and LDA's soft clustering");
+    System.out.println("  nmi [layer]       -- calculates the NMI between the set layer and LDA's soft");
+    System.out.println("                       clustering");
     System.out.println("  modularity        -- show the modularity of the current partition set");
     System.out.println("  coocurrence [layer] -- show which topics co-ocurr regularly");
+    System.out.println("  temper [layer]    -- Run the hybrid detector on the specified layer");
     System.out.println("");
     System.out.println("Meta-commands:");
     System.out.println("  help              -- shows this list.");
@@ -412,7 +416,8 @@ class Interface {
   
   private Graph reloadGraph() {
     if (!ft.hasGraph()) throw new Error("No graph data at" + dir + CTUT.GRAPH);
-    return new GraphBuilder().fromFileAndDB(dir + CTUT.GRAPH, c).build();
+    gb = new GraphBuilder().fromFileAndDB(dir + CTUT.GRAPH, c);
+    return gb.build();
   }
   
   private CommunityStructure getStructure(Clusterer clusterer, String filename) {
@@ -429,7 +434,7 @@ class Interface {
     if (g == null) g = getGraph();
     NodeAttributes attributes = new NodeAttributes(c, dir, g.order());
     CommunityStructure s = new CommunityStructure(communities, c.getTheta(),
-                                                  attributes);
+                                                  attributes, gb.build());
     return s;        
   }
   

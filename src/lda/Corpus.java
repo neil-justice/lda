@@ -149,8 +149,8 @@ public class Corpus {
   public void run(int cycles) {
     this.cycles = cycles;
     burnLength = cycles / 10;
-    sampleLag = cycles / 50;
-    optimiseInterval = cycles / 52;
+    sampleLag = 20;
+    optimiseInterval = 25;
     cycles();
     write();
   }
