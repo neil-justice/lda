@@ -117,11 +117,9 @@ class Interface {
     
     Graph g1 = reloadGraph();
     Graph g2 = reloadGraph();
-    HardClustering dist1 = getDistribution(new PartitionReader(dir + CTUT.LOUVAIN_PARTITION_SET), layer);
-    g1 = null;
-    HardClustering dist2 = getDistribution(new LouvainDetector(g2), layer);
-    g2 = null;
-    System.out.println(NMI.NMI(dist1, dist2));
+    CommunityStructure s1 = getStructure(new LouvainDetector(g1));
+    CommunityStructure s2 = getStructure(new LouvainDetector(g2));
+    System.out.println(NMI.NMI(s1, layer, s2, layer));
   }
   
   private void erdosRenyi() {
@@ -140,26 +138,17 @@ class Interface {
   
   private void compare() {
     if (cmd.length == 5) {
-      CommunityStructure s = clusterers.get(cmd[1]).run();
+      CommunityStructure s1 = clusterers.get(cmd[1]).run();
       int layer1 = parse(cmd[2], "Layer must be a non-negative number.");
-      if (s == null) System.out.println("No such clusterer.");
-      else if (layer1 >= s.layers()) System.out.println("No such layer.");
-      HardClustering dist1 = new HardClustering(s, layer1);
-      
-      s = clusterers.get(cmd[3]).run();
+      CommunityStructure s2 = clusterers.get(cmd[3]).run();
       int layer2 = parse(cmd[4], "Layer must be a non-negative number.");
-      if (s == null) System.out.println("No such clusterer.");
-      else if (layer2 >= s.layers()) System.out.println("No such layer.");
-      HardClustering dist2 = new HardClustering(s, layer2);
       
-      System.out.println(NMI.NMI(dist1, dist2));
+      if (s1 == null || s2 == null) System.out.println("No such clusterer.");
+      else if (layer1 >= s1.layers()) System.out.println("No such layer.");
+      else if (layer2 >= s2.layers()) System.out.println("No such layer.");
+      else System.out.println(NMI.NMI(s1, layer1, s2, layer2));
     }
     else System.out.println(usageErrorMsg);
-  }
-  
-  private HardClustering getDistribution(Clusterer clusterer, int layer) {
-    CommunityStructure s = getStructure(clusterer);
-    return new HardClustering(s, layer);
   }
   
   private void batchCompare() {
