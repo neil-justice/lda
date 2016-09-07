@@ -92,9 +92,9 @@ public class CommunityStructure {
     for (int doc = 0; doc < docCount; doc++) {
       int comm = communities[doc];
       commSizes[comm]++;
-      wordCount[comm] += attributes.wordCount(doc);
-      followers[comm] += attributes.followers(doc);
-      friends[comm]   += attributes.friends(doc);
+      if (attributes != null) wordCount[comm] += attributes.wordCount(doc);
+      if (attributes != null) followers[comm] += attributes.followers(doc);
+      if (attributes != null) friends[comm]   += attributes.friends(doc);
       double max = 0d;
       for (int topic = 0; topic < topicCount; topic++) {
         commThetas.add(topic, comm, theta[topic][doc]);
@@ -132,7 +132,7 @@ public class CommunityStructure {
   }
 
   public void predict() {
-    System.out.println("L  corr           % corr av.JS JSi   av.H  mod   NMI   av.size");
+    System.out.println("L  corr           % corr av.JS JSi   av.H  mod   NMI   av.size comms");
     for (int i = 0; i < layers; i++) {
       LayerPredictor lp = new LayerPredictor(i);
       lp.run();
@@ -193,12 +193,6 @@ public class CommunityStructure {
       getBestCommTopics();
       getBestFit();
       getModularity();
-      getNMI();
-      System.out.printf("%d %6d/%6d = %.01f%%  %.03f %.03f %.03f %.03f %.03f %5f%n",
-                        layer, correct, docCount,
-                        (correct / (double) docCount) * 100, avgJS,
-                        avgJSImprovement, avgEntropy, modularity, nmi, avgSize);
-      // printScores();
 
       bestTopicInCommLayers.add(bestTopicInComm);
       commScoreLayers.add(commScore);
@@ -206,6 +200,13 @@ public class CommunityStructure {
       JSImpLayers.add(JSDivImprovement);
       entropyLayers.add(entropy);
       memberLayers.add(members);
+      
+      getNMI();
+      System.out.printf("%d %6d/%6d = %.01f%%  %.03f %.03f %.03f %.03f %.03f %.03f %d%n",
+                        layer, correct, docCount,
+                        (correct / (double) docCount) * 100, avgJS,
+                        avgJSImprovement, avgEntropy, modularity, nmi, avgSize, numComms[layer]);
+      // printScores();
     }
 
     private void printScores() {
@@ -347,8 +348,11 @@ public class CommunityStructure {
   public int[] friends(int layer) { return commFriends.get(layer); }
 
   public int commIndex(int layer, int index) { return commIndexes.get(layer)[index]; }
+  public int[] commIndex(int layer) { return commIndexes.get(layer); }
 
   public int indexFromComm(int layer, int comm) { return reverseIndexes.get(layer).get(comm); }
+  public TIntIntHashMap indexFromComm(int layer) { return reverseIndexes.get(layer); }
+  
   public int wordCount(int layer, int comm) { return commWordCount.get(layer)[comm]; }
   public int followers(int layer, int comm) { return commFollowers.get(layer)[comm]; }
   public int friends(int layer, int comm) { return commFriends.get(layer)[comm]; }
@@ -356,5 +360,9 @@ public class CommunityStructure {
 
   public TIntArrayList members(int layer, int comm) {
     return memberLayers.get(layer)[comm];
+  }
+  
+  public TIntArrayList[] members(int layer) {
+    return memberLayers.get(layer);
   }
 }

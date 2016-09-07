@@ -146,11 +146,11 @@ class Graph {
     g.moveToComm(5,3);
     
     t.is(g.degree(1),26);
-    t.is(g.size(),89);
+    t.is(g.size(),84);
     t.is(g.degree(0),17);
     t.is(g.weight(0,1), g.weight(1,0));
     t.is(g.dnodecomm(6,3),28);
-    t.is(g.totDegree(3), 20 + 31 + 37);
+    t.is(g.totDegree(3), g.degree(3) + g.degree(4) + g.degree(5)); // 10 + 41 + 27
     t.is(g.totDegree(1), 0);
     t.is(g.totDegree(5), 0);
     t.is(g.intDegree(0), 62);

@@ -77,6 +77,8 @@ public class DocumentWriter {
     builder.append("words");
     builder.append(del);
     builder.append("best");
+    builder.append(del);
+    builder.append("corr");
     for (int topic = 0; topic < topicCount; topic++) {
       builder.append(del);
       builder.append("theta (" + topic + " doc)");
@@ -87,7 +89,12 @@ public class DocumentWriter {
   private String prepareLine(int layer, int doc) {
     StringBuilder builder = new StringBuilder();
     int comm = structure.community(layer, doc);
+    boolean corr = false;
     
+    if (structure.bestTopicInDoc(doc) == structure.bestTopicInComm(layer, comm)) {
+      corr = true;
+    }
+      
     builder.append(doc);
     builder.append(del);
     builder.append(g.degree(doc));
@@ -105,6 +112,8 @@ public class DocumentWriter {
     builder.append(attributes.wordCount(doc));
     builder.append(del);
     builder.append(structure.bestTopicInDoc(doc));
+    builder.append(del);
+    builder.append(corr);
     
     for (int topic = 0; topic < topicCount; topic++) {
       builder.append(del);

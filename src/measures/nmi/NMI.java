@@ -17,6 +17,12 @@ public class NMI {
     return run(dist1, dist2, joint);
   }
   
+  public static double NMI(HardClustering dist1, HardClustering dist2) {
+    JointDistribution joint = new JointDistribution(dist1, dist2);
+    
+    return run(dist1, dist2, joint);
+  }
+  
   private static double run(Clustering dist1, Clustering dist2,
                             JointDistribution joint) {
     double MI = MI(dist1, dist2, joint);

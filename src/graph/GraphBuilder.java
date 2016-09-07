@@ -205,6 +205,22 @@ public class GraphBuilder
     return this;
   }
   
+  public GraphBuilder erdosRenyi(int order, double prob) {
+    this.order = order;
+    Random rnd = new Random();
+    initialise();
+    
+    for (int n1 = 0; n1 < order; n1++) {
+      for (int n2 = 0; n2 < order; n2++) {
+        if (matrix.get(n2, n1) == 0 && n1 != n2 && rnd.nextDouble() < prob) {
+          insertEdgeSym(n1, n2, 1);
+        }
+      }
+    }
+    if (!matrix.isSymmetric()) throw new Error("asymmetric matrix");
+    return this;    
+  }
+  
   public SparseIntMatrix matrix() { return matrix; }
   public TIntArrayList[] adjList() { return adjList; }
   public int[] degrees() { return degrees; }

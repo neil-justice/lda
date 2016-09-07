@@ -1,17 +1,25 @@
 import gnu.trove.list.array.TIntArrayList;
+import gnu.trove.map.hash.TIntIntHashMap;
 
 public class HardClustering implements Clustering {
   private final int N; // no. of nodes
   private final double[] dist;
-  private final CommunityStructure structure;
   private final int numComms;
   private final int layer;
+  private final TIntArrayList[] members;
+  private final int[] commFromIndex;
+  private final int[] community;
+  private final TIntIntHashMap indexFromComm;
   
   public HardClustering(CommunityStructure structure, int layer) {
-    this.structure = structure;
     this.layer = layer;
+    members = structure.members(layer);
+    commFromIndex = structure.commIndex(layer);
+    indexFromComm = structure.indexFromComm(layer);
+    community = structure.communities(layer);
     N = structure.docCount();
     numComms = structure.numComms(layer);
+    
     dist = new double[numComms];
     
     for (int i = 0; i < numComms; i++) {
@@ -32,18 +40,18 @@ public class HardClustering implements Clustering {
   public int N() { return N; }
   
   public int community(int comm) { 
-    return structure.community(layer, comm);
+    return community[comm];
   }
   
   public int indexFromComm(int comm) {
-    return structure.indexFromComm(layer, comm);
+    return indexFromComm.get(comm);
   }
   
   public int commFromIndex(int index) {
-    return structure.commIndex(layer, index);
+    return commFromIndex[index];
   }
   
   public TIntArrayList members(int comm) {
-    return structure.members(layer, comm);
+    return members[comm];
   }
 }

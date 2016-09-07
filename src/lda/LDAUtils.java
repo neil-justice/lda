@@ -23,7 +23,7 @@ public class LDAUtils {
   }
   
   // as laid out in Blei and Lafferty, 2009.  sorts words in topics by
-  // prob. in topic * log (prob. in topic / geometric mean prob in all topics)
+  // phi * log (phi / geometric mean prob in all topics)
   // and defines topics by their top 10 words.
   public static void termScore(double[][] phi, Translator translator) {
     int wordCount = phi.length;

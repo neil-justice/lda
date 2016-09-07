@@ -3,9 +3,9 @@ import java.util.*;
 class Interface {
   private final String dir;
   private final Scanner input = new Scanner(System.in);
-  private final FileTracker ft;
-  private final SQLConnector c;
-  private final PartitionWriter writer;
+  private FileTracker ft;
+  private SQLConnector c;
+  private PartitionWriter writer;
   private final Map<String, Runnable> commands = new HashMap<>();
   private final Map<String, Structurable> clusterers = new HashMap<>();
   private CommunityStructure structure;
@@ -18,21 +18,19 @@ class Interface {
   
   public Interface(String dir) {
     this.dir = dir;
-    ft = new FileTracker(dir);
-    c = new SQLConnector(dir);
-    writer = new PartitionWriter(dir);
     init();
   }
   
   public Interface() {
     dir = chooseDir();
-    ft = new FileTracker(dir);
-    c = new SQLConnector(dir);
-    writer = new PartitionWriter(dir);
     init();    
   }
   
   private void init() {
+    ft = new FileTracker(dir);
+    c = new SQLConnector(dir);
+    writer = new PartitionWriter(dir);
+    
     c.open();
     showInfo();
     
@@ -57,6 +55,8 @@ class Interface {
     commands.put("coocurrence", this::topicCoocurrence);
     commands.put("nmi", this::NMI);
     commands.put("export", this::export);
+    commands.put("check-structure", this::selfCompare);
+    commands.put("er", this::erdosRenyi);
     
     clusterers.put("louvain", this::louvain);
     clusterers.put("infomap", this::infomapResults);
@@ -107,19 +107,59 @@ class Interface {
     }
   }
   
+  // checks for 'consensual communities' to prove a graph has community structure
+  private void selfCompare() {
+    int layer;
+    if (cmd.length == 2) {
+      layer = parse(cmd[1], "Layer must be a non-negative number.");
+    }
+    else layer = 0;
+    
+    Graph g1 = reloadGraph();
+    Graph g2 = reloadGraph();
+    HardClustering dist1 = getDistribution(new PartitionReader(dir + CTUT.LOUVAIN_PARTITION_SET), layer);
+    g1 = null;
+    HardClustering dist2 = getDistribution(new LouvainDetector(g2), layer);
+    g2 = null;
+    System.out.println(NMI.NMI(dist1, dist2));
+  }
+  
+  private void erdosRenyi() {
+    int layer;
+    if (cmd.length == 2) {
+      layer = parse(cmd[1], "Layer must be a non-negative number.");
+    }
+    else layer = 0;
+    GraphBuilder ERBuilder = new GraphBuilder().erdosRenyi(10000,0.0005);
+    Graph g1 = ERBuilder.build();
+    Graph g2 = ERBuilder.build();
+    CommunityStructure s1 = getStructure(new LouvainDetector(g1), g1);
+    CommunityStructure s2 = getStructure(new LouvainDetector(g2), g2);
+    System.out.println(NMI.NMI(s1, layer, s2, layer));
+  }  
+  
   private void compare() {
     if (cmd.length == 5) {
-      CommunityStructure s1 = clusterers.get(cmd[1]).run();
+      CommunityStructure s = clusterers.get(cmd[1]).run();
       int layer1 = parse(cmd[2], "Layer must be a non-negative number.");
-      CommunityStructure s2 = clusterers.get(cmd[3]).run();
-      int layer2 = parse(cmd[4], "Layer must be a non-negative number.");
+      if (s == null) System.out.println("No such clusterer.");
+      else if (layer1 >= s.layers()) System.out.println("No such layer.");
+      HardClustering dist1 = new HardClustering(s, layer1);
       
-      if (s1 == null || s2 == null) System.out.println("No such clusterer.");
-      else if (layer1 >= s1.layers()) System.out.println("No such layer.");
-      else if (layer2 >= s2.layers()) System.out.println("No such layer.");
-      else System.out.println(NMI.NMI(s1, layer1, s2, layer2));
+      s = clusterers.get(cmd[3]).run();
+      int layer2 = parse(cmd[4], "Layer must be a non-negative number.");
+      if (s == null) System.out.println("No such clusterer.");
+      else if (layer2 >= s.layers()) System.out.println("No such layer.");
+      HardClustering dist2 = new HardClustering(s, layer2);
+      
+      System.out.println(NMI.NMI(dist1, dist2));
     }
     else System.out.println(usageErrorMsg);
+  }
+  
+  private HardClustering getDistribution(Clusterer clusterer, int layer) {
+    CommunityStructure s = getStructure(clusterer);
+    return new HardClustering(s, layer);
   }
   
   private void batchCompare() {
@@ -224,7 +264,7 @@ class Interface {
     else layer = 0;
     
     if (structure == null) structure = louvain();
-    g = GraphUtils.loadPartitionSet(getGraph(), structure.communities(layer));
+    g = GraphUtils.loadPartitionSet(reloadGraph(), structure.communities(layer));
     Temperer temperer = new Temperer(g, MatrixTransposer.transpose(c.getTheta()));
     return getStructure(temperer);      
   }
@@ -416,8 +456,14 @@ class Interface {
   
   private Graph reloadGraph() {
     if (!ft.hasGraph()) throw new Error("No graph data at" + dir + CTUT.GRAPH);
-    gb = new GraphBuilder().fromFileAndDB(dir + CTUT.GRAPH, c);
+    if (gb == null) gb = new GraphBuilder().fromFileAndDB(dir + CTUT.GRAPH, c);
     return gb.build();
+  }
+  
+  private CommunityStructure getStructure(Clusterer clusterer, Graph graph) {
+    CommunityStructure s = new CommunityStructure(clusterer.run(), c.getTheta(),
+                                                  null, graph);
+    return s;   
   }
   
   private CommunityStructure getStructure(Clusterer clusterer, String filename) {
@@ -434,7 +480,7 @@ class Interface {
     if (g == null) g = getGraph();
     NodeAttributes attributes = new NodeAttributes(c, dir, g.order());
     CommunityStructure s = new CommunityStructure(communities, c.getTheta(),
-                                                  attributes, gb.build());
+                                                  attributes, g);
     return s;        
   }
   
