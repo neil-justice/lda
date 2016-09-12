@@ -48,6 +48,7 @@ class Interface {
     commands.put("chart", this::viewCharts);
     commands.put("louvain-seed", this::genLouvainSeed);
     commands.put("write", this::write);
+    commands.put("write-comms", this::writeCommTheta);
     commands.put("compare", this::compare);
     commands.put("compare-js", this::batchCompare);
     commands.put("modularity", this::modularity);
@@ -57,6 +58,7 @@ class Interface {
     commands.put("export", this::export);
     commands.put("check-structure", this::selfCompare);
     commands.put("er", this::erdosRenyi);
+    commands.put("topics", this::topicWeight);
     
     clusterers.put("louvain", this::louvain);
     clusterers.put("infomap", this::infomapResults);
@@ -65,6 +67,7 @@ class Interface {
     clusterers.put("random", this::compareToRandom);
     clusterers.put("import", this::importClustering);
     clusterers.put("temper", this::temper);
+    clusterers.put("temper-all", this::temperAll);
     clusterers.put("hybrid", this::hybrid);
     clusterers.put("purity", this::purity);
   }
@@ -269,6 +272,18 @@ class Interface {
     return getStructure(temperer);      
   }
   
+  private CommunityStructure temperAll() {
+    if (structure == null) structure = louvain();
+    List<int[]> communities = new ArrayList<>();
+    for (int layer = 1; layer < structure.layers(); layer++) {
+      g = GraphUtils.loadPartitionSet(reloadGraph(), structure.communities(layer));
+      Temperer temperer = new Temperer(g, MatrixTransposer.transpose(c.getTheta()));
+      communities.add(temperer.run().get(0));
+    }
+    structure = null;
+    return getStructure(communities);
+  }
+  
   private void genLouvainSeed() {
     g = reloadGraph();
     int it = 10;
@@ -288,7 +303,19 @@ class Interface {
     cWriter.write();
     dWriter.write();
     pWriter.write();
-  }  
+  }
+  
+  private void writeCommTheta() {
+    int layer;
+    if (cmd.length == 2) {
+      layer = parse(cmd[1], "Layer must be a non-negative number.");
+    }
+    else layer = 0;    
+    if (structure == null) structure = louvain();
+    
+    CommThetaWriter ctWriter = new CommThetaWriter(structure.commThetas(layer), dir);
+    ctWriter.write();
+  }
   
   private void viewCharts() {
     if (cmd.length == 2) {
@@ -323,6 +350,20 @@ class Interface {
     }
     g = null; // otherwise something seems to get messed up 
   }  
+  
+  private void topicWeight() {
+    double[][] theta = c.getTheta();
+    double[] weight = new double[theta.length];
+    
+    System.out.println("Topic Weight");
+    for (int topic = 0; topic < theta.length; topic++) {
+      for (int doc = 0; doc < theta[0].length; doc++) {
+        weight[topic] += theta[topic][doc];
+      }
+      weight[topic] /= theta[0].length;
+      System.out.printf("%5d %f %n", topic, weight[topic]);
+    } 
+  }
   
   private void process() {
     Preprocessor p;
@@ -364,6 +405,10 @@ class Interface {
         corpus = new CorpusBuilder(topics, c).fromDatabase(dir).build();
         System.out.println("Corpus loaded.");
       }
+    }
+    else {
+        corpus = new CorpusBuilder(c.getTopics(), c).fromDatabase(dir).build();
+        System.out.println("Corpus loaded.");      
     }
   }
   

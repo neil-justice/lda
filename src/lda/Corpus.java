@@ -1,3 +1,5 @@
+/* This is the main LDA class. A corpus loaded via the corpusbuilder can have
+ * gibbs sampling iterations run on it here. */
 import java.util.*;
 import java.util.concurrent.*;
 
@@ -11,32 +13,34 @@ public class Corpus {
   private final int tokenCount;        // total no. of tokens
   private final int topicCount;
   private final int[] tokensInTopic; 
-  private final int[] tokensInDoc; 
+  private final int[] tokensInDoc;
   private final int[][] wordsInTopic;
   private final int[][] topicsInDoc;
   private final double[][] phiSum;     // multinomial dist. of words in topics
   private final double[][] thetaSum;   // multinomial dist. of topics in docs.
-  private final double[] topicWeight;  // how frequent each topic is
   
   private HyperparameterOptimiser optimiser;
   private final double[] alpha; // hyperparameter
+  private double alphaSum;
   private final double beta;  // hyperparameter
   private final double betaSum;
   private int maxLength; // length of longest doc
   private int optimiseInterval;
   
   private int cycles;
+  private int maxCycles; // cycles to run
   private int samples; // no. of times the phi and theta sums have been added to
   private int burnLength; // length of burn-in phase to allow markov chain 
                           // to converge.
   private int sampleLag;  // cycles to skip samples from between samples, giving
                           // us decorrelated states of the markov chain
+  private int perplexLag; // how often to measure perplexity.
   private int moves = 0;  // no. of tokens who have changed topic this cycle.
   
   // DB stuff:
   private final SQLConnector c;
-  private int prevCycles; // no. of cycles run in previous session
-  private int prevTopics; // no. of topics from last session
+  private int prevTopics; // no. of topics from prev sessions
+  private int prevCycles; // no. of cycles from prev sessions
   
   // multithreading stuff:
   private final int P = 3; // no. of processors.
@@ -63,27 +67,32 @@ public class Corpus {
     
     phiSum        = new double[wordCount][topicCount];
     thetaSum      = new double[topicCount][docCount];
-    topicWeight   = new double[topicCount];
     
     alpha = new double[topicCount];
     beta  = 0.2;
     betaSum = beta * wordCount;
     
-    samples = 0;
-    
     c = builder.connector();
     c.open();
-    
     translator = new Translator(c);
     
-    prevCycles = c.getCycles();
     prevTopics = c.getTopics();
+    
+    if (prevTopics == topicCount) {
+      samples = c.getSamples();
+      cycles = c.getCycles();
+      loadParameters();
+    }
+    else {
+      cycles = 0;
+      samples = 0;
+    }
     
     System.out.println(" V : " + wordCount + 
                        " D : " + docCount + 
-                       " N : " + tokenCount);
+                       " N : " + tokenCount + " P : " + P);
                        
-    System.out.println("" + prevCycles + " run so far, with Z = " + prevTopics);
+    System.out.println("" + cycles + " run so far, with " + samples + " samples taken.");
 
     randomiseTopics();
     initialiseMatrices();
@@ -143,14 +152,16 @@ public class Corpus {
     optimiser = new HyperparameterOptimiser(tokensInDoc, topicCount, maxLength);
     for (int topic = 0; topic < topicCount; topic++) {
       alpha[topic] = 0.1;
+      alphaSum += alpha[topic];
     }
   }
   
-  public void run(int cycles) {
-    this.cycles = cycles;
-    burnLength = cycles / 10;
+  public void run(int maxCycles) {
+    this.maxCycles = maxCycles + cycles;
+    perplexLag = 10;
+    burnLength = 100;
     sampleLag = 20;
-    optimiseInterval = 25;
+    optimiseInterval = 40;
     cycles();
     write();
   }
@@ -164,6 +175,7 @@ public class Corpus {
     c.writePhi(phi());
     c.setTopics(topicCount);
     c.setCycles(cycles);
+    c.setSamples(samples);
   }
   
   //close DB connection and shutdown thread pool
@@ -183,24 +195,27 @@ public class Corpus {
   private void cycles() {
     
     double avg = 0;
-    for (int i = 0; i < cycles; i++) {
+    for ( ; cycles < maxCycles; cycles++) {
       long s = System.nanoTime();
       cycle();
-      if (i >= burnLength && i % optimiseInterval == 0) optimiseAlpha();
-      if (i >= burnLength && i % sampleLag == 0) updateParameters();
+      if (cycles >= burnLength && cycles % optimiseInterval == 0) optimiseAlpha();
+      if (cycles >= burnLength && cycles % sampleLag == 0) {
+        updateParameters();
+        print();
+      }
       long e = System.nanoTime();
       double time = (e - s) / 1000000000d;
       avg += time;
-      System.out.print("Cycle " + i);
+      System.out.print("Cycle " + cycles);
       System.out.printf(", seconds taken: %.03f", time );
-      System.out.print(", moves made: " + moves );
-      if (i < burnLength) System.out.print(" (burn-in)");
-      else if (i % sampleLag != 0) System.out.print(" (sample-lagging)");
-      else if (i % optimiseInterval == 0) System.out.print(" (optimising)");
+      if (cycles < burnLength) System.out.print(" (burn-in)");
+      else if (cycles % sampleLag != 0) System.out.print(" (sample-lagging)");
+      else if (cycles % optimiseInterval == 0) System.out.print(" (optimising)");
       System.out.println();
+      if (cycles % perplexLag == 0) System.out.println("perplexity: " + perplexity());
       moves = 0;
     }
-    avg /= cycles;
+    avg /= (maxCycles - prevCycles);
     System.out.printf("Avg. seconds taken: %.03f%n", avg );    
   }
   
@@ -325,7 +340,7 @@ public class Corpus {
         docTopicCountHist[topic][count]++;
       }
     }    
-    optimiser.optimiseAlpha(alpha, docTopicCountHist);
+    alphaSum = optimiser.optimiseAlpha(alpha, docTopicCountHist);
     for (int topic = 0; topic < topicCount; topic++) {
       System.out.println("t " + topic + " alpha " + alpha[topic]);
     }
@@ -339,7 +354,7 @@ public class Corpus {
     for (int topic = 0; topic < topicCount; topic++) {
       for (int doc = 0; doc < docCount; doc++) {
         thetaSum[topic][doc] += (topicsInDoc[topic][doc] + alpha[topic])
-                             /  (double)(tokensInDoc[doc] + topicCount * alpha[topic]);
+                             /  (double)(tokensInDoc[doc] + alphaSum);
       }
     }
     for (int word = 0; word < wordCount; word++) {
@@ -349,6 +364,22 @@ public class Corpus {
       }
     }
     samples++;
+  }
+  
+  private void loadParameters() {
+    double[][] phi = c.getPhi();
+    double[][] theta = c.getTheta();
+    
+    for (int topic = 0; topic < topicCount; topic++) {
+      for (int doc = 0; doc < docCount; doc++) {
+        thetaSum[topic][doc] += theta[topic][doc] * samples;
+      }
+    }
+    for (int word = 0; word < wordCount; word++) {
+      for (int topic = 0; topic < topicCount; topic++) {
+        phiSum[word][topic] += phi[word][topic] * samples;
+      }
+    }
   }
   
   private double[][] phi() {
@@ -369,12 +400,24 @@ public class Corpus {
     for (int topic = 0; topic < topicCount; topic++) {
       for (int doc = 0; doc < docCount; doc++) {
         theta[topic][doc] = thetaSum[topic][doc] / samples;
-        topicWeight[topic] += theta[topic][doc];
       }
-      topicWeight[topic] /= docCount;
     }
     
     return theta;
+  }
+  
+  public double perplexity() {
+    double sum = 0d;
+    for (int token = 0; token < tokenCount; token++) {
+      int doc = tokens.doc(token);
+      int topic = tokens.topic(token);
+      int word = tokens.word(token);
+      double theta = (topicsInDoc[topic][doc] + alpha[topic]) / (double)(tokensInDoc[doc] + alphaSum);
+      double phi = (wordsInTopic[word][topic] + beta) / (double)(tokensInTopic[topic] + wordCount * beta);
+      sum += Math.log(phi * theta);
+    }
+    sum = 0 - (sum /(double) tokenCount);
+    return Math.exp(sum);
   }
 
   // public void printWords() {
@@ -383,22 +426,6 @@ public class Corpus {
   //     System.out.printf("%15s", translator.getWord(word));
   //     for (int topic = 0; topic < topicCount; topic++) {
   //       System.out.printf("%4d", wordsInTopic[word][topic]);
-  //     }
-  //     System.out.println("");
-  //   }
-  // }
-  
-  // public void printDocs() {
-  //   System.out.println("");
-  //   for (int doc = 0; doc < docCount; doc++) {
-  //     System.out.printf("%-10s", translator.getDoc(doc));
-  //     double docTotal = 0;
-  //     for (int topic = 0; topic < topicCount; topic++) {
-  //       docTotal += topicsInDoc[topic][doc];
-  //     }
-  //     System.out.printf("tot: %5d", (int) docTotal);
-  //     for (int topic = 0; topic < topicCount; topic++) {
-  //       System.out.printf(" %.01f%%", (topicsInDoc[topic][doc] / docTotal) * 100d);
   //     }
   //     System.out.println("");
   //   }

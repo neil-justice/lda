@@ -35,6 +35,13 @@ public class SparseDoubleMatrix {
   
   public int ymax() { return (int) ymax; }
 
+  private boolean isNonZero(long key, double val) {
+    if (val == 0) return false;
+    return true;
+  }
+  
+  public void compress() { map.retainEntries(this::isNonZero); }
+  
   public SparseDoubleMatrix.Iterator iterator() { return new Iterator(); }
   
   public class Iterator {

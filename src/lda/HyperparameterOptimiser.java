@@ -5,7 +5,7 @@ import java.util.*;
 public class HyperparameterOptimiser {
   private final int topicCount;
   private final int docCount;
-  private final int maxLength;       // length of longest doc. maxdN|d in alg. 2.2
+  private final int maxLength;       // length of longest doc. max_dN_{.|d} in alg. 2.2
   private final int[] docLengthHist; // dLH[l] == no. of docs of length [l]
   private int[][] docTopicCountHist; // dTCH[k][cnt] = no. of docs with
                                      // [cnt] no. of topic [k] tokens
@@ -30,7 +30,8 @@ public class HyperparameterOptimiser {
     return optimiseAlpha(alpha, docTopicCountHist, 10);
   }
   
-  // alpha is modified in-place.
+  // alpha is modified in-place.  variable names S, Sk and D are taken from alg.
+  // 2.2 in Wallach's PhD thesis
 	public double optimiseAlpha(double[] alpha, int[][] docTopicCountHist, 
                               int iterations) {
     this.docTopicCountHist = docTopicCountHist;
@@ -64,8 +65,6 @@ public class HyperparameterOptimiser {
 				alphaSum += alpha[topic];
 			}
 		}
-
-		if (alphaSum < 0) { throw new RuntimeException("alphaSum: " + alphaSum); }
 
 		return alphaSum;
 	}

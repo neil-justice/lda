@@ -132,7 +132,7 @@ public class CommunityStructure {
   }
 
   public void predict() {
-    System.out.println("L  corr           % corr av.JS JSi   av.H  mod   NMI   av.size comms");
+    System.out.println("L  corr   av.JS JSi   av.H  mod   NMI   av.size comms");
     for (int i = 0; i < layers; i++) {
       LayerPredictor lp = new LayerPredictor(i);
       lp.run();
@@ -202,9 +202,8 @@ public class CommunityStructure {
       memberLayers.add(members);
       
       getNMI();
-      System.out.printf("%d %6d/%6d = %.01f%%  %.03f %.03f %.03f %.03f %.03f %.03f %d%n",
-                        layer, correct, docCount,
-                        (correct / (double) docCount) * 100, avgJS,
+      System.out.printf("%d %.03f   %.03f %.03f %.03f %.03f %.03f %.03f %d%n",
+                        layer, (correct / (double) docCount), avgJS,
                         avgJSImprovement, avgEntropy, modularity, nmi, avgSize, numComms[layer]);
       // printScores();
     }
@@ -238,16 +237,26 @@ public class CommunityStructure {
           JSDiv[comm] = JSDiv(members[comm]);
           JSDivImprovement[comm] = JSDiv(rndMembers[comm]) - JSDiv[comm];
           entropy[comm] = calcEntropy(layer, comm);
-          avgJS += JSDiv[comm];
-          avgJSImprovement += JSDivImprovement[comm];
-          avgEntropy += entropy[comm] * commSizes[comm];
           avgSize += commSizes[comm];
+          
+          // avgJS += JSDiv[comm];
+          // avgJSImprovement += JSDivImprovement[comm];
+          // avgEntropy += entropy[comm]; 
+          
+          avgJS += JSDiv[comm] * commSizes[comm];
+          avgJSImprovement += JSDivImprovement[comm] * commSizes[comm];
+          avgEntropy += entropy[comm] * commSizes[comm];
         }
       }
-      avgJS /= numComms(layer);
-      avgJSImprovement /= numComms(layer);
-      avgEntropy /= docCount;
       avgSize /= numComms(layer);
+      
+      // avgJS /= numComms(layer);
+      // avgJSImprovement /= numComms(layer);
+      // avgEntropy /= numComms(layer); 
+      
+      avgJS /= docCount;
+      avgJSImprovement /= docCount;
+      avgEntropy /= docCount;
     }
 
     private void getBestCommTopics() {

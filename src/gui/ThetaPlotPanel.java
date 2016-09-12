@@ -89,19 +89,19 @@ public class ThetaPlotPanel extends JPanel {
   private void show(int comm) {
     DataTable data = newDataTable();
     
-    for (int topic = 0; topic < topicCount; topic++) {
-      data.add(topic, commThetas.get(topic, comm));
-    }
+    // for (int topic = 0; topic < topicCount; topic++) {
+    //   data.add(topic, commThetas.get(topic, comm));
+    // }
     for (int doc = 0; doc < docCount; doc++) {
       if (communities[doc] == comm) showDoc(doc);
     }
-    thetaPlot.add(data);
-    Color colour = new Color(0f, 0f, 0f);
-    LineRenderer lines = new DefaultLineRenderer2D();
-    thetaPlot.setLineRenderers(data, lines);
-    thetaPlot.getPointRenderers(data).get(0).setColor(colour);
-    thetaPlot.getLineRenderers(data).get(0).setColor(colour);
-    thetaPlot.getLineRenderers(data).get(0).setStroke(new BasicStroke(3f));
+    // thetaPlot.add(data);
+    // Color colour = new Color(0f, 0f, 0f);
+    // LineRenderer lines = new DefaultLineRenderer2D();
+    // thetaPlot.setLineRenderers(data, lines);
+    // thetaPlot.getPointRenderers(data).get(0).setColor(colour);
+    // thetaPlot.getLineRenderers(data).get(0).setColor(colour);
+    // thetaPlot.getLineRenderers(data).get(0).setStroke(new BasicStroke(3f));
   }
   
   // varargs and generics do not mix well in java

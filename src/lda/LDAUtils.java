@@ -2,7 +2,7 @@
 import java.util.*;
 
 public class LDAUtils {
-  private static final int TOP = 20;
+  private static final int TOP = 10; // the top <TOP> words are returned. e.g. top 10, top 20
   
   // finds the geometric mean of a matrix
   public static double[] geometricMean(double[][] matrix) {
@@ -23,7 +23,7 @@ public class LDAUtils {
   }
   
   // as laid out in Blei and Lafferty, 2009.  sorts words in topics by
-  // phi * log (phi / geometric mean prob in all topics)
+  // phi * log (phi) / geometric mean(phi)
   // and defines topics by their top 10 words.
   public static void termScore(double[][] phi, Translator translator) {
     int wordCount = phi.length;
@@ -80,5 +80,5 @@ public class LDAUtils {
       }
       System.out.println("");
     }
-  }  
+  }
 }

@@ -37,8 +37,9 @@ public class TableManager {
   private final String info  = "CREATE TABLE Info (" +
                                "id INTEGER PRIMARY KEY, " +
                                "topics INTEGER NOT NULL, " +
-                               "cycles INTEGER NOT NULL);";
-  private final String iinit = "INSERT INTO Info VALUES( 0, 0, 0)";
+                               "cycles INTEGER NOT NULL, " +
+                               "samples INTEGER NOT NULL);";
+  private final String iinit = "INSERT INTO Info VALUES( 0, 0, 0, 0)";
   
   public TableManager(Connection c) { this.c = c; }
   

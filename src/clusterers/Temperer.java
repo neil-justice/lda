@@ -8,13 +8,16 @@ public class Temperer implements Clusterer {
   // comm with entropy over this count as weak:
   private double threshold = 0.5; 
   // fraction of nodes in weak comms to move:
-  private double nodesToTemper = 0.9;
+  private double nodesToTemper = 1;
   // modularity may not drop below this fraction of the original modularity:
   private double modThresh = 0.75; 
   // new ent must be this much better:
   private double precision = 0.001;
   // maximum fraction of nodes to move per round:
   private double maxNodes = 0.25;
+  // bias < 1: biased towards JSD/ent.  bias > 1: biased towards preserving
+  // modularity.
+  private double bias = 0.2;
   
   private final Graph g;
   private final Random rnd = new Random();
@@ -42,6 +45,10 @@ public class Temperer implements Clusterer {
     nodeEntropy = new double[g.order()];
     commSize = new int[g.order()];
     isWeak = new boolean[g.order()];
+    
+    long seed = rnd.nextLong();
+    rnd.setSeed(seed);
+    System.out.println("Using seed " + seed);
     
     fillArrays();
   }
@@ -76,7 +83,7 @@ public class Temperer implements Clusterer {
       moves = 0;
       System.out.println("Tempering, round " + round);
       avgH = avgEntropy();
-      moves = minimiseEntropy();
+      moves = moveNodes();
       totalMoves += moves;
       newH = avgEntropy();
       newMod = g.modularity();
@@ -114,7 +121,7 @@ public class Temperer implements Clusterer {
   // moves a randomly selected (nodesToTemper * 100)% of the nodes in comms
   // of entropy > threshold to the communities where their presence lowers the
   // most.
-  private int minimiseEntropy() {
+  private int moveNodes() {
     System.out.println("% of nodes in weak comms to move : " + (nodesToTemper * 100) + "%");
     System.out.println("Entropy threshold for a weak comm: " + threshold);
     int success = 0;
@@ -142,7 +149,7 @@ public class Temperer implements Clusterer {
   
   // marks communities as weak if their entropy exceeds the threshold value.
   private void findWeakComms() {
-    double avgModCont = g.modularity() / g.numComms();
+    double avgModCont = g.modularity() / (g.numComms() * bias);
     
     for (int node = 0; node < g.order(); node++) {
       int comm = g.community(node);
@@ -165,13 +172,13 @@ public class Temperer implements Clusterer {
   private boolean minimiseNodeJSD(int node) {
     int oldComm = g.community(node);
     int newComm = -1;
-    double min = threshold;
+    double max = 0d;
   
     for (int comm = 0; comm < g.order(); comm++) {
       if (isWeak[comm] && commSize[comm] != 0 && comm != oldComm) {
-        double jsd = JSD(node, comm);
-        if (jsd < min) {
-          min = jsd;
+        double imp = JSD(comm) - JSD(node, comm);
+        if (imp > max) {
+          max = imp;
           newComm = comm;
         }
       }
@@ -231,13 +238,12 @@ public class Temperer implements Clusterer {
   private double avgEntropy() {
     checkSize();
     double sum = 0d;
-    for (int comm = 0; comm < g.order(); comm++) {
-      if (commSize[comm] > 0) {
-        sum += commEntropy(communityProbSum[comm], commSize[comm]);
-      }
+    for (int node = 0; node < g.order(); node++) {
+      int comm = g.community(node);
+      sum += commEntropy(communityProbSum[comm], commSize[comm]);
     }
     
-    return sum / g.numComms();
+    return sum / g.order();
   }
   
   private double JSD(int node, int newComm) {
@@ -252,6 +258,18 @@ public class Temperer implements Clusterer {
     double esum = (commEntropySum[newComm] + nodeEntropy[node]) * weight;
     return entropy(sum) - esum;
   }
+  
+  private double JSD(int comm) {
+    double weight = 1d / (commSize[comm]);
+    
+    double[] sum = new double[topicCount];
+    for (int topic = 0; topic < topicCount; topic++) {
+      sum[topic] = communityProbSum[comm][topic] * weight;
+    }
+  
+    double esum = commEntropySum[comm] * weight;
+    return entropy(sum) - esum;
+  }  
   
   public void buildShuffledList() {
     int count = g.order();

@@ -318,6 +318,7 @@ public class SQLConnector implements AutoCloseable {
   
   public void setCycles(int val) { setInfo("cycles", val); }
   public void setTopics(int val) { setInfo("topics", val); }
+  public void setSamples(int val) { setInfo("samples", val); }
   
   private void setInfo(String col, int val) {
     if (c == null) { throw new IllegalStateException(); }
@@ -333,6 +334,7 @@ public class SQLConnector implements AutoCloseable {
   
   public int getCycles() { return getInfo("cycles"); }
   public int getTopics() { return getInfo("topics"); }
+  public int getSamples() { return getInfo("samples"); }
   
   private int getInfo(String col) {
     if (c == null) { throw new IllegalStateException(); }
@@ -344,7 +346,7 @@ public class SQLConnector implements AutoCloseable {
       }
     } catch (SQLException e) {
       System.out.println(e.getMessage());
-      throw new RuntimeException(e);
+      return 0;
     }
   }
   

@@ -3,7 +3,7 @@ FILE='data/largest-subgraph-statuses.csv'
 DB='out/largest-subgraph-15/data.db'
 
 function TOPDOCS {
-  ARRAY=($('sqlite3.exe' "$DB" "select doc.doc from doc inner join theta on doc.id = theta.doc where topic = $1 order by val desc limit 10;"))
+  ARRAY=($('sqlite3.exe' "$DB" "select doc from doc where doc.id = $1 ;"))
   echo $1
   for DOCID in "${ARRAY[@]}"
   do

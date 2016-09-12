@@ -1,4 +1,6 @@
-/* An undirected, weighted, unmodifiable graph data structure.  */
+/* An undirected, weighted, unmodifiable graph data structure. (though nodes
+ * can be moved between communities, and this functionality is rolled into this
+ * object. ) */
 import java.util.*;
 import gnu.trove.list.array.TIntArrayList;
 import gnu.trove.map.hash.TIntIntHashMap;
@@ -48,6 +50,7 @@ class Graph {
   public void moveToComm(int node, int newComm) {
     int oldComm = community(node);
     int oldTotDegree = totDegree(oldComm);
+    int oldNewTotDegree = totDegree(newComm);
     if (oldComm == newComm) return;
     
     communities[node] = newComm;
@@ -77,6 +80,7 @@ class Graph {
     intDegrees[newComm] += selfWeight;
     
     if (totDegree(oldComm) == 0 && oldTotDegree > 0) numComms--;
+    if (totDegree(newComm) > 0 && oldNewTotDegree == 0) numComms++;
     if (totDegree(oldComm) < 0) throw new Error("-ve total degree");
   }
   
