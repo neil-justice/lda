@@ -19,7 +19,7 @@ public class StopwordsRemover {
     this.stopwords = new HashSet<String>(stopwords);
   }
   
-  public void remove(List<List<String>> tokenisedDocuments) {
+  public void removeFrom(List<List<String>> tokenisedDocuments) {
     for (List<String> document: tokenisedDocuments) {
       document.removeAll(stopwords);
     }

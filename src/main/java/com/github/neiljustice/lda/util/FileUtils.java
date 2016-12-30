@@ -64,13 +64,17 @@ public class FileLoader {
   }
   
   public static List<String> readFile(String in) {
-    return readFile(in, null);
+    return readFile(new File(in), null);
   }
   
-  public static List<String> readFile(String in, LineReader r) {
+  public static List<String> readFile(File in) {
+    return readFile(in, null);
+  }  
+  
+  public static List<String> readFile(File in, LineReader r) {
     List<String> list = new ArrayList<String>();
     try {
-      BufferedReader reader = new BufferedReader(new FileReader(new File(in)));
+      BufferedReader reader = new BufferedReader(new FileReader((in)));
       String line;
       while ((line = reader.readLine()) != null) {
         if (r != null) r.read(line);
