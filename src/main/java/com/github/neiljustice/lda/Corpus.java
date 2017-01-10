@@ -1,6 +1,7 @@
 package com.github.neiljustice.lda;
 
 import java.util.*;
+import com.github.neiljustice.lda.util.BiDirectionalLookup;
 import gnu.trove.list.array.TIntArrayList;
 import gnu.trove.map.hash.TObjectIntHashMap;
 
@@ -14,33 +15,29 @@ public class Corpus {
   
   private final int docCount;
   private final int wordCount;
-  private final TObjectIntHashMap<String> wordToIndex;
+  private final BiDirectionalLookup<String> dictionary;
   
   public Corpus(List<List<String>> processedDocuments) {
+    dictionary = new BiDirectionalLookup<String>();
+    
     words = new TIntArrayList();
     docs = new TIntArrayList();
     topics = new TIntArrayList();
     docStartPoints = new TIntArrayList();
     docStartPoints.add(0);
     
-    TObjectIntHashMap<String> wordToIndex = new TObjectIntHashMap<String>();
-    
     int doc = 0;
-    int wordIndex = 0;
     
     for (List<String> document: processedDocuments) {
       for (String token: document) {
+        int wordIndex = dictionary.add(token);
         add(wordIndex, doc);
-        if (wordToIndex.containsKey(token)) {
-          wordToIndex.put(token, wordIndex);
-          wordIndex++;
-        }
       }
       doc++;
     }
     
     docCount = processedDocuments.size();
-    wordCount = wordToIndex.size();
+    wordCount = dictionary.size();
     
   }
   
@@ -67,6 +64,8 @@ public class Corpus {
   public int topic(int i) {return topics.getQuick(i); }
   
   public int size() {return topics.size(); }
+  
+  public BiDirectionalLookup<String> dictionary() { return dictionary; }
 
   // shuffles the lists without losing info about their shared indices.
   // This is a modified version of Collections.shuffle()
@@ -91,29 +90,29 @@ public class Corpus {
   
   public int docCount() { return docCount; }
   
-  public static void main(String[] args) {
-    Tester t = new Tester();
-    Corpus corpus = new Corpus();
-    corpus.add(0, 0);
-    corpus.add(1, 0);
-    corpus.add(2, 0);
-    corpus.add(1, 0);
-    corpus.add(3, 0);
-    corpus.add(1, 1);
-    corpus.add(4, 1);
-    corpus.add(5, 1);
-    corpus.add(1, 2);
-    corpus.add(2, 2);
-    corpus.add(2, 2);
-    corpus.add(2, 2);
-    corpus.add(2, 3);
-    corpus.add(2, 3);
-    
-    t.is(corpus.getDocStartPoint(0), 0);
-    t.is(corpus.getDocStartPoint(1), 6);
-    t.is(corpus.getDocStartPoint(2), 9);
-    t.is(corpus.getDocStartPoint(3), 13);
-    
-    t.results();
-  }
+  // public static void main(String[] args) {
+  //   Tester t = new Tester();
+  //   Corpus corpus = new Corpus();
+  //   corpus.add(0, 0);
+  //   corpus.add(1, 0);
+  //   corpus.add(2, 0);
+  //   corpus.add(1, 0);
+  //   corpus.add(3, 0);
+  //   corpus.add(1, 1);
+  //   corpus.add(4, 1);
+  //   corpus.add(5, 1);
+  //   corpus.add(1, 2);
+  //   corpus.add(2, 2);
+  //   corpus.add(2, 2);
+  //   corpus.add(2, 2);
+  //   corpus.add(2, 3);
+  //   corpus.add(2, 3);
+  //   
+  //   t.is(corpus.getDocStartPoint(0), 0);
+  //   t.is(corpus.getDocStartPoint(1), 6);
+  //   t.is(corpus.getDocStartPoint(2), 9);
+  //   t.is(corpus.getDocStartPoint(3), 13);
+  //   
+  //   t.results();
+  // }
 }

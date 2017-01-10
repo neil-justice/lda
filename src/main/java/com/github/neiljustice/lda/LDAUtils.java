@@ -1,7 +1,8 @@
 package com.github.neiljustice.lda;
 
 import java.util.*;
-
+import com.github.neiljustice.lda.util.IndexComparator;
+import com.github.neiljustice.lda.util.BiDirectionalLookup;
 /**
  * class for static LDA utilities 
  */
@@ -29,7 +30,7 @@ public class LDAUtils {
   // as laid out in Blei and Lafferty, 2009.  sorts words in topics by
   // phi * log (phi) / geometric mean(phi)
   // and defines topics by their top 10 words.
-  public static void termScore(double[][] phi, Translator translator) {
+  public static void termScore(double[][] phi, BiDirectionalLookup<String> dictionary) {
     int wordCount = phi.length;
     int topicCount = phi[0].length;
     double[] geometricMean = geometricMean(phi);
@@ -53,13 +54,13 @@ public class LDAUtils {
     for (int topic = 0; topic < topicCount; topic++) {
       System.out.printf(" %d : ", topic);
       for (int i = 0; i < TOP; i++) {
-        System.out.print(translator.getWord(output[topic][i]) + " ");
+        System.out.print(dictionary.getToken(output[topic][i]) + " ");
       }
       System.out.println("");
     }
   }
   
-  public static void mostCommon(double[][] phi, Translator translator) {
+  public static void mostCommon(double[][] phi, BiDirectionalLookup<String> dictionary) {
     int wordCount = phi.length;
     int topicCount = phi[0].length;
     
@@ -80,7 +81,7 @@ public class LDAUtils {
     for (int topic = 0; topic < topicCount; topic++) {
       System.out.printf(" %d : ", topic);
       for (int i = 0; i < TOP; i++) {
-        System.out.print(translator.getWord(output[topic][i]) + " ");
+        System.out.print(dictionary.getToken(output[topic][i]) + " ");
       }
       System.out.println("");
     }

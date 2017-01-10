@@ -2,6 +2,7 @@ package com.github.neiljustice.lda;
 
 import java.util.*;
 import java.util.concurrent.*;
+import com.github.neiljustice.lda.util.BiDirectionalLookup;
 
 /**
  * Latent Dirichlet Allocation (LDA) is a topic model.
@@ -9,7 +10,6 @@ import java.util.concurrent.*;
 public class LDA {
   
   private final Corpus corpus;
-  private final Translator translator; // used to translate from ID to word/doc
   private final Random random = new Random();
   private final int wordCount;         // no. of unique words
   private final int docCount;          // no. of docs
@@ -39,11 +39,6 @@ public class LDA {
                           // us decorrelated states of the markov chain
   private int perplexLag; // how often to measure perplexity.
   private int moves = 0;  // no. of tokens who have changed topic this cycle.
-  
-  // DB stuff:
-  private final SQLConnector c;
-  private int prevTopics; // no. of topics from prev sessions
-  private int prevCycles; // no. of cycles from prev sessions
   
   // multithreading stuff:
   private final int P = 3; // no. of processors.
@@ -76,21 +71,8 @@ public class LDA {
     beta  = 0.2;
     betaSum = beta * wordCount;
     
-    c = corpus.connector();
-    c.open();
-    translator = new Translator(c);
-    
-    prevTopics = c.getTopics();
-    
-    if (prevTopics == topicCount) {
-      samples = c.getSamples();
-      cycles = c.getCycles();
-      loadParameters();
-    }
-    else {
-      cycles = 0;
-      samples = 0;
-    }
+    cycles = 0;
+    samples = 0;
     
     System.out.println(" V : " + wordCount + 
                        " D : " + docCount + 
@@ -167,25 +149,11 @@ public class LDA {
     sampleLag = 20;
     optimiseInterval = 40;
     cycles();
-    write();
-  }
-  
-  // write phi and theta to db, as well as no. of cycles run and the topicCount
-  // used.
-  public void write() {
-    if (!c.isOpen()) c.open();
-    
-    c.writeTheta(theta());
-    c.writePhi(phi());
-    c.setTopics(topicCount);
-    c.setCycles(cycles);
-    c.setSamples(samples);
   }
   
   //close DB connection and shutdown thread pool
   public void quit() {
     exec.shutdown();
-    c.close();
   }
   
   public void print() {
@@ -193,7 +161,7 @@ public class LDA {
     // printDocs();
     // LDAUtils.mostCommon(phi(), translator);
     
-    LDAUtils.termScore(phi(), translator);
+    LDAUtils.termScore(phi(), corpus.dictionary());
   }  
   
   private void cycles() {
@@ -219,7 +187,7 @@ public class LDA {
       if (cycles % perplexLag == 0) System.out.println("perplexity: " + perplexity());
       moves = 0;
     }
-    avg /= (maxCycles - prevCycles);
+    avg /= maxCycles;
     System.out.printf("Avg. seconds taken: %.03f%n", avg );    
   }
   
@@ -370,21 +338,21 @@ public class LDA {
     samples++;
   }
   
-  private void loadParameters() {
-    double[][] phi = c.getPhi();
-    double[][] theta = c.getTheta();
-    
-    for (int topic = 0; topic < topicCount; topic++) {
-      for (int doc = 0; doc < docCount; doc++) {
-        thetaSum[topic][doc] += theta[topic][doc] * samples;
-      }
-    }
-    for (int word = 0; word < wordCount; word++) {
-      for (int topic = 0; topic < topicCount; topic++) {
-        phiSum[word][topic] += phi[word][topic] * samples;
-      }
-    }
-  }
+  // private void loadParameters() {
+  //   double[][] phi = c.getPhi();
+  //   double[][] theta = c.getTheta();
+  //   
+  //   for (int topic = 0; topic < topicCount; topic++) {
+  //     for (int doc = 0; doc < docCount; doc++) {
+  //       thetaSum[topic][doc] += theta[topic][doc] * samples;
+  //     }
+  //   }
+  //   for (int word = 0; word < wordCount; word++) {
+  //     for (int topic = 0; topic < topicCount; topic++) {
+  //       phiSum[word][topic] += phi[word][topic] * samples;
+  //     }
+  //   }
+  // }
   
   private double[][] phi() {
     double[][] phi = new double[wordCount][topicCount];

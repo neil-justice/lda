@@ -1,7 +1,9 @@
 package com.github.neiljustice.lda.preprocess;
 
 import java.util.*;
+import java.io.File;
 import com.github.neiljustice.lda.util.*;
+import com.github.neiljustice.lda.Corpus;
 
 /**
  * Customisable wrapper around the classes used to preprocess text.
@@ -35,7 +37,7 @@ public class PreprocessingPipeline {
   public Corpus run(List<String> documents) {
 
     List<String> cleaned = textcleaner.clean(documents);
-    List<List<String>> tokenised = tokeniser.tokenise(clean);
+    List<List<String>> tokenised = tokeniser.tokenise(cleaned);
     stopwordsRemover.removeFrom(tokenised);
     preprocessor.process(tokenised);
     
@@ -45,9 +47,9 @@ public class PreprocessingPipeline {
   public static PreprocessingPipeline defaultPipeline() {
     TextCleaner textcleaner = new TextCleaner();
     Tokeniser tokeniser = new Tokeniser();
-    StopwordsRemover stopwordsRemover = new stopwordsRemover();
+    StopwordsRemover stopwordsRemover = new StopwordsRemover();
     Preprocessor preprocessor = new Preprocessor();
-    return new ProcessingPipeline(textcleaner, 
+    return new PreprocessingPipeline(textcleaner, 
                                   tokeniser, 
                                   stopwordsRemover, 
                                   preprocessor);

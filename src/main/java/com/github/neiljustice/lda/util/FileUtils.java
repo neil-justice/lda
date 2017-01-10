@@ -4,7 +4,7 @@ import java.io.*;
 import java.net.URL;
 import java.util.*;
 
-public class FileLoader {
+public class FileUtils {
   
   public static void loadToCollection(String in, Collection<String> coll) {
     try {

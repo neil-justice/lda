@@ -1,9 +1,12 @@
-/* Sorts the indexes of an array of doubles  according to the values of the
- * doubles */
+package com.github.neiljustice.lda.util;
+
 import java.util.*;
 
-public class IndexComparator implements Comparator<Integer>
-{
+/**
+ * Sorts the indexes of an array of doubles  according to the values of the
+ * doubles.
+ */
+public class IndexComparator implements Comparator<Integer> {
   private final double[] array;
 
   public IndexComparator(double[] array) {
