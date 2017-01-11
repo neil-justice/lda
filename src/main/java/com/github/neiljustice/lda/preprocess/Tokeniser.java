@@ -3,14 +3,15 @@ package com.github.neiljustice.lda.preprocess;
 import java.util.*;
 
 /**
- * Tokenises a list of documents using the given delimiter.  Default is any 
- * whitespace.
+ * Tokenises a list of documents using the given delimiter.  Default is space,
+ * because the textcleaner will have collapsed multiple consecutive spaces and
+ * converted all other types of whitespace to a single space.
  */
 public class Tokeniser {
   private String delimiter;
   
   public Tokeniser() {
-    delimiter = "\\s+";
+    delimiter = " ";
   }
   
   public Tokeniser(String delimiter) {
