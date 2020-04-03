@@ -1,22 +1,24 @@
 package com.github.neiljustice.lda.util;
 
-import java.util.*;
+import java.io.Serializable;
+import java.util.Comparator;
 
 /**
  * Sorts the indexes of an array of doubles  according to the values of the
- * doubles.
+ * doubles, making the old indexes available via indexArray()
  */
-public class IndexComparator implements Comparator<Integer> {
+public class IndexComparator implements Comparator<Integer>, Serializable {
   private final double[] array;
 
   public IndexComparator(double[] array) {
     this.array = array;
   }
 
+  // TODO should this be boxed?
   public Integer[] indexArray() {
-    Integer[] indexes = new Integer[array.length];
+    final Integer[] indexes = new Integer[array.length];
     for (int i = 0; i < array.length; i++) {
-      indexes[i] = i; // Autobox
+      indexes[i] = i;
     }
     return indexes;
   }

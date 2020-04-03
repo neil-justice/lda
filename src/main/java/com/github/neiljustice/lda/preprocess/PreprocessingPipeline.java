@@ -1,9 +1,10 @@
 package com.github.neiljustice.lda.preprocess;
 
-import java.util.*;
-import java.io.File;
-import com.github.neiljustice.lda.util.*;
 import com.github.neiljustice.lda.Corpus;
+import com.github.neiljustice.lda.util.FileUtils;
+
+import java.io.File;
+import java.util.List;
 
 /**
  * Customisable wrapper around the classes used to preprocess text.
@@ -15,7 +16,7 @@ public class PreprocessingPipeline {
   private final Tokeniser tokeniser;
   private final StopwordsRemover stopwordsRemover;
   private final Preprocessor preprocessor;
-  
+
   public PreprocessingPipeline(TextCleaner textcleaner,
                                Tokeniser tokeniser,
                                StopwordsRemover stopwordsRemover,
@@ -25,33 +26,33 @@ public class PreprocessingPipeline {
     this.stopwordsRemover = stopwordsRemover;
     this.preprocessor = preprocessor;
   }
-  
+
+  public static PreprocessingPipeline defaultPipeline() {
+    final TextCleaner textcleaner = new TextCleaner();
+    final Tokeniser tokeniser = new Tokeniser();
+    final StopwordsRemover stopwordsRemover = new StopwordsRemover();
+    final Preprocessor preprocessor = new Preprocessor();
+    return new PreprocessingPipeline(textcleaner,
+        tokeniser,
+        stopwordsRemover,
+        preprocessor);
+  }
+
   public Corpus run(String filename) {
     return run(FileUtils.readFile(filename));
   }
-  
+
   public Corpus run(File file) {
     return run(FileUtils.readFile(file));
   }
 
   public Corpus run(List<String> documents) {
 
-    List<String> cleaned = textcleaner.clean(documents);
-    List<List<String>> tokenised = tokeniser.tokenise(cleaned);
+    final List<String> cleaned = textcleaner.clean(documents);
+    final List<List<String>> tokenised = tokeniser.tokenise(cleaned);
     stopwordsRemover.removeFrom(tokenised);
     preprocessor.process(tokenised);
-    
+
     return new Corpus(tokenised);
   }
-  
-  public static PreprocessingPipeline defaultPipeline() {
-    TextCleaner textcleaner = new TextCleaner();
-    Tokeniser tokeniser = new Tokeniser();
-    StopwordsRemover stopwordsRemover = new StopwordsRemover();
-    Preprocessor preprocessor = new Preprocessor();
-    return new PreprocessingPipeline(textcleaner, 
-                                  tokeniser, 
-                                  stopwordsRemover, 
-                                  preprocessor);
-  }  
 }

@@ -1,6 +1,8 @@
 package com.github.neiljustice.lda.preprocess;
 
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
 
 /**
  * Tokenises a list of documents using the given delimiter.  Default is space,
@@ -9,25 +11,29 @@ import java.util.*;
  */
 public class Tokeniser {
   private String delimiter;
-  
+
   public Tokeniser() {
     delimiter = " ";
   }
-  
+
   public Tokeniser(String delimiter) {
     this.delimiter = delimiter;
   }
-  
+
   public List<List<String>> tokenise(List<String> documents) {
-    List<List<String>> results = new ArrayList<List<String>>();
-    for (String document: documents) {
-      results.add(new ArrayList<String>(Arrays.asList(document.split(delimiter))));
+    final List<List<String>> results = new ArrayList<>();
+    for (String document : documents) {
+      results.add(new ArrayList<>(Arrays.asList(document.split(delimiter))));
     }
-    
+
     return results;
   }
-  
-  public String delimiter() { return delimiter; }
-  
-  public void delimiter(String delimiter) { this.delimiter = delimiter; }
+
+  public String delimiter() {
+    return delimiter;
+  }
+
+  public void delimiter(String delimiter) {
+    this.delimiter = delimiter;
+  }
 }

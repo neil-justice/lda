@@ -1,83 +1,98 @@
 package com.github.neiljustice.lda;
 
-import java.util.*;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
+import java.util.Random;
 import java.util.concurrent.*;
-import com.github.neiljustice.lda.util.BiDirectionalLookup;
 
 /**
  * Latent Dirichlet Allocation (LDA) is a topic model.
  */
 public class LDA {
-  
+
+  private static final Logger LOGGER = LogManager.getLogger(LDA.class);
+
   private final Corpus corpus;
   private final Random random = new Random();
-  private final int wordCount;         // no. of unique words
-  private final int docCount;          // no. of docs
-  private final int tokenCount;        // total no. of tokens
+  /** number of unique words */
+  private final int wordCount;
+  /** Number of docs */
+  private final int docCount;
+  /** Total number of tokens */
+  private final int tokenCount;
   private final int topicCount;
-  private final int[] tokensInTopic; 
+  private final int[] tokensInTopic;
   private final int[] tokensInDoc;
   private final int[][] wordsInTopic;
   private final int[][] topicsInDoc;
-  private final double[][] phiSum;     // multinomial dist. of words in topics
-  private final double[][] thetaSum;   // multinomial dist. of topics in docs.
-  
-  private AlphaOptimiser optimiser;
-  private final double[] alpha; // hyperparameter
-  private double alphaSum;
-  private final double beta;  // hyperparameter
+  /** Multinomial dist. of words in topics */
+  private final double[][] phiSum;
+  /** Multinomial dist. of topics in docs. */
+  private final double[][] thetaSum;
+  /** Hyperparameter */
+  private final double[] alpha;
+  /** Hyperparameter */
+  private final double beta;
   private final double betaSum;
-  private int maxLength; // length of longest doc
+  private AlphaOptimiser optimiser;
+  private double alphaSum;
+  /** Length of longest doc */
+  private int maxLength;
   private int optimiseInterval;
-  
   private int cycles;
-  private int maxCycles; // cycles to run
-  private int samples; // no. of times the phi and theta sums have been added to
-  private int burnLength; // length of burn-in phase to allow markov chain 
-                          // to converge.
-  private int sampleLag;  // cycles to skip samples from between samples, giving
-                          // us decorrelated states of the markov chain
-  private int perplexLag; // how often to measure perplexity.
-  private int moves = 0;  // no. of tokens who have changed topic this cycle.
+  /** Cycles to run */
+  private int maxCycles;
+  /** No. of times the phi and theta sums have been added to */
+  private int samples;
+  /** Length of burn-in phase to allow markov chain to converge. */
+  private int burnLength;
+  /** Cycles to skip samples from between samples, giving us decorrelated states of the markov chain. */
+  private int sampleLag;
+  /** How often to measure perplexity. */
+  private int perplexLag;
+  /** No. of tokens who have changed topic this cycle. */
+  private int moves = 0;
   
   // multithreading stuff:
   private final int P = 3; // no. of processors.
   private final ExecutorService exec = Executors.newFixedThreadPool(P);
   private final List<GibbsSampler> gibbsSamplers = new ArrayList<>(P);
   private final CyclicBarrier barrier = new CyclicBarrier(P);
-  private int docPartSize;
-  private int wordPartSize;
-  private int[] docPartStart  = new int[P + 1];
-  private int[] wordPartStart = new int[P + 1];
-  private int[] tokenPartStart= new int[P + 1];
+  private final int[] docPartStart  = new int[P + 1];
+  private final int[] wordPartStart = new int[P + 1];
+  private final int[] tokenPartStart= new int[P + 1];
                                       
   public LDA(Corpus corpus, int topicCount) {
     this.topicCount = topicCount;
-    
+
     this.corpus = corpus;
-    wordCount   = corpus.wordCount();
-    docCount    = corpus.docCount();
-    tokenCount  = corpus.size();
-    
+    wordCount = corpus.wordCount();
+    docCount = corpus.docCount();
+    tokenCount = corpus.size();
+
     tokensInTopic = new int[topicCount];
-    tokensInDoc   = new int[docCount];
-    wordsInTopic  = new int[wordCount][topicCount];
-    topicsInDoc   = new int[topicCount][docCount];
-    
-    phiSum        = new double[wordCount][topicCount];
-    thetaSum      = new double[topicCount][docCount];
-    
+    tokensInDoc = new int[docCount];
+    wordsInTopic = new int[wordCount][topicCount];
+    topicsInDoc = new int[topicCount][docCount];
+
+    phiSum = new double[wordCount][topicCount];
+    thetaSum = new double[topicCount][docCount];
+
     alpha = new double[topicCount];
-    beta  = 0.2;
+    beta = 0.2;
     betaSum = beta * wordCount;
-    
+
     cycles = 0;
     samples = 0;
-    
-    System.out.println(" V : " + wordCount + 
-                       " D : " + docCount + 
-                       " N : " + tokenCount + " P : " + P);
-                       
+
+    System.out.println(" V : " + wordCount +
+        " D : " + docCount +
+        " N : " + tokenCount + " P : " + P);
+
     System.out.println("" + cycles + " run so far, with " + samples + " samples taken.");
 
     randomiseTopics();
@@ -85,63 +100,65 @@ public class LDA {
     initMulti();
     initHyper();
   }
-  
+
   private void initMulti() {
-    docPartSize  = docCount / P; 
-    wordPartSize = wordCount / P;
-    
+    int docPartSize = docCount / P;
+    int wordPartSize = wordCount / P;
+
     for (int i = 0; i < P; i++) {
-      docPartStart[i]   = i * docPartSize;
-      wordPartStart[i]  = i * wordPartSize;
+      docPartStart[i] = i * docPartSize;
+      wordPartStart[i] = i * wordPartSize;
       tokenPartStart[i] = corpus.getDocStartPoint(docPartStart[i]);
     }
-    docPartStart[P]   = docCount;
-    wordPartStart[P]  = wordCount;
+    docPartStart[P] = docCount;
+    wordPartStart[P] = wordCount;
     tokenPartStart[P] = tokenCount;
-    
+
     for (int proc = 0; proc < P; proc++) {
       gibbsSamplers.add(new GibbsSampler(proc));
-    }    
+    }
   }
-  
+
   // Initialises all tokens with a randomly selected topic.
   private void randomiseTopics() {
     for (int i = 0; i < tokenCount; i++) {
-      int topic = random.nextInt(topicCount);
+      final int topic = random.nextInt(topicCount);
       corpus.setTopic(i, topic);
     }
   }
-  
+
   // initialises the matrix of word occurrence count in topic,
   // and the matrix of topic occurrence count in document
   private void initialiseMatrices() {
     for (int i = 0; i < tokenCount; i++) {
-      int word = corpus.word(i);
-      int topic = corpus.topic(i);
-      int doc = corpus.doc(i);
+      final int word = corpus.word(i);
+      final int topic = corpus.topic(i);
+      final int doc = corpus.doc(i);
       wordsInTopic[word][topic]++;
       topicsInDoc[topic][doc]++;
       tokensInTopic[topic]++;
       tokensInDoc[doc]++;
     }
-  }  
-  
+  }
+
   private void initHyper() {
     int max = 0;
     for (int doc = 0; doc < docCount; doc++) {
-      int length = tokensInDoc[doc];
-      if (length > max) max = length;
+      final int length = tokensInDoc[doc];
+      if (length > max) {
+        max = length;
+      }
     }
     maxLength = max + 1;
     System.out.println(max);
-    
+
     optimiser = new AlphaOptimiser(tokensInDoc, topicCount, maxLength);
     for (int topic = 0; topic < topicCount; topic++) {
       alpha[topic] = 0.1;
       alphaSum += alpha[topic];
     }
   }
-  
+
   public void run(int maxCycles) {
     this.maxCycles = maxCycles + cycles;
     perplexLag = 10;
@@ -150,47 +167,55 @@ public class LDA {
     optimiseInterval = 40;
     cycles();
   }
-  
+
   //close DB connection and shutdown thread pool
   public void quit() {
     exec.shutdown();
   }
-  
+
   public void print() {
     // printWords();
     // printDocs();
     // LDAUtils.mostCommon(phi(), translator);
-    
+
     LDAUtils.termScore(phi(), corpus.dictionary());
-  }  
-  
+  }
+
   private void cycles() {
-    
+
     double avg = 0;
-    for ( ; cycles < maxCycles; cycles++) {
-      long s = System.nanoTime();
+    for (; cycles < maxCycles; cycles++) {
+      final long s = System.nanoTime();
       cycle();
-      if (cycles >= burnLength && cycles % optimiseInterval == 0) optimiseAlpha();
+      if (cycles >= burnLength && cycles % optimiseInterval == 0) {
+        optimiseAlpha();
+      }
       if (cycles >= burnLength && cycles % sampleLag == 0) {
         updateParameters();
         print();
       }
-      long e = System.nanoTime();
-      double time = (e - s) / 1000000000d;
+      final long e = System.nanoTime();
+      final double time = (e - s) / 1000000000d;
       avg += time;
       System.out.print("Cycle " + cycles);
-      System.out.printf(", seconds taken: %.03f", time );
-      if (cycles < burnLength) System.out.print(" (burn-in)");
-      else if (cycles % sampleLag != 0) System.out.print(" (sample-lagging)");
-      else if (cycles % optimiseInterval == 0) System.out.print(" (optimising)");
+      System.out.printf(", seconds taken: %.03f", time);
+      if (cycles < burnLength) {
+        System.out.print(" (burn-in)");
+      } else if (cycles % sampleLag != 0) {
+        System.out.print(" (sample-lagging)");
+      } else if (cycles % optimiseInterval == 0) {
+        System.out.print(" (optimising)");
+      }
       System.out.println();
-      if (cycles % perplexLag == 0) System.out.println("perplexity: " + perplexity());
+      if (cycles % perplexLag == 0) {
+        System.out.println("perplexity: " + perplexity());
+      }
       moves = 0;
     }
     avg /= maxCycles;
-    System.out.printf("Avg. seconds taken: %.03f%n", avg );    
+    System.out.printf("Avg. seconds taken: %.03f%n", avg);
   }
-  
+
   private void cycle() {
     try {
       exec.invokeAll(gibbsSamplers);
@@ -202,15 +227,103 @@ public class LDA {
     // int ch = corpus.check();
     // if (ch != 0) System.out.println("" + ch + "/" + tokenCount + " unchecked!");
   }
-  
+
+  private void optimiseAlpha() {
+    final int[][] docTopicCountHist = new int[topicCount][maxLength];
+    for (int topic = 0; topic < topicCount; topic++) {
+      for (int doc = 0; doc < docCount; doc++) {
+        final int count = topicsInDoc[topic][doc];
+        docTopicCountHist[topic][count]++;
+      }
+    }
+    alphaSum = optimiser.optimiseAlpha(alpha, docTopicCountHist);
+    for (int topic = 0; topic < topicCount; topic++) {
+      System.out.println("t " + topic + " alpha " + alpha[topic]);
+    }
+
+  }
+
+  // if the markov chain is out of burn-in phase, and the thinning interval
+  // has passed (the thinning interval allows us to obtain decorrelated states
+  // of the markov chain), then this round of sampling is added to the -sums.
+  private void updateParameters() {
+    for (int topic = 0; topic < topicCount; topic++) {
+      for (int doc = 0; doc < docCount; doc++) {
+        thetaSum[topic][doc] += (topicsInDoc[topic][doc] + alpha[topic])
+            / (tokensInDoc[doc] + alphaSum);
+      }
+    }
+    for (int word = 0; word < wordCount; word++) {
+      for (int topic = 0; topic < topicCount; topic++) {
+        phiSum[word][topic] += (wordsInTopic[word][topic] + beta)
+            / (tokensInTopic[topic] + wordCount * beta);
+      }
+    }
+    samples++;
+  }
+
+  private double[][] phi() {
+    final double[][] phi = new double[wordCount][topicCount];
+
+    for (int word = 0; word < wordCount; word++) {
+      for (int topic = 0; topic < topicCount; topic++) {
+        phi[word][topic] = phiSum[word][topic] / samples;
+      }
+    }
+
+    return phi;
+  }
+
+  // private void loadParameters() {
+  //   double[][] phi = c.getPhi();
+  //   double[][] theta = c.getTheta();
+  //
+  //   for (int topic = 0; topic < topicCount; topic++) {
+  //     for (int doc = 0; doc < docCount; doc++) {
+  //       thetaSum[topic][doc] += theta[topic][doc] * samples;
+  //     }
+  //   }
+  //   for (int word = 0; word < wordCount; word++) {
+  //     for (int topic = 0; topic < topicCount; topic++) {
+  //       phiSum[word][topic] += phi[word][topic] * samples;
+  //     }
+  //   }
+  // }
+
+  private double[][] theta() {
+    final double[][] theta = new double[topicCount][docCount];
+
+    for (int topic = 0; topic < topicCount; topic++) {
+      for (int doc = 0; doc < docCount; doc++) {
+        theta[topic][doc] = thetaSum[topic][doc] / samples;
+      }
+    }
+
+    return theta;
+  }
+
+  public double perplexity() {
+    double sum = 0d;
+    for (int token = 0; token < tokenCount; token++) {
+      final int doc = corpus.doc(token);
+      final int topic = corpus.topic(token);
+      final int word = corpus.word(token);
+      final double theta = (topicsInDoc[topic][doc] + alpha[topic]) / (tokensInDoc[doc] + alphaSum);
+      final double phi = (wordsInTopic[word][topic] + beta) / (tokensInTopic[topic] + wordCount * beta);
+      sum += Math.log(phi * theta);
+    }
+    sum = 0 - (sum / (double) tokenCount);
+    return Math.exp(sum);
+  }
+
   // implements the multithreading collapsed gibbs sampling algorithm put
   // forward by Yan et. al. (2009)
   class GibbsSampler implements Callable<Object> {
-    private int localMoves = 0;
     private final int proc;           // thread id
+    private int localMoves = 0;
     private int[] localTokensInTopic; // local version to avoid race conditions
     // private int count = 0;            // tokens processed by this thread
-    
+
     public GibbsSampler(int proc) {
       this.proc = proc;
       localTokensInTopic = Arrays.copyOf(tokensInTopic, tokensInTopic.length);
@@ -220,55 +333,57 @@ public class LDA {
     public Object call() {
       for (int epoch = 0; epoch < P; epoch++) {
         for (int i = tokenPartStart[proc]; i < tokenPartStart[proc + 1]; i++) {
-          int word = corpus.word(i);
-          int wps = (epoch + proc) % P;
+          final int word = corpus.word(i);
+          final int wps = (epoch + proc) % P;
           // checks if the word is in the word partition
           if (word >= wordPartStart[wps] && word < (wordPartStart[wps + 1])) {
-            int oldTopic = corpus.topic(i);
-            int doc = corpus.doc(i);
-            localTokensInTopic[oldTopic]--;      
+            final int oldTopic = corpus.topic(i);
+            final int doc = corpus.doc(i);
+            localTokensInTopic[oldTopic]--;
             wordsInTopic[word][oldTopic]--;
             topicsInDoc[oldTopic][doc]--;
-            
-            int newTopic = sample(word, oldTopic, doc);
-            if (newTopic != oldTopic) localMoves++;
-            
-            localTokensInTopic[newTopic]++;      
+
+            final int newTopic = sample(word, oldTopic, doc);
+            if (newTopic != oldTopic) {
+              localMoves++;
+            }
+
+            localTokensInTopic[newTopic]++;
             wordsInTopic[word][newTopic]++;
             topicsInDoc[newTopic][doc]++;
             corpus.setTopic(i, newTopic);
             // count++;
           }
-        } 
+        }
         synchronise();
       }
       // System.out.println("proc " + proc + " count: " + count + "/" + tokenCount);
       return null;
     }
-    
+
     private int sample(int word, int oldTopic, int doc) {
-      double[] probabilities = new double[topicCount];
+      final double[] probabilities = new double[topicCount];
       double sum = 0;
 
       for (int topic = 0; topic < topicCount; topic++) {
         probabilities[topic] = (topicsInDoc[topic][doc] + alpha[topic])
-                             * ((wordsInTopic[word][topic] + beta)
-                             /  (localTokensInTopic[topic] + betaSum));
+            * ((wordsInTopic[word][topic] + beta)
+            / (localTokensInTopic[topic] + betaSum));
         sum += probabilities[topic];
       }
-      
+
       int newTopic = -1;
       double sample = random.nextDouble() * sum; // between 0 and sum of all probs
-      
+
       while (sample > 0.0) {
         newTopic++;
         sample -= probabilities[newTopic];
       }
-      
+
       if (newTopic == -1) {
-        throw new Error("Sampling failure. Sample: " + sample + " sum: " + sum);
+        throw new IllegalStateException("Sampling failure. Sample: " + sample + " sum: " + sum);
       }
-      
+
       return newTopic;
     }
 
@@ -294,102 +409,11 @@ public class LDA {
     private void await() {
       try {
         barrier.await();
-      } catch (InterruptedException e) {
-        System.out.println(e.getMessage());
-        System.exit(1);
-      } catch (BrokenBarrierException e) {
+      } catch (InterruptedException | BrokenBarrierException e) {
         System.out.println(e.getMessage());
         System.exit(1);
       }
     }
-  }
-  
-  private void optimiseAlpha() {
-    int[][] docTopicCountHist = new int[topicCount][maxLength];
-    for (int topic = 0; topic < topicCount; topic++) {
-      for (int doc = 0; doc < docCount; doc++) {
-        int count = topicsInDoc[topic][doc];
-        docTopicCountHist[topic][count]++;
-      }
-    }    
-    alphaSum = optimiser.optimiseAlpha(alpha, docTopicCountHist);
-    for (int topic = 0; topic < topicCount; topic++) {
-      System.out.println("t " + topic + " alpha " + alpha[topic]);
-    }
-    
-  }
-  
-  // if the markov chain is out of burn-in phase, and the thinning interval
-  // has passed (the thinning interval allows us to obtain decorrelated states
-  // of the markov chain), then this round of sampling is added to the -sums.
-  private void updateParameters() {
-    for (int topic = 0; topic < topicCount; topic++) {
-      for (int doc = 0; doc < docCount; doc++) {
-        thetaSum[topic][doc] += (topicsInDoc[topic][doc] + alpha[topic])
-                             /  (double)(tokensInDoc[doc] + alphaSum);
-      }
-    }
-    for (int word = 0; word < wordCount; word++) {
-      for (int topic = 0; topic < topicCount; topic++) {
-        phiSum[word][topic] += (wordsInTopic[word][topic] + beta)
-                            /  (double)(tokensInTopic[topic] + wordCount * beta);
-      }
-    }
-    samples++;
-  }
-  
-  // private void loadParameters() {
-  //   double[][] phi = c.getPhi();
-  //   double[][] theta = c.getTheta();
-  //   
-  //   for (int topic = 0; topic < topicCount; topic++) {
-  //     for (int doc = 0; doc < docCount; doc++) {
-  //       thetaSum[topic][doc] += theta[topic][doc] * samples;
-  //     }
-  //   }
-  //   for (int word = 0; word < wordCount; word++) {
-  //     for (int topic = 0; topic < topicCount; topic++) {
-  //       phiSum[word][topic] += phi[word][topic] * samples;
-  //     }
-  //   }
-  // }
-  
-  private double[][] phi() {
-    double[][] phi = new double[wordCount][topicCount];
-
-    for (int word = 0; word < wordCount; word++) {
-      for (int topic = 0; topic < topicCount; topic++) {
-        phi[word][topic] = phiSum[word][topic] / samples;
-      }
-    }
-    
-    return phi;
-  }
-  
-  private double[][] theta() {
-    double[][] theta = new double[topicCount][docCount];
-
-    for (int topic = 0; topic < topicCount; topic++) {
-      for (int doc = 0; doc < docCount; doc++) {
-        theta[topic][doc] = thetaSum[topic][doc] / samples;
-      }
-    }
-    
-    return theta;
-  }
-  
-  public double perplexity() {
-    double sum = 0d;
-    for (int token = 0; token < tokenCount; token++) {
-      int doc = corpus.doc(token);
-      int topic = corpus.topic(token);
-      int word = corpus.word(token);
-      double theta = (topicsInDoc[topic][doc] + alpha[topic]) / (double)(tokensInDoc[doc] + alphaSum);
-      double phi = (wordsInTopic[word][topic] + beta) / (double)(tokensInTopic[topic] + wordCount * beta);
-      sum += Math.log(phi * theta);
-    }
-    sum = 0 - (sum /(double) tokenCount);
-    return Math.exp(sum);
   }
 
   // public void printWords() {
