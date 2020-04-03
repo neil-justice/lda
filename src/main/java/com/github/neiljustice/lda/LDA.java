@@ -39,6 +39,7 @@ public class LDA {
   private final double beta;
   private final double betaSum;
   private AlphaOptimiser optimiser;
+  private GibbsSampler gibbsSampler = new GibbsSampler();
   private double alphaSum;
   /** Length of longest doc */
   private int maxLength;
@@ -56,15 +57,6 @@ public class LDA {
   private int perplexLag;
   /** No. of tokens who have changed topic this cycle. */
   private int moves = 0;
-  
-  // multithreading stuff:
-  private final int P = 3; // no. of processors.
-  private final ExecutorService exec = Executors.newFixedThreadPool(P);
-  private final List<GibbsSampler> gibbsSamplers = new ArrayList<>(P);
-  private final CyclicBarrier barrier = new CyclicBarrier(P);
-  private final int[] docPartStart  = new int[P + 1];
-  private final int[] wordPartStart = new int[P + 1];
-  private final int[] tokenPartStart= new int[P + 1];
                                       
   public LDA(Corpus corpus, int topicCount) {
     this.topicCount = topicCount;
@@ -89,34 +81,12 @@ public class LDA {
     cycles = 0;
     samples = 0;
 
-    System.out.println(" V : " + wordCount +
-        " D : " + docCount +
-        " N : " + tokenCount + " P : " + P);
-
-    System.out.println("" + cycles + " run so far, with " + samples + " samples taken.");
+    LOGGER.info(" V: {} D: {} N: {}", wordCount, docCount, tokenCount);
+    LOGGER.info("{} run so far, with {} samples taken.", cycles, samples);
 
     randomiseTopics();
     initialiseMatrices();
-    initMulti();
     initHyper();
-  }
-
-  private void initMulti() {
-    int docPartSize = docCount / P;
-    int wordPartSize = wordCount / P;
-
-    for (int i = 0; i < P; i++) {
-      docPartStart[i] = i * docPartSize;
-      wordPartStart[i] = i * wordPartSize;
-      tokenPartStart[i] = corpus.getDocStartPoint(docPartStart[i]);
-    }
-    docPartStart[P] = docCount;
-    wordPartStart[P] = wordCount;
-    tokenPartStart[P] = tokenCount;
-
-    for (int proc = 0; proc < P; proc++) {
-      gibbsSamplers.add(new GibbsSampler(proc));
-    }
   }
 
   // Initialises all tokens with a randomly selected topic.
@@ -168,11 +138,6 @@ public class LDA {
     cycles();
   }
 
-  //close DB connection and shutdown thread pool
-  public void quit() {
-    exec.shutdown();
-  }
-
   public void print() {
     // printWords();
     // printDocs();
@@ -217,15 +182,7 @@ public class LDA {
   }
 
   private void cycle() {
-    try {
-      exec.invokeAll(gibbsSamplers);
-    } catch (InterruptedException e) {
-      System.out.println(e.getMessage());
-      System.exit(1);
-    }
-    // check if all tokens have been through the gibbs sampler
-    // int ch = corpus.check();
-    // if (ch != 0) System.out.println("" + ch + "/" + tokenCount + " unchecked!");
+    gibbsSampler.cycle();
   }
 
   private void optimiseAlpha() {
@@ -316,59 +273,37 @@ public class LDA {
     return Math.exp(sum);
   }
 
-  // implements the multithreading collapsed gibbs sampling algorithm put
-  // forward by Yan et. al. (2009)
-  class GibbsSampler implements Callable<Object> {
-    private final int proc;           // thread id
-    private int localMoves = 0;
-    private int[] localTokensInTopic; // local version to avoid race conditions
-    // private int count = 0;            // tokens processed by this thread
+  class GibbsSampler {
 
-    public GibbsSampler(int proc) {
-      this.proc = proc;
-      localTokensInTopic = Arrays.copyOf(tokensInTopic, tokensInTopic.length);
-    }
+    public void cycle() {
+      for (int i = 0; i < tokenCount; i++) {
+        final int word = corpus.word(i);
+        final int oldTopic = corpus.topic(i);
+        final int doc = corpus.doc(i);
+        tokensInTopic[oldTopic]--;
+        wordsInTopic[word][oldTopic]--;
+        topicsInDoc[oldTopic][doc]--;
 
-    @Override
-    public Object call() {
-      for (int epoch = 0; epoch < P; epoch++) {
-        for (int i = tokenPartStart[proc]; i < tokenPartStart[proc + 1]; i++) {
-          final int word = corpus.word(i);
-          final int wps = (epoch + proc) % P;
-          // checks if the word is in the word partition
-          if (word >= wordPartStart[wps] && word < (wordPartStart[wps + 1])) {
-            final int oldTopic = corpus.topic(i);
-            final int doc = corpus.doc(i);
-            localTokensInTopic[oldTopic]--;
-            wordsInTopic[word][oldTopic]--;
-            topicsInDoc[oldTopic][doc]--;
-
-            final int newTopic = sample(word, oldTopic, doc);
-            if (newTopic != oldTopic) {
-              localMoves++;
-            }
-
-            localTokensInTopic[newTopic]++;
-            wordsInTopic[word][newTopic]++;
-            topicsInDoc[newTopic][doc]++;
-            corpus.setTopic(i, newTopic);
-            // count++;
-          }
+        final int newTopic = sample(word, doc);
+        if (newTopic != oldTopic) {
+          moves++;
         }
-        synchronise();
+
+        tokensInTopic[newTopic]++;
+        wordsInTopic[word][newTopic]++;
+        topicsInDoc[newTopic][doc]++;
+        corpus.setTopic(i, newTopic);
       }
-      // System.out.println("proc " + proc + " count: " + count + "/" + tokenCount);
-      return null;
     }
 
-    private int sample(int word, int oldTopic, int doc) {
+    private int sample(int word, int doc) {
       final double[] probabilities = new double[topicCount];
       double sum = 0;
 
       for (int topic = 0; topic < topicCount; topic++) {
         probabilities[topic] = (topicsInDoc[topic][doc] + alpha[topic])
             * ((wordsInTopic[word][topic] + beta)
-            / (localTokensInTopic[topic] + betaSum));
+            / (tokensInTopic[topic] + betaSum));
         sum += probabilities[topic];
       }
 
@@ -385,34 +320,6 @@ public class LDA {
       }
 
       return newTopic;
-    }
-
-    //synchronise local tokensInTopic arrays here and reload them
-    private void synchronise() {
-      for (int i = 0; i < tokensInTopic.length; i++) {
-        localTokensInTopic[i] -= tokensInTopic[i];
-      }
-      await();
-      write();
-      await();
-      localTokensInTopic = Arrays.copyOf(tokensInTopic, tokensInTopic.length);
-    }
-
-    private synchronized void write() {
-      for (int i = 0; i < tokensInTopic.length; i++) {
-        tokensInTopic[i] += localTokensInTopic[i];
-      }
-      moves += localMoves;
-      localMoves = 0;
-    }
-
-    private void await() {
-      try {
-        barrier.await();
-      } catch (InterruptedException | BrokenBarrierException e) {
-        System.out.println(e.getMessage());
-        System.exit(1);
-      }
     }
   }
 
