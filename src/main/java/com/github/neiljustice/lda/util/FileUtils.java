@@ -37,6 +37,10 @@ public class FileUtils {
     return readFile(new File(in), StandardCharsets.UTF_8);
   }
 
+  public static List<String> readFile(String in, Charset charset) {
+    return readFile(new File(in), charset);
+  }
+
   public static List<String> readFile(File in) {
     return readFile(in, StandardCharsets.UTF_8);
   }

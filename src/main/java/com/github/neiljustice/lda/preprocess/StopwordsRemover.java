@@ -1,9 +1,6 @@
 package com.github.neiljustice.lda.preprocess;
 
-import java.util.Collection;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Set;
+import java.util.*;
 
 import static com.github.neiljustice.lda.util.FileUtils.loadResourceToCollection;
 
@@ -12,7 +9,7 @@ import static com.github.neiljustice.lda.util.FileUtils.loadResourceToCollection
  * Stopwords are passed in as a list, or the defaults may be used.
  */
 public class StopwordsRemover {
-  private final Set<String> stopwords;
+  private Set<String> stopwords;
 
   public StopwordsRemover() {
     stopwords = new HashSet<>();
@@ -21,6 +18,14 @@ public class StopwordsRemover {
 
   public StopwordsRemover(Collection<String> stopwords) {
     this.stopwords = new HashSet<>(stopwords);
+  }
+
+  public Set<String> getStopwords() {
+    return stopwords;
+  }
+
+  public void setStopwords(Set<String> stopwords) {
+    this.stopwords = stopwords;
   }
 
   public void removeFrom(List<List<String>> tokenisedDocuments) {

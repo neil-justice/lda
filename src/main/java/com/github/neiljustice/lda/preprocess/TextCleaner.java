@@ -2,25 +2,30 @@ package com.github.neiljustice.lda.preprocess;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.function.Function;
 
 /**
  * This class by default removes most punctuation, unifies case,
- * and removes web addresses.  Its behaviour may be configured.
+ * and removes web addresses and numbers.  Its behaviour may be configured.
  */
 public class TextCleaner {
-  private final List<Action> conversions;
+  private List<Function<String, String>> conversions;
 
   public TextCleaner() {
     conversions = new ArrayList<>();
-    conversions.add(this::lowerCase);
-    conversions.add(this::removeURLs);
-    conversions.add(this::convertCharsToSpace);
-    conversions.add(this::removeCharsExcept);
-    conversions.add(this::removeNumbers);
-    conversions.add(this::collapseWhitespace);
+    conversions.add(TextCleaner::lowerCase);
+    conversions.add(TextCleaner::removeURLs);
+    conversions.add(TextCleaner::convertCharsToSpace);
+    conversions.add(TextCleaner::removeCharsExcept);
+    conversions.add(TextCleaner::removeNumbers);
+    conversions.add(TextCleaner::collapseWhitespace);
   }
 
-  public TextCleaner(List<Action> conversions) {
+  public TextCleaner(List<Function<String, String>> conversions) {
+    this.conversions = conversions;
+  }
+
+  public void setConversions(List<Function<String, String>> conversions) {
     this.conversions = conversions;
   }
 
@@ -32,41 +37,37 @@ public class TextCleaner {
     return cleaned;
   }
 
-  protected String cleanText(String text) {
-    for (Action action : conversions) {
-      text = action.process(text);
+  public String cleanText(String text) {
+    for (Function<String, String> action : conversions) {
+      text = action.apply(text);
     }
     return text;
   }
 
-  private String lowerCase(String text) {
+  public static String lowerCase(String text) {
     return text.toLowerCase();
   }
 
-  private String removeCharsExcept(String text) {
+  public static String removeCharsExcept(String text) {
     return text.replaceAll("[^a-zA-Z0-9-' ]", "");
   }
 
-  private String convertCharsToSpace(String text) {
+  public static String convertCharsToSpace(String text) {
     return text.replaceAll("[!,.?/:;_]", " ");
   }
 
   // Remove urls:.  should be done before removing punctuation or they are hard
   // to find.
-  private String removeURLs(String text) {
+  public static String removeURLs(String text) {
     return text.replaceAll("\\S+://\\S+", "");
   }
 
-  private String removeNumbers(String text) {
+  public static String removeNumbers(String text) {
     return text.replaceAll("(?<= |^)[0-9]+(?= |$)", "");
   }
 
 
-  private String collapseWhitespace(String text) {
+  public static String collapseWhitespace(String text) {
     return text.trim().replaceAll(" +", " ");
-  }
-
-  public interface Action {
-    String process(String text);
   }
 }

@@ -1,8 +1,10 @@
 package com.github.neiljustice.lda;
 
+import com.github.neiljustice.lda.topic.Topic;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
+import java.lang.reflect.Array;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -11,10 +13,20 @@ import java.util.concurrent.*;
 
 /**
  * Latent Dirichlet Allocation (LDA) is a topic model.
+ *
+ * TODO it would be good to be able to load a test dataset and evaluate its probability according to the trained model
+ * TODO some sort of test for convergence?
+ * TODO re-implement serialisation/pausing/restarting
+ * TODO allow extracting topic distribution of each document
  */
 public class LDA {
 
   private static final Logger LOGGER = LogManager.getLogger(LDA.class);
+  public static final int DEFAULT_TOP_WORDS_PER_TOPIC = 10;
+  public static final int DEFAULT_BURN_IN_CYCLES = 100;
+  public static final int DEFAULT_SAMPLE_LAG_CYCLES = 20;
+  public static final int DEFAULT_OPTIMISE_INTERVAL = 40;
+  public static final int DEFAULT_PERPLEXITY_CHECK_LAG = 10;
 
   private final Corpus corpus;
   private final Random random = new Random();
@@ -129,21 +141,56 @@ public class LDA {
     }
   }
 
-  public void run(int maxCycles) {
+  public void train(int maxCycles) {
+    train(maxCycles, DEFAULT_BURN_IN_CYCLES, DEFAULT_SAMPLE_LAG_CYCLES, DEFAULT_OPTIMISE_INTERVAL, DEFAULT_PERPLEXITY_CHECK_LAG);
+  }
+
+  public void train(int maxCycles, int burnLength) {
+    train(maxCycles, burnLength, DEFAULT_SAMPLE_LAG_CYCLES, DEFAULT_OPTIMISE_INTERVAL, DEFAULT_PERPLEXITY_CHECK_LAG);
+  }
+
+  public void train(int maxCycles, int burnLength, int sampleLag) {
+    train(maxCycles, burnLength, sampleLag, DEFAULT_OPTIMISE_INTERVAL, DEFAULT_PERPLEXITY_CHECK_LAG);
+  }
+
+  public void train(int maxCycles, int burnLength, int sampleLag, int optimiseInterval) {
+    train(maxCycles, burnLength, sampleLag, optimiseInterval, DEFAULT_PERPLEXITY_CHECK_LAG);
+  }
+
+  public void train(int maxCycles, int burnLength, int sampleLag, int optimiseInterval, int perplexLag) {
     this.maxCycles = maxCycles + cycles;
-    perplexLag = 10;
-    burnLength = 100;
-    sampleLag = 20;
-    optimiseInterval = 40;
+    this.burnLength = burnLength;
+    this.sampleLag = sampleLag;
+    this.optimiseInterval = optimiseInterval;
+    this.perplexLag = perplexLag;
     cycles();
   }
 
   public void print() {
-    // printWords();
-    // printDocs();
-    // LDAUtils.mostCommon(phi(), translator);
+    print(DEFAULT_TOP_WORDS_PER_TOPIC);
+  }
 
-    LDAUtils.termScore(phi(), corpus.dictionary());
+  public void print(int topN) {
+    final List<Topic> topics = LDAUtils.termScore(phi(), corpus.dictionary(), topN);
+    for (Topic topic : topics) {
+      System.out.println(topic);
+    }
+  }
+
+  /**
+   * Get the topics, and the top 10 terms for each topic.
+   */
+  public List<Topic> getTopics() {
+    return getTopics(DEFAULT_TOP_WORDS_PER_TOPIC);
+  }
+
+  /**
+   * Get the topics, and the top N terms for each topic.
+   *
+   * @param topN terms per topic.
+   */
+  public List<Topic> getTopics(int topN) {
+    return LDAUtils.termScore(phi(), corpus.dictionary(), topN);
   }
 
   private void cycles() {
@@ -151,7 +198,8 @@ public class LDA {
     double avg = 0;
     for (; cycles < maxCycles; cycles++) {
       final long s = System.nanoTime();
-      cycle();
+
+      gibbsSampler.cycle();
       if (cycles >= burnLength && cycles % optimiseInterval == 0) {
         optimiseAlpha();
       }
@@ -179,10 +227,6 @@ public class LDA {
     }
     avg /= maxCycles;
     System.out.printf("Avg. seconds taken: %.03f%n", avg);
-  }
-
-  private void cycle() {
-    gibbsSampler.cycle();
   }
 
   private void optimiseAlpha() {
@@ -273,7 +317,7 @@ public class LDA {
     return Math.exp(sum);
   }
 
-  class GibbsSampler {
+  private class GibbsSampler {
 
     public void cycle() {
       for (int i = 0; i < tokenCount; i++) {
@@ -322,15 +366,4 @@ public class LDA {
       return newTopic;
     }
   }
-
-  // public void printWords() {
-  //   System.out.println("");
-  //   for (int word = 0; word < wordCount; word++) {
-  //     System.out.printf("%15s", translator.getWord(word));
-  //     for (int topic = 0; topic < topicCount; topic++) {
-  //       System.out.printf("%4d", wordsInTopic[word][topic]);
-  //     }
-  //     System.out.println("");
-  //   }
-  // }
 }

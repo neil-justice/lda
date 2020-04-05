@@ -25,6 +25,6 @@ public class IndexComparator implements Comparator<Integer>, Serializable {
 
   @Override
   public int compare(Integer index1, Integer index2) {
-    return Double.compare(array[index1], array[index2]); // Autounbox
+    return Double.compare(array[index1], array[index2]);
   }
 }

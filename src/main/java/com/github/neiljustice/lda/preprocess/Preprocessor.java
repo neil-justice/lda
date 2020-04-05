@@ -170,7 +170,7 @@ public class Preprocessor {
       while (it.hasNext()) {
         final String token = it.next();
         final int freq = wordFreqs.get(token);
-        final int docFreq = wordFreqs.get(token);
+        final int docFreq = perDocFreqs.get(token);
         final double docPerc = (double) docFreq / docCount;
         final int length = token.length();
         total++;
@@ -192,12 +192,12 @@ public class Preprocessor {
           it.remove();
         } else {
           kept++;
-          LOG.debug("Kept token: " + token);
+          LOG.debug("Kept token: {}", token);
         }
       }
     }
 
-    LOG.info("Kept " + kept + " / " + total + "words.");
+    LOG.info("Kept {} / {} words", kept, total);
   }
 
 }

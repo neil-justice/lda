@@ -70,6 +70,13 @@ public class AlphaOptimiser {
       }
     }
 
+    // TODO test and find out why this happens...
+    if (Arrays.stream(alpha).anyMatch(d -> d < 0)) {
+      for (int topic = 0; topic < topicCount; topic++) {
+        alpha[topic] = 0.1;
+        alphaSum += alpha[topic];
+      }
+    }
     return alphaSum;
   }
 
