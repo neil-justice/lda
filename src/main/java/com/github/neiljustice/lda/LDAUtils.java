@@ -3,18 +3,30 @@ package com.github.neiljustice.lda;
 import com.github.neiljustice.lda.topic.TermScore;
 import com.github.neiljustice.lda.topic.Topic;
 import com.github.neiljustice.lda.util.BiDirectionalLookup;
-import com.github.neiljustice.lda.util.IndexComparator;
 
 import java.util.ArrayList;
-import java.util.Arrays;
+import java.util.Comparator;
 import java.util.List;
+import java.util.TreeSet;
+import java.util.stream.Collectors;
 
 /**
- * class for static LDA utilities
+ * LDA utilities
  */
 public class LDAUtils {
 
-  // finds the geometric mean of a matrix
+  private static final Comparator<TermScore> COMPARATOR = Comparator
+      .comparingDouble(TermScore::getScore)
+      .thenComparing(TermScore::getTerm)
+      .reversed();
+
+  private LDAUtils() {
+    // Prevent static class instantiation.
+  }
+
+  /**
+   * Find the geometric mean of a 2D matrix.
+   */
   public static double[] geometricMean(double[][] matrix) {
     final int height = matrix.length;
     final int width = matrix[0].length;
@@ -32,63 +44,51 @@ public class LDAUtils {
     return geometricMean;
   }
 
-  // as laid out in Blei and Lafferty, 2009.  sorts words in topics by
-  // phi * log (phi) / geometric mean(phi)
-  // and defines topics by their top 10 words.
+
+  /**
+   * As laid out in Blei and Lafferty, 2009.  sorts words in topics by
+   * phi * log (phi) / geometric mean(phi)
+   * and defines topics by their top N words.
+   *
+   * @param phi        2D matrix where each cell represents the probability that a word will appear in a topic.
+   * @param dictionary dictionary for conversion from word indexes back to strings.
+   * @param topN       the top N words to return per topic. If this is <= 0, all words are returned.
+   */
   public static List<Topic> termScore(double[][] phi, BiDirectionalLookup<String> dictionary, int topN) {
     final int wordCount = phi.length;
     final int topicCount = phi[0].length;
-    final double[] geometricMean = geometricMean(phi);
-    topN = Math.min(topN, wordCount);
-
-    // TODO should this be boxed?
-    final Integer[][] output = new Integer[topicCount][topN];
-    final double[][] temp = new double[topicCount][wordCount];
     final List<Topic> topics = new ArrayList<>(topicCount);
+    final double[] geometricMean = geometricMean(phi);
+    topN = topN > 0 ? Math.min(topN, wordCount) : wordCount;
 
     for (int topic = 0; topic < topicCount; topic++) {
+      final TreeSet<TermScore> termScores = new TreeSet<>(COMPARATOR);
       for (int word = 0; word < wordCount; word++) {
-        temp[topic][word] = phi[word][topic]
-            * Math.log(phi[word][topic]
-            / geometricMean[word]);
+        final double score = phi[word][topic] * Math.log(phi[word][topic] / geometricMean[word]);
+        termScores.add(new TermScore(dictionary.getToken(word), score));
       }
-      final IndexComparator comp = new IndexComparator(temp[topic]);
-      final Integer[] indexes = comp.indexArray();
-      Arrays.sort(indexes, comp.reversed());
-      output[topic] = Arrays.copyOf(indexes, topN);
-      final List<TermScore> termScores = new ArrayList<>();
-      for (int i = 0; i < topN; i++) {
-        termScores.add(new TermScore(dictionary.getToken(output[topic][i]), temp[topic][indexes[i]]));
-      }
-      topics.add(new Topic(topic, termScores));
+      topics.add(new Topic(topic, termScores.stream().limit(topN).collect(Collectors.toList())));
     }
 
     return topics;
   }
 
+  // TODO remove?
   public static List<Topic> mostCommon(double[][] phi, BiDirectionalLookup<String> dictionary, int topN) {
     final int wordCount = phi.length;
     final int topicCount = phi[0].length;
-
-    // TODO should this be boxed?
-    final Integer[][] output = new Integer[topicCount][topN];
-    final double[][] temp = new double[topicCount][wordCount];
     final List<Topic> topics = new ArrayList<>(topicCount);
+    topN = topN > 0 ? Math.min(topN, wordCount) : wordCount;
 
     for (int topic = 0; topic < topicCount; topic++) {
+      final TreeSet<TermScore> termScores = new TreeSet<>(COMPARATOR);
       for (int word = 0; word < wordCount; word++) {
-        temp[topic][word] = phi[word][topic];
+        termScores.add(new TermScore(dictionary.getToken(word), phi[word][topic]));
       }
-      final IndexComparator comp = new IndexComparator(temp[topic]);
-      final Integer[] indexes = comp.indexArray();
-      Arrays.sort(indexes, comp.reversed());
-      output[topic] = Arrays.copyOf(indexes, topN);
-      final List<TermScore> termScores = new ArrayList<>();
-      for (int i = 0; i < topN; i++) {
-        termScores.add(new TermScore(dictionary.getToken(output[topic][i]), temp[topic][indexes[i]]));
-      }
-      topics.add(new Topic(topic, termScores));
+      topics.add(new Topic(topic, termScores.stream().limit(topN).collect(Collectors.toList()))
+      );
     }
+
     return topics;
   }
 }

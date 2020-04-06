@@ -25,25 +25,6 @@ public class TextCleaner {
     this.conversions = conversions;
   }
 
-  public void setConversions(List<Function<String, String>> conversions) {
-    this.conversions = conversions;
-  }
-
-  public List<String> clean(List<String> documents) {
-    final List<String> cleaned = new ArrayList<>();
-    for (String document : documents) {
-      cleaned.add(cleanText(document));
-    }
-    return cleaned;
-  }
-
-  public String cleanText(String text) {
-    for (Function<String, String> action : conversions) {
-      text = action.apply(text);
-    }
-    return text;
-  }
-
   public static String lowerCase(String text) {
     return text.toLowerCase();
   }
@@ -66,8 +47,26 @@ public class TextCleaner {
     return text.replaceAll("(?<= |^)[0-9]+(?= |$)", "");
   }
 
-
   public static String collapseWhitespace(String text) {
     return text.trim().replaceAll(" +", " ");
+  }
+
+  public void setConversions(List<Function<String, String>> conversions) {
+    this.conversions = conversions;
+  }
+
+  public List<String> clean(List<String> documents) {
+    final List<String> cleaned = new ArrayList<>();
+    for (String document : documents) {
+      cleaned.add(cleanText(document));
+    }
+    return cleaned;
+  }
+
+  public String cleanText(String text) {
+    for (Function<String, String> action : conversions) {
+      text = action.apply(text);
+    }
+    return text;
   }
 }

@@ -4,16 +4,12 @@ import com.github.neiljustice.lda.topic.Topic;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
-import java.lang.reflect.Array;
-import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 import java.util.Random;
-import java.util.concurrent.*;
 
 /**
  * Latent Dirichlet Allocation (LDA) is a topic model.
- *
+ * <p>
  * TODO it would be good to be able to load a test dataset and evaluate its probability according to the trained model
  * TODO some sort of test for convergence?
  * TODO re-implement serialisation/pausing/restarting
@@ -21,13 +17,12 @@ import java.util.concurrent.*;
  */
 public class LDA {
 
-  private static final Logger LOGGER = LogManager.getLogger(LDA.class);
   public static final int DEFAULT_TOP_WORDS_PER_TOPIC = 10;
   public static final int DEFAULT_BURN_IN_CYCLES = 100;
   public static final int DEFAULT_SAMPLE_LAG_CYCLES = 20;
   public static final int DEFAULT_OPTIMISE_INTERVAL = 40;
   public static final int DEFAULT_PERPLEXITY_CHECK_LAG = 10;
-
+  private static final Logger LOGGER = LogManager.getLogger(LDA.class);
   private final Corpus corpus;
   private final Random random = new Random();
   /** number of unique words */
@@ -51,7 +46,7 @@ public class LDA {
   private final double beta;
   private final double betaSum;
   private AlphaOptimiser optimiser;
-  private GibbsSampler gibbsSampler = new GibbsSampler();
+  private final GibbsSampler gibbsSampler = new GibbsSampler();
   private double alphaSum;
   /** Length of longest doc */
   private int maxLength;
@@ -59,17 +54,17 @@ public class LDA {
   private int cycles;
   /** Cycles to run */
   private int maxCycles;
-  /** No. of times the phi and theta sums have been added to */
+  /** No. of times the phi and theta sums have been added to*/
   private int samples;
   /** Length of burn-in phase to allow markov chain to converge. */
   private int burnLength;
-  /** Cycles to skip samples from between samples, giving us decorrelated states of the markov chain. */
+  /** Cycles to skip samples from between samples, giving us decorrelated states of the markov chain.*/
   private int sampleLag;
-  /** How often to measure perplexity. */
+  /** How often to measure perplexity.*/
   private int perplexLag;
   /** No. of tokens who have changed topic this cycle. */
   private int moves = 0;
-                                      
+
   public LDA(Corpus corpus, int topicCount) {
     this.topicCount = topicCount;
 

@@ -23,7 +23,7 @@ public class Tokeniser {
   public List<List<String>> tokenise(List<String> documents) {
     final List<List<String>> results = new ArrayList<>();
     for (String document : documents) {
-      results.add(new ArrayList<>(Arrays.asList(document.split(delimiter))));
+      results.add(new ArrayList<>(Arrays.asList(document.trim().split(delimiter))));
     }
 
     return results;

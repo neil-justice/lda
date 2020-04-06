@@ -21,35 +21,36 @@ public class LDATest {
   public void shouldDetectTopics() {
     final PreprocessingPipeline pipeline = PreprocessingPipeline.noOpPipeline();
 
-    corpus = pipeline.preprocess(generateDocs(100, 100));
+    List<String> docs = generateDocs(100, 100);
+    corpus = pipeline.preprocess(docs);
 
     lda = new LDA(corpus, 2);
-    lda.train(100, 10, 2, 20, 2);
+    lda.train(100, 10, 10, 20, 2);
     final List<Topic> topics = lda.getTopics(4);
     for (Topic topic : topics) {
       if (topic.getWords().contains("a")) {
-        assertTrue(topic.getWords().containsAll(Arrays.asList("a", "b", "c", "d")));
+        assertTrue(topic.getWords().toString(), topic.getWords().containsAll(Arrays.asList("a", "b", "c", "d")));
       }
       if (topic.getWords().contains("1")) {
-        assertTrue(topic.getWords().containsAll(Arrays.asList("1", "2", "3", "4")));
+        assertTrue(topic.getWords().toString(), topic.getWords().containsAll(Arrays.asList("1", "2", "3", "4")));
       }
     }
   }
 
   private List<String> generateDocs(int count, int maxWords) {
-    final List<String> topicA = Arrays.asList(
-        "a", "b", "c", "d", "filler"
+    final List<String> docTypeA = Arrays.asList(
+        "a", "b", "c", "d", "filler", "filler2"
     );
-    final List<String> topicB = Arrays.asList(
-        "1", "2", "3", "4", "filler"
+    final List<String> docTypeB = Arrays.asList(
+        "1", "2", "3", "4", "filler", "filler2"
     );
     final List<String> docs = new ArrayList<>();
     for (int doc = 0; doc < count; doc++) {
-      final int max = ThreadLocalRandom.current().nextInt(maxWords);
-      final boolean topic = ThreadLocalRandom.current().nextBoolean();
+      final int max = ThreadLocalRandom.current().nextInt(maxWords - 3) + 3;
+      final boolean type = ThreadLocalRandom.current().nextBoolean();
       final StringBuilder builder = new StringBuilder();
       for (int word = 0; word < max; word++) {
-        builder.append(" ").append((topic ? topicA : topicB).get(ThreadLocalRandom.current().nextInt(topicA.size() - 1)));
+        builder.append(" ").append((type ? docTypeA : docTypeB).get(ThreadLocalRandom.current().nextInt(docTypeA.size() - 1)));
       }
       docs.add(builder.toString());
     }

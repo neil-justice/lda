@@ -1,6 +1,9 @@
 package com.github.neiljustice.lda.preprocess;
 
-import java.util.*;
+import java.util.Collection;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
 
 import static com.github.neiljustice.lda.util.FileUtils.loadResourceToCollection;
 

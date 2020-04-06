@@ -1,5 +1,7 @@
 package com.github.neiljustice.lda.topic;
 
+import java.util.Objects;
+
 public class TermScore {
   private final String term;
 
@@ -21,5 +23,23 @@ public class TermScore {
   @Override
   public String toString() {
     return term + " : " + score;
+  }
+
+  @Override
+  public boolean equals(Object o) {
+    if (this == o) {
+      return true;
+    }
+    if (o == null || getClass() != o.getClass()) {
+      return false;
+    }
+    final TermScore termScore = (TermScore) o;
+    return Double.compare(termScore.getScore(), getScore()) == 0 &&
+        Objects.equals(getTerm(), termScore.getTerm());
+  }
+
+  @Override
+  public int hashCode() {
+    return Objects.hash(getTerm(), getScore());
   }
 }

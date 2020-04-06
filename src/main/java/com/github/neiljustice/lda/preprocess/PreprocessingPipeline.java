@@ -58,7 +58,7 @@ public class PreprocessingPipeline {
 
   /**
    * Load and pre-process a file.  Assumes that each line in the file represents a document.
-   *
+   * <p>
    * Assumes the file is UTF-8 encoded.
    *
    * @param filename the path to the file to process.
@@ -71,7 +71,7 @@ public class PreprocessingPipeline {
    * Load and pre-process a file.  Assumes that each line in the file represents a document.
    *
    * @param filename the path to the file to process.
-   * @param charset the file encoding.
+   * @param charset  the file encoding.
    */
   public Corpus preprocess(String filename, Charset charset) {
     return preprocess(FileUtils.readFile(filename, charset));
@@ -79,7 +79,7 @@ public class PreprocessingPipeline {
 
   /**
    * Load and pre-process a file.  Assumes that each line in the file represents a document.
-   *
+   * <p>
    * Assumes the file is UTF-8 encoded.
    *
    * @param file the file to process.
@@ -87,10 +87,11 @@ public class PreprocessingPipeline {
   public Corpus preprocess(File file) {
     return preprocess(FileUtils.readFile(file));
   }
+
   /**
    * Load and pre-process a file.  Assumes that each line in the file represents a document.
    *
-   * @param file the file to process.
+   * @param file    the file to process.
    * @param charset the file encoding.
    */
   public Corpus preprocess(File file, Charset charset) {
