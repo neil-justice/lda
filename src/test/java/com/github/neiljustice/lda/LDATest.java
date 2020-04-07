@@ -25,7 +25,7 @@ public class LDATest {
     corpus = pipeline.preprocess(docs);
 
     lda = new LDA(corpus, 2);
-    lda.train(100, 10, 10, 20, 2);
+    lda.train(4100, 10, 10, 20, 10);
     final List<Topic> topics = lda.getTopics(4);
     for (Topic topic : topics) {
       if (topic.getWords().contains("a")) {

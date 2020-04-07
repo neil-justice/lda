@@ -22,7 +22,7 @@ public class TermScore {
 
   @Override
   public String toString() {
-    return term + " : " + score;
+    return String.format("%s : %.03f", term, score);
   }
 
   @Override

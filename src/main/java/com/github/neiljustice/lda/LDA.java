@@ -6,23 +6,27 @@ import org.apache.logging.log4j.Logger;
 
 import java.util.List;
 import java.util.Random;
+import java.util.concurrent.TimeUnit;
 
 /**
- * Latent Dirichlet Allocation (LDA) is a topic model.
+ * Latent Dirichlet Allocation (LDA) is a topic model. This implementation uses a Gibbs sampler.
  * <p>
  * TODO it would be good to be able to load a test dataset and evaluate its probability according to the trained model
- * TODO some sort of test for convergence?
  * TODO re-implement serialisation/pausing/restarting
  * TODO allow extracting topic distribution of each document
+ * TODO allow generating documents from trained model
  */
 public class LDA {
+
+  private static final Logger LOGGER = LogManager.getLogger(LDA.class);
 
   public static final int DEFAULT_TOP_WORDS_PER_TOPIC = 10;
   public static final int DEFAULT_BURN_IN_CYCLES = 100;
   public static final int DEFAULT_SAMPLE_LAG_CYCLES = 20;
   public static final int DEFAULT_OPTIMISE_INTERVAL = 40;
   public static final int DEFAULT_PERPLEXITY_CHECK_LAG = 10;
-  private static final Logger LOGGER = LogManager.getLogger(LDA.class);
+  public static final double DEFAULT_PERPLEXITY_THRESHOLD = 0.0001d;
+
   private final Corpus corpus;
   private final Random random = new Random();
   /** number of unique words */
@@ -45,8 +49,8 @@ public class LDA {
   /** Hyperparameter */
   private final double beta;
   private final double betaSum;
-  private AlphaOptimiser optimiser;
   private final GibbsSampler gibbsSampler = new GibbsSampler();
+  private AlphaOptimiser optimiser;
   private double alphaSum;
   /** Length of longest doc */
   private int maxLength;
@@ -54,15 +58,17 @@ public class LDA {
   private int cycles;
   /** Cycles to run */
   private int maxCycles;
-  /** No. of times the phi and theta sums have been added to*/
+  /** No. of times the phi and theta sums have been added to */
   private int samples;
   /** Length of burn-in phase to allow markov chain to converge. */
   private int burnLength;
-  /** Cycles to skip samples from between samples, giving us decorrelated states of the markov chain.*/
+  /** Cycles to skip samples from between samples, giving us decorrelated states of the markov chain. */
   private int sampleLag;
-  /** How often to measure perplexity.*/
+  /** How often to measure perplexity. */
   private int perplexLag;
-  /** No. of tokens who have changed topic this cycle. */
+  /** Stop early if the change in perplexity is less than this amount. */
+  private double perplexThresh;
+  /** No. of tokens who have changed topic this cycle. TODO what is this for? */
   private int moves = 0;
 
   public LDA(Corpus corpus, int topicCount) {
@@ -127,7 +133,6 @@ public class LDA {
       }
     }
     maxLength = max + 1;
-    System.out.println(max);
 
     optimiser = new AlphaOptimiser(tokensInDoc, topicCount, maxLength);
     for (int topic = 0; topic < topicCount; topic++) {
@@ -137,38 +142,51 @@ public class LDA {
   }
 
   public void train(int maxCycles) {
-    train(maxCycles, DEFAULT_BURN_IN_CYCLES, DEFAULT_SAMPLE_LAG_CYCLES, DEFAULT_OPTIMISE_INTERVAL, DEFAULT_PERPLEXITY_CHECK_LAG);
+    train(maxCycles, DEFAULT_BURN_IN_CYCLES, DEFAULT_SAMPLE_LAG_CYCLES, DEFAULT_OPTIMISE_INTERVAL, DEFAULT_PERPLEXITY_CHECK_LAG, DEFAULT_PERPLEXITY_THRESHOLD);
   }
 
   public void train(int maxCycles, int burnLength) {
-    train(maxCycles, burnLength, DEFAULT_SAMPLE_LAG_CYCLES, DEFAULT_OPTIMISE_INTERVAL, DEFAULT_PERPLEXITY_CHECK_LAG);
+    train(maxCycles, burnLength, DEFAULT_SAMPLE_LAG_CYCLES, DEFAULT_OPTIMISE_INTERVAL, DEFAULT_PERPLEXITY_CHECK_LAG, DEFAULT_PERPLEXITY_THRESHOLD);
   }
 
   public void train(int maxCycles, int burnLength, int sampleLag) {
-    train(maxCycles, burnLength, sampleLag, DEFAULT_OPTIMISE_INTERVAL, DEFAULT_PERPLEXITY_CHECK_LAG);
+    train(maxCycles, burnLength, sampleLag, DEFAULT_OPTIMISE_INTERVAL, DEFAULT_PERPLEXITY_CHECK_LAG, DEFAULT_PERPLEXITY_THRESHOLD);
   }
 
   public void train(int maxCycles, int burnLength, int sampleLag, int optimiseInterval) {
-    train(maxCycles, burnLength, sampleLag, optimiseInterval, DEFAULT_PERPLEXITY_CHECK_LAG);
+    train(maxCycles, burnLength, sampleLag, optimiseInterval, DEFAULT_PERPLEXITY_CHECK_LAG, DEFAULT_PERPLEXITY_THRESHOLD);
   }
 
   public void train(int maxCycles, int burnLength, int sampleLag, int optimiseInterval, int perplexLag) {
+    train(maxCycles, burnLength, sampleLag, optimiseInterval, perplexLag, DEFAULT_PERPLEXITY_THRESHOLD);
+  }
+
+  public void train(int maxCycles, int burnLength, int sampleLag, int optimiseInterval, int perplexLag, double perplexThresh) {
     this.maxCycles = maxCycles + cycles;
     this.burnLength = burnLength;
     this.sampleLag = sampleLag;
     this.optimiseInterval = optimiseInterval;
     this.perplexLag = perplexLag;
+    this.perplexThresh = perplexThresh;
     cycles();
   }
 
-  public void print() {
-    print(DEFAULT_TOP_WORDS_PER_TOPIC);
+  /**
+   * Log the topics, and the top 10 terms for each topic, at INFO level.
+   */
+  public void logTopics() {
+    logTopics(DEFAULT_TOP_WORDS_PER_TOPIC);
   }
 
-  public void print(int topN) {
+  /**
+   * Log the topics, and the top N terms for each topic, at INFO level.
+   *
+   * @param topN number of terms to log per topic.
+   */
+  public void logTopics(int topN) {
     final List<Topic> topics = LDAUtils.termScore(phi(), corpus.dictionary(), topN);
     for (Topic topic : topics) {
-      System.out.println(topic);
+      LOGGER.info(topic);
     }
   }
 
@@ -189,8 +207,8 @@ public class LDA {
   }
 
   private void cycles() {
-
-    double avg = 0;
+    long avg = 0;
+    double prevPerplexity = 0d;
     for (; cycles < maxCycles; cycles++) {
       final long s = System.nanoTime();
 
@@ -200,28 +218,44 @@ public class LDA {
       }
       if (cycles >= burnLength && cycles % sampleLag == 0) {
         updateParameters();
-        print();
+        logTopics();
+      }
+      if (cycles % perplexLag == 0) {
+        final double perplexity = perplexity();
+        LOGGER.info("perplexity: {}", perplexity);
+        if (Math.abs(prevPerplexity - perplexity) < perplexThresh) {
+          LOGGER.info("Perplexity change since last check below threshold: prev: {}, curr: {}", prevPerplexity, perplexity);
+          break;
+        }
+        prevPerplexity = perplexity();
       }
       final long e = System.nanoTime();
-      final double time = (e - s) / 1000000000d;
+      final long time = TimeUnit.NANOSECONDS.toSeconds(e - s);
       avg += time;
-      System.out.print("Cycle " + cycles);
-      System.out.printf(", seconds taken: %.03f", time);
-      if (cycles < burnLength) {
-        System.out.print(" (burn-in)");
-      } else if (cycles % sampleLag != 0) {
-        System.out.print(" (sample-lagging)");
-      } else if (cycles % optimiseInterval == 0) {
-        System.out.print(" (optimising)");
-      }
-      System.out.println();
-      if (cycles % perplexLag == 0) {
-        System.out.println("perplexity: " + perplexity());
-      }
+      logCycle(time);
       moves = 0;
     }
     avg /= maxCycles;
-    System.out.printf("Avg. seconds taken: %.03f%n", avg);
+    LOGGER.info("Avg. seconds taken: {}", avg);
+  }
+
+  private void logCycle(long time) {
+    if (!LOGGER.isInfoEnabled()) {
+      return;
+    }
+
+    final String cycleType;
+    if (cycles < burnLength) {
+      cycleType = "burn-in";
+    } else if (cycles % sampleLag == 0) {
+      cycleType = "sampling";
+    } else if (cycles % optimiseInterval == 0) {
+      cycleType = "optimising";
+    } else {
+      cycleType = "sample-lagging";
+    }
+
+    LOGGER.info("Cycle: {}, seconds taken {} ({})", cycles, time, cycleType);
   }
 
   private void optimiseAlpha() {
@@ -233,8 +267,10 @@ public class LDA {
       }
     }
     alphaSum = optimiser.optimiseAlpha(alpha, docTopicCountHist);
-    for (int topic = 0; topic < topicCount; topic++) {
-      System.out.println("t " + topic + " alpha " + alpha[topic]);
+    if (LOGGER.isInfoEnabled()) {
+      for (int topic = 0; topic < topicCount; topic++) {
+        LOGGER.info("t {} alpha {}", +topic, alpha[topic]);
+      }
     }
 
   }
