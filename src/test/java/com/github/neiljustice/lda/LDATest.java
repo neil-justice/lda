@@ -25,7 +25,7 @@ public class LDATest {
     corpus = pipeline.preprocess(docs);
 
     lda = new LDA(corpus, 2);
-    lda.train(4100, 10, 10, 20, 10);
+    lda.train(1000, 10, 5, 20, 10);
     final List<Topic> topics = lda.getTopics(4);
     for (Topic topic : topics) {
       if (topic.getWords().contains("a")) {
@@ -38,19 +38,19 @@ public class LDATest {
   }
 
   private List<String> generateDocs(int count, int maxWords) {
-    final List<String> docTypeA = Arrays.asList(
-        "a", "b", "c", "d", "filler", "filler2"
-    );
-    final List<String> docTypeB = Arrays.asList(
-        "1", "2", "3", "4", "filler", "filler2"
+    final List<List<String>> types = Arrays.asList(
+        Arrays.asList("a", "b", "c", "d", "filler", "filler2"),
+        Arrays.asList("1", "2", "3", "4", "filler", "filler2"),
+        Arrays.asList("a", "b", "3", "4", "filler", "filler2"),
+        Arrays.asList("1", "2", "c", "d", "filler", "filler2")
     );
     final List<String> docs = new ArrayList<>();
     for (int doc = 0; doc < count; doc++) {
       final int max = ThreadLocalRandom.current().nextInt(maxWords - 3) + 3;
-      final boolean type = ThreadLocalRandom.current().nextBoolean();
+      final int type = ThreadLocalRandom.current().nextInt(types.size() - 1);
       final StringBuilder builder = new StringBuilder();
       for (int word = 0; word < max; word++) {
-        builder.append(" ").append((type ? docTypeA : docTypeB).get(ThreadLocalRandom.current().nextInt(docTypeA.size() - 1)));
+        builder.append(" ").append(types.get(type).get(ThreadLocalRandom.current().nextInt(types.get(type).size() - 1)));
       }
       docs.add(builder.toString());
     }

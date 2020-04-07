@@ -39,7 +39,7 @@ public class PreprocessingPipeline {
   }
 
   public static PreprocessingPipeline noOpPipeline() {
-    final TextCleaner textcleaner = new TextCleaner(Collections.emptyList());
+    final TextCleaner textcleaner = new TextCleaner(Collections.singletonList(TextCleaner::collapseWhitespace));
     final Tokeniser tokeniser = new Tokeniser();
     final StopwordsRemover stopwordsRemover = new StopwordsRemover(Collections.emptySet());
     final Preprocessor preprocessor = new Preprocessor()

@@ -54,92 +54,176 @@ public class Preprocessor {
 
   private int docCount = 0;
 
+  /**
+   * Exclude tokens which appear with more than maxFreq frequency across the whole corpus.
+   */
   public Preprocessor useMaxFreq(boolean use) {
     this.useMaxFreq = use;
     return this;
   }
 
+  /**
+   * Exclude tokens which appear with less than minFreq frequency across the whole corpus.
+   */
   public Preprocessor useMinFreq(boolean use) {
     this.useMinFreq = use;
     return this;
   }
 
+  /**
+   * Exclude tokens which appear in more percent of documents than maxPerc.
+   */
   public Preprocessor useMaxPerc(boolean use) {
     this.useMaxPerc = use;
     return this;
   }
 
+  /**
+   * Exclude tokens which appear in less percent of documents than minPerc.
+   */
   public Preprocessor useMinPerc(boolean use) {
     this.useMinPerc = use;
     return this;
   }
 
+  /**
+   * Exclude tokens which appear in more documents than maxDocs.
+   */
   public Preprocessor useMaxDocs(boolean use) {
     this.useMaxDocs = use;
     return this;
   }
 
+  /**
+   * Exclude tokens which appear in less documents than minDocs.
+   */
   public Preprocessor useMinDocs(boolean use) {
     this.useMinDocs = use;
     return this;
   }
 
+  /**
+   * Exclude tokens longer than maxLength.
+   */
   public Preprocessor useMaxLength(boolean use) {
     this.useMaxLength = use;
     return this;
   }
 
+  /**
+   * Exclude tokens longer than minLength.
+   */
   public Preprocessor useMinLength(boolean use) {
     this.useMinLength = use;
     return this;
   }
 
-  public Preprocessor maxFreq(int freq) {
+  /**
+   * Exclude tokens which appear with more than maxFreq frequency across the whole corpus.
+   */
+  public Preprocessor withMaxFreq(int freq) {
     maxFreq = freq;
     useMaxFreq(true);
     return this;
   }
 
-  public Preprocessor minFreq(int freq) {
+  /**
+   * Exclude tokens which appear with less than minFreq frequency across the whole corpus.
+   */
+  public Preprocessor withMinFreq(int freq) {
     minFreq = freq;
     useMinFreq(true);
     return this;
   }
 
-  public Preprocessor maxPerc(double perc) {
+  /**
+   * Exclude tokens which appear in more percent of documents than maxPerc.
+   */
+  public Preprocessor withMaxPerc(double perc) {
     maxPerc = perc;
     useMaxPerc(true);
     return this;
   }
 
-  public Preprocessor minPerc(double perc) {
+  /**
+   * Exclude tokens which appear in less percent of documents than minPerc.
+   */
+  public Preprocessor withMinPerc(double perc) {
     minPerc = perc;
     useMinPerc(true);
     return this;
   }
 
-  public Preprocessor maxDocFreq(int max) {
+  /**
+   * Exclude tokens which appear in more documents than maxDocs.
+   */
+  public Preprocessor withMaxDocFreq(int max) {
     maxDocs = max;
     useMaxDocs(true);
     return this;
   }
 
-  public Preprocessor minDocFreq(int min) {
+  /**
+   * Exclude tokens which appear in less documents than minDocs.
+   */
+  public Preprocessor withMinDocFreq(int min) {
     minDocs = min;
     useMinDocs(true);
     return this;
   }
 
-  public Preprocessor maxLength(int length) {
+  /**
+   * Exclude tokens longer than maxLength.
+   *
+   * @param length the maximum length
+   */
+  public Preprocessor withMaxLength(int length) {
     maxLength = length;
     useMaxLength(true);
     return this;
   }
 
-  public Preprocessor minLength(int length) {
+  /**
+   * Exclude tokens shorter than minLength.
+   *
+   * @param length the minimum length
+   */
+  public Preprocessor withMinLength(int length) {
     minLength = length;
     useMinLength(true);
     return this;
+  }
+
+  public int getMaxFreq() {
+    return maxFreq;
+  }
+
+  public int getMinFreq() {
+    return minFreq;
+  }
+
+  public double getMaxPerc() {
+    return maxPerc;
+  }
+
+  public double getMinPerc() {
+    return minPerc;
+  }
+
+  public int getMaxDocs() {
+    return maxDocs;
+  }
+
+  public int getMinDocs() {
+    return minDocs;
+  }
+
+  public int getMaxLength() {
+    return maxLength;
+  }
+
+  public int getMinLength() {
+    return minLength;
   }
 
   public void process(List<List<String>> tokenisedDocuments) {
@@ -197,7 +281,10 @@ public class Preprocessor {
       }
     }
 
-    LOG.info("Kept {} / {} words", kept, total);
+    LOG.info("Kept {} / {} tokens", kept, total);
+    if (kept == 0) {
+      throw new IllegalStateException("All tokens were removed by the preprocessor - review the token removal criteria");
+    }
   }
 
 }

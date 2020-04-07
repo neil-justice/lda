@@ -1,5 +1,8 @@
 package com.github.neiljustice.lda.preprocess;
 
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+
 import java.util.Collection;
 import java.util.HashSet;
 import java.util.List;
@@ -12,6 +15,8 @@ import static com.github.neiljustice.lda.util.FileUtils.loadResourceToCollection
  * Stopwords are passed in as a list, or the defaults may be used.
  */
 public class StopwordsRemover {
+  private static final Logger LOGGER = LogManager.getLogger(StopwordsRemover.class);
+
   private Set<String> stopwords;
 
   public StopwordsRemover() {
@@ -32,8 +37,12 @@ public class StopwordsRemover {
   }
 
   public void removeFrom(List<List<String>> tokenisedDocuments) {
-    for (List<String> document : tokenisedDocuments) {
+    for (int i = 0; i < tokenisedDocuments.size(); i++) {
+      List<String> document = tokenisedDocuments.get(i);
       document.removeAll(stopwords);
+      if (document.isEmpty()) {
+        LOGGER.warn("Document " + i + " had no tokens after stopword removal");
+      }
     }
   }
 }

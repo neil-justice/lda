@@ -37,8 +37,9 @@ public class TextCleaner {
     return text.replaceAll("[!,.?/:;_]", " ");
   }
 
-  // Remove urls:.  should be done before removing punctuation or they are hard
-  // to find.
+  /**
+   * Rough regex to remove some urls. Should be done before removing punctuation.
+   */
   public static String removeURLs(String text) {
     return text.replaceAll("\\S+://\\S+", "");
   }
@@ -48,7 +49,11 @@ public class TextCleaner {
   }
 
   public static String collapseWhitespace(String text) {
-    return text.trim().replaceAll(" +", " ");
+    return text.trim().replaceAll("\\s+", " ");
+  }
+
+  public List<Function<String, String>> getConversions() {
+    return conversions;
   }
 
   public void setConversions(List<Function<String, String>> conversions) {
