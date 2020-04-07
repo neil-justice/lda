@@ -1,8 +1,15 @@
 package com.github.neiljustice.lda.topic;
 
+import java.util.Comparator;
 import java.util.Objects;
 
 public class TermScore {
+
+  public static final Comparator<TermScore> COMPARATOR = Comparator
+      .comparingDouble(TermScore::getScore)
+      .thenComparing(TermScore::getTerm)
+      .reversed();
+
   private final String term;
 
   private final double score;

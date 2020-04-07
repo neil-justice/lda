@@ -7,7 +7,8 @@ import java.util.List;
 
 /**
  * A bi-directional lookup between indexes and objects.  Indexing is always
- * consecutive starting from zero.  Will not accept duplicates.
+ * consecutive starting from zero.  Attempting to add duplicates will re-use the
+ * existing entry.
  */
 public class BiDirectionalLookup<T> {
   private final TObjectIntHashMap<T> tokenToIndex;
@@ -44,14 +45,7 @@ public class BiDirectionalLookup<T> {
     return curr + 1;
   }
 
-  /**
-   * Returns null if the index is out of bounds.
-   */
   public T getToken(int index) {
-    if (index < 0 || index > curr) {
-      return null;
-    }
-
     return indexToToken.get(index);
   }
 

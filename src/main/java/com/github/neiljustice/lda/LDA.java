@@ -11,14 +11,12 @@ import java.util.concurrent.TimeUnit;
 /**
  * Latent Dirichlet Allocation (LDA) is a topic model. This implementation uses a Gibbs sampler.
  * <p>
- * TODO it would be good to be able to load a test dataset and evaluate its probability according to the trained model
+ * TODO load a test dataset and evaluate its probability according to the trained model
+ * TODO load a test dataset and evaluate the topic distributions of the new documents (fit the model)
  * TODO re-implement serialisation/pausing/restarting
- * TODO allow extracting topic distribution of each document
  * TODO allow generating documents from trained model
  */
 public class LDA {
-
-  private static final Logger LOGGER = LogManager.getLogger(LDA.class);
 
   public static final int DEFAULT_TOP_WORDS_PER_TOPIC = 10;
   public static final int DEFAULT_BURN_IN_CYCLES = 100;
@@ -26,7 +24,7 @@ public class LDA {
   public static final int DEFAULT_OPTIMISE_INTERVAL = 40;
   public static final int DEFAULT_PERPLEXITY_CHECK_LAG = 10;
   public static final double DEFAULT_PERPLEXITY_THRESHOLD = 0.0001d;
-
+  private static final Logger LOGGER = LogManager.getLogger(LDA.class);
   private final Corpus corpus;
   private final Random random = new Random();
   /** number of unique words */
@@ -71,7 +69,7 @@ public class LDA {
   /** No. of tokens who have changed topic this cycle. TODO what is this for? */
   private int moves = 0;
 
-  public LDA(Corpus corpus, int topicCount) {
+  private LDA(Corpus corpus, int topicCount, boolean initaliseTopics) {
     this.topicCount = topicCount;
 
     this.corpus = corpus;
@@ -94,12 +92,28 @@ public class LDA {
     cycles = 0;
     samples = 0;
 
-    LOGGER.info(" V: {} D: {} N: {}", wordCount, docCount, tokenCount);
-    LOGGER.info("{} run so far, with {} samples taken.", cycles, samples);
+    LOGGER.info(" V : {} D : {} N : {}", wordCount, docCount, tokenCount);
 
-    randomiseTopics();
+    if (initaliseTopics) {
+      randomiseTopics();
+    }
     initialiseMatrices();
     initHyper();
+  }
+
+  public LDA(Corpus corpus, int topicCount) {
+    this(corpus, topicCount, true);
+  }
+
+  public LDA(Corpus corpus, int topicCount, double[][] theta, double[][] phi, int samples, int cycles) {
+    this(new Corpus(corpus), topicCount, false);
+    this.samples = samples;
+    this.cycles = cycles;
+    loadParameters(phi, theta);
+  }
+
+  public LDA(LDAModel model) {
+    this(model.getCorpus(), model.getTopics(), model.getTheta(), model.getPhi(), model.getSamples(), model.getCycles());
   }
 
   // Initialises all tokens with a randomly selected topic.
@@ -141,27 +155,32 @@ public class LDA {
     }
   }
 
-  public void train(int maxCycles) {
-    train(maxCycles, DEFAULT_BURN_IN_CYCLES, DEFAULT_SAMPLE_LAG_CYCLES, DEFAULT_OPTIMISE_INTERVAL, DEFAULT_PERPLEXITY_CHECK_LAG, DEFAULT_PERPLEXITY_THRESHOLD);
+  public LDAModel train(int maxCycles) {
+    return train(maxCycles, DEFAULT_BURN_IN_CYCLES, DEFAULT_SAMPLE_LAG_CYCLES,
+        DEFAULT_OPTIMISE_INTERVAL, DEFAULT_PERPLEXITY_CHECK_LAG, DEFAULT_PERPLEXITY_THRESHOLD);
   }
 
-  public void train(int maxCycles, int burnLength) {
-    train(maxCycles, burnLength, DEFAULT_SAMPLE_LAG_CYCLES, DEFAULT_OPTIMISE_INTERVAL, DEFAULT_PERPLEXITY_CHECK_LAG, DEFAULT_PERPLEXITY_THRESHOLD);
+  public LDAModel train(int maxCycles, int burnLength) {
+    return train(maxCycles, burnLength, DEFAULT_SAMPLE_LAG_CYCLES,
+        DEFAULT_OPTIMISE_INTERVAL, DEFAULT_PERPLEXITY_CHECK_LAG, DEFAULT_PERPLEXITY_THRESHOLD);
   }
 
-  public void train(int maxCycles, int burnLength, int sampleLag) {
-    train(maxCycles, burnLength, sampleLag, DEFAULT_OPTIMISE_INTERVAL, DEFAULT_PERPLEXITY_CHECK_LAG, DEFAULT_PERPLEXITY_THRESHOLD);
+  public LDAModel train(int maxCycles, int burnLength, int sampleLag) {
+    return train(maxCycles, burnLength, sampleLag,
+        DEFAULT_OPTIMISE_INTERVAL, DEFAULT_PERPLEXITY_CHECK_LAG, DEFAULT_PERPLEXITY_THRESHOLD);
   }
 
-  public void train(int maxCycles, int burnLength, int sampleLag, int optimiseInterval) {
-    train(maxCycles, burnLength, sampleLag, optimiseInterval, DEFAULT_PERPLEXITY_CHECK_LAG, DEFAULT_PERPLEXITY_THRESHOLD);
+  public LDAModel train(int maxCycles, int burnLength, int sampleLag, int optimiseInterval) {
+    return train(maxCycles, burnLength, sampleLag,
+        optimiseInterval, DEFAULT_PERPLEXITY_CHECK_LAG, DEFAULT_PERPLEXITY_THRESHOLD);
   }
 
-  public void train(int maxCycles, int burnLength, int sampleLag, int optimiseInterval, int perplexLag) {
-    train(maxCycles, burnLength, sampleLag, optimiseInterval, perplexLag, DEFAULT_PERPLEXITY_THRESHOLD);
+  public LDAModel train(int maxCycles, int burnLength, int sampleLag, int optimiseInterval, int perplexLag) {
+    return train(maxCycles, burnLength, sampleLag,
+        optimiseInterval, perplexLag, DEFAULT_PERPLEXITY_THRESHOLD);
   }
 
-  public void train(int maxCycles, int burnLength, int sampleLag, int optimiseInterval, int perplexLag, double perplexThresh) {
+  public LDAModel train(int maxCycles, int burnLength, int sampleLag, int optimiseInterval, int perplexLag, double perplexThresh) {
     this.maxCycles = maxCycles + cycles;
     this.burnLength = burnLength;
     this.sampleLag = sampleLag;
@@ -169,6 +188,7 @@ public class LDA {
     this.perplexLag = perplexLag;
     this.perplexThresh = perplexThresh;
     cycles();
+    return getModel();
   }
 
   /**
@@ -192,6 +212,8 @@ public class LDA {
 
   /**
    * Get the topics, and the top 10 terms for each topic.
+   * <p>
+   * Use phi() to get the raw distibutions indexed by token index rather than string.
    */
   public List<Topic> getTopics() {
     return getTopics(DEFAULT_TOP_WORDS_PER_TOPIC);
@@ -199,11 +221,17 @@ public class LDA {
 
   /**
    * Get the topics, and the top N terms for each topic.
+   * <p>
+   * Use phi() to get the raw distibutions indexed by token index rather than string.
    *
    * @param topN terms per topic.
    */
   public List<Topic> getTopics(int topN) {
     return LDAUtils.termScore(phi(), corpus.dictionary(), topN);
+  }
+
+  public LDAModel getModel() {
+    return new LDAModel(corpus, phi(), theta(), topicCount, samples, cycles);
   }
 
   private void cycles() {
@@ -294,7 +322,14 @@ public class LDA {
     samples++;
   }
 
-  private double[][] phi() {
+  /**
+   * Calculate the probability distribution for each token appearing in each topic.
+   * <p>
+   * Use getTopics() for the string forms of the tokens.
+   *
+   * @return a 2D matrix of size word count * topic count
+   */
+  public double[][] phi() {
     final double[][] phi = new double[wordCount][topicCount];
 
     for (int word = 0; word < wordCount; word++) {
@@ -306,23 +341,25 @@ public class LDA {
     return phi;
   }
 
-  // private void loadParameters() {
-  //   double[][] phi = c.getPhi();
-  //   double[][] theta = c.getTheta();
-  //
-  //   for (int topic = 0; topic < topicCount; topic++) {
-  //     for (int doc = 0; doc < docCount; doc++) {
-  //       thetaSum[topic][doc] += theta[topic][doc] * samples;
-  //     }
-  //   }
-  //   for (int word = 0; word < wordCount; word++) {
-  //     for (int topic = 0; topic < topicCount; topic++) {
-  //       phiSum[word][topic] += phi[word][topic] * samples;
-  //     }
-  //   }
-  // }
+  private void loadParameters(double[][] phi, double[][] theta) {
+    for (int topic = 0; topic < topicCount; topic++) {
+      for (int doc = 0; doc < docCount; doc++) {
+        thetaSum[topic][doc] += theta[topic][doc] * samples;
+      }
+    }
+    for (int word = 0; word < wordCount; word++) {
+      for (int topic = 0; topic < topicCount; topic++) {
+        phiSum[word][topic] += phi[word][topic] * samples;
+      }
+    }
+  }
 
-  private double[][] theta() {
+  /**
+   * Calculate the probability distribution for each topic appearing in each document.
+   *
+   * @return a 2D matrix of size topic count * document count
+   */
+  public double[][] theta() {
     final double[][] theta = new double[topicCount][docCount];
 
     for (int topic = 0; topic < topicCount; topic++) {

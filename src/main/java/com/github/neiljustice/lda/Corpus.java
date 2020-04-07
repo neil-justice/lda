@@ -9,11 +9,9 @@ public class Corpus {
   private final TIntArrayList words;
   private final TIntArrayList docs;
   private final TIntArrayList topics;
-  private final TIntArrayList docStartPoints;
   private final int docCount;
   private final int wordCount;
   private final BiDirectionalLookup<String> dictionary;
-  private int lastDoc = 0;
 
   public Corpus(List<List<String>> processedDocuments) {
     dictionary = new BiDirectionalLookup<>();
@@ -21,8 +19,6 @@ public class Corpus {
     words = new TIntArrayList();
     docs = new TIntArrayList();
     topics = new TIntArrayList();
-    docStartPoints = new TIntArrayList();
-    docStartPoints.add(0);
 
     int doc = 0;
 
@@ -39,19 +35,25 @@ public class Corpus {
 
   }
 
+  public Corpus(Corpus other) {
+    dictionary = new BiDirectionalLookup<>();
+
+    words = new TIntArrayList(other.words);
+    docs = new TIntArrayList(other.docs);
+    topics = new TIntArrayList(other.topics);
+
+    for (int i = 0; i < other.dictionary.size(); i++) {
+      dictionary.add(other.dictionary.getToken(i));
+    }
+
+    docCount = other.docCount;
+    wordCount = other.wordCount;
+  }
+
   private void add(int word, int doc) {
     words.add(word);
     docs.add(doc);
     topics.add(-1);
-    if (doc != lastDoc) {
-      docStartPoints.add(docs.size());
-    }
-    lastDoc = doc;
-  }
-
-  // assumes that the list has not been shuffled.
-  public int getDocStartPoint(int doc) {
-    return docStartPoints.get(doc);
   }
 
   public void setTopic(int i, int topic) {
@@ -77,25 +79,6 @@ public class Corpus {
   public BiDirectionalLookup<String> dictionary() {
     return dictionary;
   }
-
-  // shuffles the lists without losing info about their shared indices.
-  // This is a modified version of Collections.shuffle()
-  // public void shuffle() {
-  //   if (random == null) random = new Random();
-  //   int count = size();
-  //   for (int i = count; i > 1; i--) {
-  //     int r = random.nextInt(i);
-  //     swap(words , i - 1, r);
-  //     swap(docs  , i - 1, r);
-  //     swap(topics, i - 1, r);
-  //   }
-  // }
-  //
-  // private static void swap(TIntArrayList list, int i, int j) {
-  //   int temp = list.getQuick(i);
-  //   list.set(i, list.getQuick(j));
-  //   list.set(j, temp);
-  // }
 
   public int wordCount() {
     return wordCount;

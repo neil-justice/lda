@@ -38,7 +38,7 @@ public class StopwordsRemover {
 
   public void removeFrom(List<List<String>> tokenisedDocuments) {
     for (int i = 0; i < tokenisedDocuments.size(); i++) {
-      List<String> document = tokenisedDocuments.get(i);
+      final List<String> document = tokenisedDocuments.get(i);
       document.removeAll(stopwords);
       if (document.isEmpty()) {
         LOGGER.warn("Document " + i + " had no tokens after stopword removal");

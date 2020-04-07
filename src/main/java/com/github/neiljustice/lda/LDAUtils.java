@@ -5,7 +5,6 @@ import com.github.neiljustice.lda.topic.Topic;
 import com.github.neiljustice.lda.util.BiDirectionalLookup;
 
 import java.util.ArrayList;
-import java.util.Comparator;
 import java.util.List;
 import java.util.TreeSet;
 import java.util.stream.Collectors;
@@ -14,11 +13,6 @@ import java.util.stream.Collectors;
  * LDA utilities
  */
 public class LDAUtils {
-
-  private static final Comparator<TermScore> COMPARATOR = Comparator
-      .comparingDouble(TermScore::getScore)
-      .thenComparing(TermScore::getTerm)
-      .reversed();
 
   private LDAUtils() {
     // Prevent static class instantiation.
@@ -62,7 +56,7 @@ public class LDAUtils {
     topN = topN > 0 ? Math.min(topN, wordCount) : wordCount;
 
     for (int topic = 0; topic < topicCount; topic++) {
-      final TreeSet<TermScore> termScores = new TreeSet<>(COMPARATOR);
+      final TreeSet<TermScore> termScores = new TreeSet<>(TermScore.COMPARATOR);
       for (int word = 0; word < wordCount; word++) {
         final double score = phi[word][topic] * Math.log(phi[word][topic] / geometricMean[word]);
         termScores.add(new TermScore(dictionary.getToken(word), score));
@@ -81,7 +75,7 @@ public class LDAUtils {
     topN = topN > 0 ? Math.min(topN, wordCount) : wordCount;
 
     for (int topic = 0; topic < topicCount; topic++) {
-      final TreeSet<TermScore> termScores = new TreeSet<>(COMPARATOR);
+      final TreeSet<TermScore> termScores = new TreeSet<>(TermScore.COMPARATOR);
       for (int word = 0; word < wordCount; word++) {
         termScores.add(new TermScore(dictionary.getToken(word), phi[word][topic]));
       }

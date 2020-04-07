@@ -9,6 +9,7 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.ThreadLocalRandom;
 
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
 public class LDATest {
@@ -21,7 +22,7 @@ public class LDATest {
   public void shouldDetectTopics() {
     final PreprocessingPipeline pipeline = PreprocessingPipeline.noOpPipeline();
 
-    List<String> docs = generateDocs(100, 100);
+    final List<String> docs = generateDocs(100, 100);
     corpus = pipeline.preprocess(docs);
 
     lda = new LDA(corpus, 2);
@@ -35,6 +36,21 @@ public class LDATest {
         assertTrue(topic.getWords().toString(), topic.getWords().containsAll(Arrays.asList("1", "2", "3", "4")));
       }
     }
+  }
+
+  @Test
+  public void shouldExtractModel() {
+    final PreprocessingPipeline pipeline = PreprocessingPipeline.noOpPipeline();
+
+    final List<String> docs = generateDocs(100, 100);
+    corpus = pipeline.preprocess(docs);
+
+    lda = new LDA(corpus, 2);
+    final LDAModel model = lda.train(200, 10, 5, 20, 10);
+
+    final LDA lda2 = new LDA(model);
+    // TODO add alpha to state
+    assertEquals(lda2.perplexity(), lda.perplexity(), 0);
   }
 
   private List<String> generateDocs(int count, int maxWords) {
