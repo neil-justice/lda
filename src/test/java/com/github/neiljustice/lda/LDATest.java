@@ -62,9 +62,8 @@ public class LDATest {
     lda = new LDA(corpus, 2);
     final LDAModel model = lda.train(200, 10, 5, 20, 10);
 
-    final List<String> generated = lda.generateText(10);
+    final List<String> generated = lda.generateTextDocs(10, new double[]{1d, 0d});
     assertEquals(generated.size(), 10);
-    ;
     // TODO how to test?
   }
 

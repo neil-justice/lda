@@ -446,24 +446,70 @@ public class LDA {
     return Math.exp(sum);
   }
 
-  public List<int[]> generate(int numDocs) {
+  /**
+   * Generate documents according to the model's probability distribution of word occurrence.
+   * Uses the model's prior knowledge of topic probability distribution (the alpha
+   * hyperparameter) to decide on what distribution of topics to draw from.
+   *
+   * @param numDocs the number of documents to generate.
+   * @return the documents, with each document being an array of token indexes.
+   */
+  public List<int[]> generateDocs(int numDocs) {
+    return generateDocs(numDocs, alpha);
+  }
+
+  /**
+   * Generate documents according to the model's probability distribution of word occurrence.
+   *
+   * @param numDocs the number of documents to generate.
+   * @param topicProbs the probability of each topic to occur.
+   * @return the documents, with each document being an array of token indexes.
+   */
+  public List<int[]> generateDocs(int numDocs, double[] topicProbs) {
+    if (topicProbs.length != topicCount) {
+      throw new IllegalArgumentException("topic probablity distribution length must be " + topicCount);
+    }
+
     final double[][] phi = phi();
     final List<int[]> docs = new ArrayList<>(numDocs);
 
     for (int i = 0; i < numDocs; i++) {
-      docs.add(generate(phi));
+      docs.add(generateDoc(phi, topicProbs, ArrayUtils.sum(topicProbs)));
     }
 
     return docs;
   }
 
-  public List<String> generateText(int numDocs) {
+  /**
+   * Generate documents according to the model's probability distribution of word occurrence.
+   * Uses the model's prior knowledge of topic probability distribution (the alpha
+   * hyperparameter) to decide on what distribution of topics to draw from.
+   *
+   * @param numDocs the number of documents to generate.
+   * @return the documents, with each document being a string.
+   */
+  public List<String> generateTextDocs(int numDocs) {
+    return generateTextDocs(numDocs, alpha);
+  }
+
+  /**
+   * Generate documents according to the model's probability distribution of word occurrence.
+   *
+   * @param numDocs the number of documents to generate.
+   * @param topicProbs the probability of each topic to occur.
+   * @return the documents, with each document being a string.
+   */
+  public List<String> generateTextDocs(int numDocs, double[] topicProbs) {
+    if (topicProbs.length != topicCount) {
+      throw new IllegalArgumentException("topic probablity distribution length must be " + topicCount);
+    }
+
     final double[][] phi = phi();
     final List<String> docs = new ArrayList<>(numDocs);
 
     for (int doc = 0; doc < numDocs; doc++) {
       final StringBuilder builder = new StringBuilder();
-      final int[] raw = generate(phi);
+      final int[] raw = generateDoc(phi, topicProbs, ArrayUtils.sum(topicProbs));
       for (int word : raw) {
         builder.append(corpus.dictionary().getToken(word));
         builder.append(" ");
@@ -475,11 +521,11 @@ public class LDA {
     return docs;
   }
 
-  private int[] generate(double[][] phi) {
+  private int[] generateDoc(double[][] phi, double[] topicProbs, double topicProbsSum) {
     final int docLength = Probability.sampleFromPoissonDist(tokensInDoc);
     final int[] doc = new int[docLength];
     for (int i = 0; i < docLength; i++) {
-      final int topic = Probability.sampleFromMultinomialDist(alpha, alphaSum);
+      final int topic = Probability.sampleFromMultinomialDist(topicProbs, topicProbsSum);
       final double sum = ArrayUtils.sumColumn(phi, topic);
       final int word = Probability.sampleFromMultinomialDist(phi, topic, sum);
       doc[i] = word;

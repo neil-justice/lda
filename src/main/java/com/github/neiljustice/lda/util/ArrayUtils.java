@@ -7,9 +7,9 @@ public class ArrayUtils {
 
   public static int max(int[] array) {
     int max = 0;
-    for (final int val : array) {
-      if (val > max) {
-        max = val;
+    for (final int value : array) {
+      if (value > max) {
+        max = value;
       }
     }
     return max;
@@ -21,6 +21,14 @@ public class ArrayUtils {
       avg += value;
     }
     return avg / array.length;
+  }
+
+  public static double sum(double[] array) {
+    double sum = 0;
+    for (double value : array) {
+      sum += value;
+    }
+    return sum;
   }
 
   public static double sumColumn(double[][] matrix, int index) {
