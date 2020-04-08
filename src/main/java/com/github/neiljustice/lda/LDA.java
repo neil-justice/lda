@@ -467,7 +467,7 @@ public class LDA {
    */
   public List<int[]> generateDocs(int numDocs, double[] topicProbs) {
     if (topicProbs.length != topicCount) {
-      throw new IllegalArgumentException("topic probablity distribution length must be " + topicCount);
+      throw new IllegalArgumentException("topic probability distribution length must be " + topicCount);
     }
 
     final double[][] phi = phi();
@@ -501,7 +501,7 @@ public class LDA {
    */
   public List<String> generateTextDocs(int numDocs, double[] topicProbs) {
     if (topicProbs.length != topicCount) {
-      throw new IllegalArgumentException("topic probablity distribution length must be " + topicCount);
+      throw new IllegalArgumentException("topic probability distribution length must be " + topicCount);
     }
 
     final double[][] phi = phi();
