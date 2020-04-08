@@ -66,23 +66,4 @@ public class LDAUtils {
 
     return topics;
   }
-
-  // TODO remove?
-  public static List<Topic> mostCommon(double[][] phi, BiDirectionalLookup<String> dictionary, int topN) {
-    final int wordCount = phi.length;
-    final int topicCount = phi[0].length;
-    final List<Topic> topics = new ArrayList<>(topicCount);
-    topN = topN > 0 ? Math.min(topN, wordCount) : wordCount;
-
-    for (int topic = 0; topic < topicCount; topic++) {
-      final TreeSet<TermScore> termScores = new TreeSet<>(TermScore.COMPARATOR);
-      for (int word = 0; word < wordCount; word++) {
-        termScores.add(new TermScore(dictionary.getToken(word), phi[word][topic]));
-      }
-      topics.add(new Topic(topic, termScores.stream().limit(topN).collect(Collectors.toList()))
-      );
-    }
-
-    return topics;
-  }
 }

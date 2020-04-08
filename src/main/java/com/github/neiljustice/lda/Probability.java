@@ -1,7 +1,6 @@
 package com.github.neiljustice.lda;
 
-import com.github.neiljustice.lda.util.ArrayUtils;
-
+import java.util.Arrays;
 import java.util.concurrent.ThreadLocalRandom;
 
 public class Probability {
@@ -42,7 +41,7 @@ public class Probability {
   }
 
   public static int sampleFromPoissonDist(int[] series) {
-    return sampleFromPoissonDist(ArrayUtils.avg(series));
+    return sampleFromPoissonDist(Arrays.stream(series).average().orElse(0d));
   }
 
   public static int sampleFromPoissonDist(double mean) {

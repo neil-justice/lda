@@ -1,7 +1,7 @@
 package com.github.neiljustice.lda;
 
 import com.github.neiljustice.lda.topic.Topic;
-import com.github.neiljustice.lda.util.ArrayUtils;
+import com.github.neiljustice.lda.util.MatrixUtils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -13,9 +13,6 @@ import java.util.concurrent.TimeUnit;
 
 /**
  * Latent Dirichlet Allocation (LDA) is a topic model. This implementation uses a Gibbs sampler.
- * <p>
- * TODO load a test dataset and evaluate its probability/perplexity according to the trained model
- * TODO load a test dataset and evaluate the topic distributions of the new documents (fit the model)
  */
 public class LDA {
 
@@ -69,8 +66,6 @@ public class LDA {
   private int perplexLag;
   /** Stop early if the change in perplexity is less than this amount. */
   private double perplexThresh;
-  /** No. of tokens who have changed topic this cycle. TODO what is this for? */
-  private int moves = 0;
 
   private LDA(Corpus corpus, int topicCount, boolean initaliseTopics, double[] initialAlpha) {
     this.topicCount = topicCount;
@@ -116,7 +111,7 @@ public class LDA {
       tokensInDoc[doc]++;
     }
 
-    maxLength = ArrayUtils.max(tokensInDoc) + 1;
+    maxLength = Arrays.stream(tokensInDoc).max().orElse(-1) + 1;
     alpha = initialAlpha;
     optimiser = new AlphaOptimiser(tokensInDoc, topicCount, maxLength);
     for (int topic = 0; topic < topicCount; topic++) {
@@ -316,7 +311,6 @@ public class LDA {
       final long time = TimeUnit.NANOSECONDS.toSeconds(e - s);
       avg += time;
       logCycle(time);
-      moves = 0;
     }
     avg /= maxCycles;
     LOGGER.info("Avg. seconds taken: {}", avg);
@@ -442,8 +436,8 @@ public class LDA {
       final double phi = (wordsInTopic[word][topic] + beta) / (tokensInTopic[topic] + wordCount * beta);
       sum += Math.log(phi * theta);
     }
-    sum = 0 - (sum / (double) tokenCount);
-    return Math.exp(sum);
+
+    return Math.exp(0 - (sum / (double) tokenCount));
   }
 
   /**
@@ -474,7 +468,7 @@ public class LDA {
     final List<int[]> docs = new ArrayList<>(numDocs);
 
     for (int i = 0; i < numDocs; i++) {
-      docs.add(generateDoc(phi, topicProbs, ArrayUtils.sum(topicProbs)));
+      docs.add(generateDoc(phi, topicProbs, Arrays.stream(topicProbs).sum()));
     }
 
     return docs;
@@ -509,7 +503,7 @@ public class LDA {
 
     for (int doc = 0; doc < numDocs; doc++) {
       final StringBuilder builder = new StringBuilder();
-      final int[] raw = generateDoc(phi, topicProbs, ArrayUtils.sum(topicProbs));
+      final int[] raw = generateDoc(phi, topicProbs, Arrays.stream(topicProbs).sum());
       for (int word : raw) {
         builder.append(corpus.dictionary().getToken(word));
         builder.append(" ");
@@ -526,7 +520,7 @@ public class LDA {
     final int[] doc = new int[docLength];
     for (int i = 0; i < docLength; i++) {
       final int topic = Probability.sampleFromMultinomialDist(topicProbs, topicProbsSum);
-      final double sum = ArrayUtils.sumColumn(phi, topic);
+      final double sum = MatrixUtils.sumColumn(phi, topic);
       final int word = Probability.sampleFromMultinomialDist(phi, topic, sum);
       doc[i] = word;
     }
@@ -545,9 +539,6 @@ public class LDA {
         topicsInDoc[oldTopic][doc]--;
 
         final int newTopic = sample(word, doc);
-        if (newTopic != oldTopic) {
-          moves++;
-        }
 
         tokensInTopic[newTopic]++;
         wordsInTopic[word][newTopic]++;
