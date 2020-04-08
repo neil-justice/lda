@@ -10,15 +10,17 @@ public class LDAModel {
 
   private final double[][] phi;
   private final double[][] theta;
+  private final double[] alpha;
 
   private final int topics;
   private final int samples;
   private final int cycles;
 
-  public LDAModel(Corpus corpus, double[][] phi, double[][] theta, int topics, int samples, int cycles) {
+  public LDAModel(Corpus corpus, double[][] phi, double[][] theta, double[] alpha, int topics, int samples, int cycles) {
     this.corpus = corpus;
     this.phi = phi;
     this.theta = theta;
+    this.alpha = alpha;
     this.topics = topics;
     this.samples = samples;
     this.cycles = cycles;
@@ -34,6 +36,10 @@ public class LDAModel {
 
   public double[][] getTheta() {
     return theta;
+  }
+
+  public double[] getAlpha() {
+    return alpha;
   }
 
   public int getTopics() {

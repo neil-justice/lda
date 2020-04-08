@@ -49,8 +49,23 @@ public class LDATest {
     final LDAModel model = lda.train(200, 10, 5, 20, 10);
 
     final LDA lda2 = new LDA(model);
-    // TODO add alpha to state
     assertEquals(lda2.perplexity(), lda.perplexity(), 0);
+  }
+
+  @Test
+  public void shouldGenerateDocs() {
+    final PreprocessingPipeline pipeline = PreprocessingPipeline.noOpPipeline();
+
+    final List<String> docs = generateDocs(100, 100);
+    corpus = pipeline.preprocess(docs);
+
+    lda = new LDA(corpus, 2);
+    final LDAModel model = lda.train(200, 10, 5, 20, 10);
+
+    final List<String> generated = lda.generateText(10);
+    assertEquals(generated.size(), 10);
+    ;
+    // TODO how to test?
   }
 
   private List<String> generateDocs(int count, int maxWords) {
