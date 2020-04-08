@@ -6,6 +6,8 @@ Java implementation of Latent Dirichlet Allocation (LDA), a topic model.
 
 * load a test dataset and evaluate its probability/perplexity according to the trained model
 * load a test dataset and evaluate the topic distributions of the new documents?
+* Add examples to readme
+* Add features to readme
 
 ## Licensing
 
